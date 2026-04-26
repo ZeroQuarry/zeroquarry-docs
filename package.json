@@ -10,7 +10,7 @@
     "sync:openapi": "node scripts/sync-openapi.js",
     "gen:api": "npm run sync:openapi && docusaurus gen-api-docs all && node scripts/prepare-api-sidebar.js",
     "start": "npm run gen:api && docusaurus start --host 0.0.0.0",
-    "build": "npm run gen:api && docusaurus build",
+    "build": "npm run gen:api && docusaurus build && node scripts/fix-openapi-cjs-exports.js",
     "serve": "docusaurus serve --host 0.0.0.0",
     "clear": "docusaurus clear && docusaurus clean-api-docs all"
   },
