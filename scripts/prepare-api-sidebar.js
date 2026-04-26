@@ -2,8 +2,8 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.resolve(__dirname, "..");
-const source = path.join(repoRoot, "docs", "api", "sidebar.ts");
-const dest = path.join(repoRoot, "docs", "api", "sidebar.js");
+const source = path.join(repoRoot, "api", "sidebar.ts");
+const dest = path.join(repoRoot, "api", "sidebar.js");
 
 if (!fs.existsSync(source)) {
   console.warn("[prepare-api-sidebar] No generated API sidebar found.");

@@ -10,7 +10,8 @@ npm run start
 ```
 
 The `start` and `build` scripts copy the OpenAPI spec from the sibling
-`security-bug-finder` checkout before generating the API reference.
+`security-bug-finder` checkout before generating the API reference into the
+ignored `api/` directory.
 
 When building outside `c:\Users\eskib\git-repos`, set one of:
 
@@ -24,3 +25,10 @@ ZEROQUARRY_APP_DIR=/path/to/security-bug-finder
 ```bash
 npm run build
 ```
+
+## Netlify
+
+Use:
+
+- Build command: `npm run build`
+- Publish directory: `build`

@@ -31,7 +31,6 @@ const config = {
         docs: {
           routeBasePath: "/",
           sidebarPath: require.resolve("./sidebars.js"),
-          docItemComponent: "@theme/ApiItem",
           editUrl: "https://github.com/eskibars/zeroquarry-docs/edit/main/",
         },
         blog: false,
@@ -44,14 +43,25 @@ const config = {
 
   plugins: [
     [
-      "docusaurus-plugin-openapi-docs",
+      "@docusaurus/plugin-content-docs",
       {
         id: "api",
-        docsPluginId: "classic",
+        path: "api",
+        routeBasePath: "api",
+        sidebarPath: require.resolve("./api-sidebars.js"),
+        docItemComponent: "@theme/ApiItem",
+        editUrl: "https://github.com/eskibars/zeroquarry-docs/edit/main/",
+      },
+    ],
+    [
+      "docusaurus-plugin-openapi-docs",
+      {
+        id: "openapi",
+        docsPluginId: "api",
         config: {
           zeroquarry: {
             specPath: "static/openapi/zeroquarry.yaml",
-            outputDir: "docs/api",
+            outputDir: "api",
             downloadUrl: "/openapi/zeroquarry.yaml",
             showInfoPage: false,
             showSchemas: false,
@@ -75,13 +85,14 @@ const config = {
       colorMode: {
         defaultMode: "dark",
         disableSwitch: false,
-        respectPrefersColorScheme: true,
+        respectPrefersColorScheme: false,
       },
       navbar: {
         title: "",
         logo: {
           alt: "ZeroQuarry",
-          src: "img/wordmark.png",
+          src: "img/wordmark_light.png",
+          srcDark: "img/wordmark_dark.png",
         },
         items: [
           {
@@ -92,6 +103,7 @@ const config = {
           },
           {
             type: "docSidebar",
+            docsPluginId: "api",
             sidebarId: "apiSidebar",
             position: "left",
             label: "API Reference",
@@ -134,7 +146,7 @@ const config = {
         additionalLanguages: ["bash", "json", "yaml"],
       },
       api: {
-        authPersistance: "localStorage",
+        authPersistence: "localStorage",
         requestCredentials: "omit",
         requestTimeout: 60000,
       },

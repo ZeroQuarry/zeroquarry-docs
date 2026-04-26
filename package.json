@@ -2,6 +2,10 @@
   "name": "zeroquarry-docs",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x",
+    "npm": ">=10"
+  },
   "scripts": {
     "sync:openapi": "node scripts/sync-openapi.js",
     "gen:api": "npm run sync:openapi && docusaurus gen-api-docs all && node scripts/prepare-api-sidebar.js",
@@ -12,6 +16,7 @@
   },
   "dependencies": {
     "@docusaurus/core": "^3.10.0",
+    "@docusaurus/plugin-content-docs": "^3.10.0",
     "@docusaurus/preset-classic": "^3.10.0",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.1.1",
@@ -22,6 +27,8 @@
     "react-dom": "^18.2.0"
   },
   "overrides": {
+    "body-parser": "1.20.3",
+    "express": "4.21.2",
     "webpackbar": "^7.0.0"
   },
   "devDependencies": {}
