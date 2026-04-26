@@ -1,0 +1,62 @@
+---
+id: projects-and-scans
+title: Projects and scans
+sidebar_position: 2
+---
+
+Projects are the main organizational boundary in ZeroQuarry. Use them to group
+scans for a product, repository, service, mobile app, or external target set.
+
+## Projects
+
+Every account starts with a default project. You can create additional projects
+from **Projects** in the sidebar or while creating scans through the API.
+
+Use separate projects when you want to separate:
+
+- product areas with different owners
+- production services from test targets
+- mobile apps from backend services
+- bug bounty targets from internal assets
+- customer or tenant-specific assessments
+
+Project pages show scan history, mode, status, severity counts, tags, and
+summary statistics.
+
+## Scan names and tags
+
+Names make individual reports easy to identify. Tags make scan history easier
+to filter.
+
+Recommended tag patterns:
+
+- asset type: `api`, `web`, `android`, `firmware`
+- environment: `staging`, `prod-like`, `internal`
+- workflow: `ci`, `release`, `bug-bounty`
+- team or service name: `billing`, `identity`, `mobile`
+
+## Versions and rescans
+
+Reports can be re-run without overwriting the previous result. A re-run creates
+a new scan version in the same lineage, preserving the older findings, PoCs, and
+chat history.
+
+For Git-backed source scans, API-triggered scans can use `auto_delta`. When a
+previous completed scan exists for the same Git URL set, ZeroQuarry can focus
+the next scan on changed files and nearby data flow instead of repeating a full
+repository audit.
+
+## Status lifecycle
+
+Common scan statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `queued` | The scan is waiting for a worker. |
+| `running` | A worker is preparing targets or running agents. |
+| `awaiting_batch` | Agent work finished, but Batch API artifacts are still pending. |
+| `completed` | The report is ready. |
+| `failed` | The scan stopped because of an error. |
+| `cancelled` | A user cancelled the scan. |
+
+Cancelled and failed scans may still contain logs and partial findings.

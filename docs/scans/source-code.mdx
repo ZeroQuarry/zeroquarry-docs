@@ -1,0 +1,63 @@
+---
+id: source-code
+title: Source code scans
+sidebar_position: 1
+---
+
+Source scans inspect uploaded source files, archives, and Git repositories.
+They are designed for application code, infrastructure code, services, plugins,
+and libraries.
+
+## Inputs
+
+You can provide:
+
+- individual source files
+- archives such as `.zip`, `.tar`, and `.tar.gz`
+- public Git repositories over HTTPS
+- private Git repositories using saved account credentials
+
+Archives are expanded automatically. Git repositories are cloned into an
+isolated scan workspace for the duration of the assessment.
+
+## What agents inspect
+
+The coordinator maps the repository or prepared workspace, then dispatches
+source-focused workers. Workers look for issues such as:
+
+- authentication and authorization bypasses
+- injection paths and unsafe command execution
+- SSRF and unsafe URL fetches
+- deserialization and parser risks
+- secret handling and token exposure
+- tenant isolation failures
+- unsafe file, path, and archive handling
+- dependency or framework use with known CVEs
+
+Findings should include concrete source locations when the evidence comes from
+code.
+
+## Scan settings
+
+| Setting | Use it for |
+| --- | --- |
+| Model | Selects the LLM runtime for coordinator, worker, triage, and artifact steps. |
+| Notes / focus | Adds operator guidance to the coordinator prompt. |
+| Coordinator step budget | Raises or lowers the maximum coordinator turns. Higher budgets can improve coverage and increase cost. |
+| Batch API | Uses batch artifact generation where available. It is cheaper but finalization can take longer. |
+| HackerOne review | Labels findings against HackerOne core-ineligible categories when disclosure tracking is enabled. |
+| Adversarial vendor review | Runs a skeptical vendor-style challenge and researcher rebuttal pass to improve confidence scoring. |
+
+## Private repositories
+
+Add credentials under **Account > Git Access** before starting the scan. See
+[Private repositories](/workflows/private-repositories) for credential behavior
+and CI usage.
+
+## Delta scans from CI
+
+The public API supports source scans for CI. With `auto_delta` enabled, the
+first scan is a full scan and later scans can focus on changed files for the
+same Git URL set.
+
+See [GitHub Actions](/workflows/github-actions) for a working pattern.

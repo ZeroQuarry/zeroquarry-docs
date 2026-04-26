@@ -1,0 +1,65 @@
+---
+id: binary-artifacts
+title: Binary artifact scans
+sidebar_position: 2
+---
+
+Binary scans inspect shipped artifacts rather than source repositories. Use them
+for mobile apps, firmware, Java packages, installers, release archives, and
+other packaged software.
+
+## Inputs
+
+Upload one or more binary files or archives. Typical inputs include:
+
+- APKs and Android app archives
+- JARs and JVM packages
+- firmware images
+- installer packages
+- compressed release bundles
+
+ZeroQuarry prepares an analysis workspace from the upload. Where possible, it
+extracts archives, records metadata, collects strings, and uses available
+decompilation or inspection outputs for the agents.
+
+## What agents inspect
+
+Binary-focused workers review the prepared workspace for:
+
+- mobile manifests and exported components
+- hardcoded secrets, API keys, and embedded credentials
+- insecure update channels or signature checks
+- weak cryptography and key storage
+- native library and parser attack surface
+- embedded endpoints and service URLs
+- bundled dependencies with known CVEs
+- risky permissions or entitlement choices
+
+The evidence for a binary finding may be a manifest entry, string hit,
+decompiled source location, extracted filesystem path, or disassembly reference.
+
+## Notes and focus
+
+Binary scans benefit from precise context. Useful notes include:
+
+```text
+This is the Android release candidate. Focus on exported activities, deep links,
+and token storage.
+```
+
+```text
+Review firmware update verification and any bundled private keys.
+```
+
+```text
+Prioritize auth flows and embedded backend endpoints.
+```
+
+## Report outputs
+
+Binary scan reports use the same finding model as source and remote scans:
+severity, confidence, description, evidence, PoC material where possible, and
+optional disclosure artifacts.
+
+Not every binary issue can produce a runnable exploit. When that happens, the
+PoC should still explain the reproduction path and the artifact evidence.

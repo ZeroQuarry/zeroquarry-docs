@@ -1,0 +1,51 @@
+---
+id: llm-providers
+title: LLM providers and keys
+sidebar_position: 1
+---
+
+ZeroQuarry runs agent loops through configured LLM providers. Depending on your
+plan and workspace configuration, those providers may be ZeroQuarry-managed or
+bring-your-own keys.
+
+## Model selection
+
+Scan forms show the models available to your account tier. The selected model is
+used for coordinator, worker, triage, chat, and artifact steps unless the
+platform configuration routes it differently.
+
+If no model is available, scans cannot be queued.
+
+## Bring-your-own keys
+
+Some plans require account-wide LLM API keys. Add keys under **Account** before
+running scans.
+
+Account-level keys apply to every user in the account. Treat them like
+production secrets:
+
+- restrict access to account owners or admins
+- rotate keys on schedule
+- remove keys that are no longer needed
+- use provider-side usage limits where available
+
+## Data sent to providers
+
+LLM providers may receive:
+
+- scan notes
+- source snippets and file paths
+- decompiled or extracted binary content
+- HTTP response snippets from remote scans
+- authentication context needed by remote agents
+- finding text, chats, and report context
+
+Use providers and models that match your organization's data handling
+requirements.
+
+## Batch API mode
+
+Batch mode applies to artifact generation, such as PoCs and disclosure emails,
+when the selected provider supports it and the account tier allows it. Agent
+loops still run synchronously. Batch mode can reduce cost, but final report
+finalization may take longer.

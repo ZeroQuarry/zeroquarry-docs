@@ -1,0 +1,53 @@
+---
+id: data-handling
+title: Data handling
+sidebar_position: 2
+---
+
+ZeroQuarry needs target data to perform security assessment. Treat each scan as
+a controlled disclosure of the target material to the platform and the selected
+LLM provider.
+
+## Data used during scans
+
+Depending on scan mode, ZeroQuarry may process:
+
+- uploaded source files and archives
+- cloned Git repository contents
+- uploaded binary artifacts
+- extracted and decompiled binary outputs
+- remote HTTP responses
+- scan notes and target metadata
+- credentials or headers configured for remote probing
+- finding chats and report context
+
+## Logs
+
+Scan logs show worker progress and tool activity. ZeroQuarry redacts sensitive
+authentication header values from remote scan logs. Required bug bounty headers
+are intentionally shown so operators can verify that each probe included them.
+
+## Credentials
+
+Saved Git credentials and account LLM keys are stored as account-level secrets.
+Remote scan authentication values are stored with the scan context and attached
+to probes as needed.
+
+Sensitive credentials may still be visible to the LLM agent if they are required
+for analysis or authenticated probing.
+
+## Reports and artifacts
+
+Reports, findings, PoCs, disclosure drafts, chats, and exports remain available
+in the workspace until removed through the console or API. Deleting cloned
+repositories for a scan removes local clone material while preserving findings
+and report evidence.
+
+## Recommended practices
+
+- Use least-privilege credentials.
+- Prefer staging targets for remote scans.
+- Do not upload unrelated secrets or production data.
+- Use private repository credentials scoped to the minimum required repos.
+- Review generated PoCs and disclosure drafts before sharing them externally.
+- Delete stale scan inputs and credentials when they are no longer needed.

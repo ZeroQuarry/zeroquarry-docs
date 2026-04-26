@@ -1,0 +1,124 @@
+---
+id: github-actions
+title: GitHub Actions
+sidebar_position: 1
+---
+
+Use the public API to trigger source scans from GitHub Actions. The generated
+API reference documents request and response details, but this workflow is the
+recommended starting pattern.
+
+## Create an API key
+
+1. Open **Account > API Keys** in the ZeroQuarry console.
+2. Create a key for the repository or CI system.
+3. Copy the key value. It is shown once.
+4. Add it to the GitHub repository as a secret named `ZEROQUARRY_API_KEY`.
+
+## Add the workflow
+
+Create `.github/workflows/zeroquarry.yml`:
+
+```yaml
+name: ZeroQuarry
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ZEROQUARRY_API_URL: https://api.zeroquarry.com
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger ZeroQuarry scan
+        id: scan
+        env:
+          ZEROQUARRY_API_KEY: ${{ secrets.ZEROQUARRY_API_KEY }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          payload=$(jq -n \
+            --arg repo "$REPO_URL" \
+            --arg name "$REPO_NAME" \
+            '{
+              mode: "source",
+              git_urls: [$repo],
+              project_name: $name,
+              auto_delta: true,
+              name: $name
+            }')
+
+          response=$(curl -fsSL \
+            -X POST "$ZEROQUARRY_API_URL/v1/scans" \
+            -H "Authorization: Bearer $ZEROQUARRY_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          scan_id=$(echo "$response" | jq -r .id)
+          dispatch=$(echo "$response" | jq -r .dispatch)
+          echo "Scan $scan_id dispatched ($dispatch)"
+          echo "scan_id=$scan_id" >> "$GITHUB_OUTPUT"
+```
+
+## Optional gate on high severity findings
+
+Add a polling step if you want the workflow to fail when the completed scan has
+critical or high findings:
+
+```yaml
+      - name: Wait for findings
+        env:
+          ZEROQUARRY_API_KEY: ${{ secrets.ZEROQUARRY_API_KEY }}
+          SCAN_ID: ${{ steps.scan.outputs.scan_id }}
+        run: |
+          set -euo pipefail
+
+          for _ in $(seq 1 60); do
+            status=$(curl -fsSL \
+              -H "Authorization: Bearer $ZEROQUARRY_API_KEY" \
+              "$ZEROQUARRY_API_URL/v1/scans/$SCAN_ID" | jq -r .status)
+            echo "status=$status"
+            case "$status" in
+              completed|failed|cancelled) break ;;
+            esac
+            sleep 20
+          done
+
+          summary=$(curl -fsSL \
+            -H "Authorization: Bearer $ZEROQUARRY_API_KEY" \
+            "$ZEROQUARRY_API_URL/v1/scans/$SCAN_ID/findings")
+
+          crit=$(echo "$summary" | jq -r '.severity_counts.critical // 0')
+          high=$(echo "$summary" | jq -r '.severity_counts.high // 0')
+
+          if [ "$crit" -gt 0 ] || [ "$high" -gt 0 ]; then
+            echo "::error::ZeroQuarry found $crit critical and $high high findings"
+            exit 1
+          fi
+```
+
+## Private repositories
+
+For private repositories, save a Git credential in ZeroQuarry and include the
+credential ID in the scan payload:
+
+```json
+{
+  "mode": "source",
+  "git_urls": ["https://github.com/example/private-repo.git"],
+  "git_credential_id": "credential-uuid",
+  "auto_delta": true
+}
+```
+
+See [Private repositories](/workflows/private-repositories).

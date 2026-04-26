@@ -1,0 +1,80 @@
+---
+id: first-scan
+title: Run your first scan
+sidebar_position: 1
+---
+
+This guide walks through a first source scan in the ZeroQuarry cloud console.
+Source scans are the safest starting point because they do not send traffic to a
+live target.
+
+## Before you start
+
+You need:
+
+- access to [console.zeroquarry.com](https://console.zeroquarry.com)
+- a project or repository that you are authorized to assess
+- an available LLM model in your workspace
+- Git credentials if the repository is private
+
+Some workspaces use ZeroQuarry-managed LLMs. Others require an account-level LLM
+API key before scans can run. If your plan requires bring-your-own keys, add one
+under **Account** before creating a scan.
+
+## Create the scan
+
+1. Open **New scan** in the console.
+2. Choose **Source code scan**.
+3. Select a project.
+4. Upload source files or archives, add Git repository URLs, or do both.
+5. Select the model to use for the scan.
+6. Add focused notes if you know what should be reviewed.
+7. Choose optional review settings, such as Batch API artifacts or adversarial
+   vendor review, if your plan exposes them.
+8. Queue the scan.
+
+The scan detail page shows live log output while workers claim and process the
+job.
+
+## Write useful notes
+
+Notes are included in the coordinator prompt. Good notes narrow attention
+without hiding the rest of the attack surface.
+
+Good examples:
+
+```text
+Focus on authz decisions in the billing and team-invite flows.
+```
+
+```text
+Review webhook signature verification and any retry or replay behavior.
+```
+
+```text
+The recent change touched the SAML callback. Follow data flow from the callback
+handler into session creation and role assignment.
+```
+
+Avoid notes that ask the scanner to ignore broad classes of risk unless that is
+really what you want.
+
+## Review the report
+
+When the scan completes, open the report. Start with:
+
+- severity counts
+- high and critical findings
+- finding confidence
+- proof of concept details
+- affected source location or target evidence
+- notable non-issues
+
+Use finding chat when you need clarification, a different PoC format, or a
+revised explanation.
+
+## Next steps
+
+- Use [Projects and scans](/getting-started/projects-and-scans) to keep scans organized.
+- Use [Private repositories](/workflows/private-repositories) for non-public Git inputs.
+- Use [GitHub Actions](/workflows/github-actions) to trigger scans from CI.

@@ -1,0 +1,52 @@
+---
+id: findings
+title: Findings
+sidebar_position: 1
+---
+
+Findings are the main output of a scan. They are sorted by severity score in the
+report and are intended to contain enough evidence for review and remediation.
+
+## Finding fields
+
+| Field | Meaning |
+| --- | --- |
+| Title | Short issue name. |
+| Severity | Critical, high, medium, low, or info. |
+| Severity score | Numeric score used for sorting. |
+| CVSS vector | CVSS v3.1 base vector when the agent produced one. |
+| Confidence | Probability-like score from ZeroQuarry review signals. |
+| Vulnerability type | The issue class, such as SSRF or authorization bypass. |
+| Source | File, line, URL, binary artifact, or other evidence location. |
+| Description | Technical explanation and impact. |
+| CVE references | Related known-vulnerability references when applicable. |
+
+## Proofs of concept
+
+When artifact generation is enabled, each finding can include proof of concept
+material. PoCs vary by mode:
+
+- source scans usually reference code paths and reproduction steps
+- binary scans may include artifact evidence and reproduction guidance
+- remote scans may include HTTP requests or payload sequences
+
+Treat PoCs as starting points for validation. Review them before running them
+against sensitive systems.
+
+## Finding chat
+
+Each finding has its own chat thread. Use it to:
+
+- ask why the issue is exploitable
+- request a more concise remediation summary
+- ask for a PoC in a different language or format
+- challenge the finding as a false positive
+- ask the model to revise the title, severity, or description
+
+If the model revises the finding, refresh the report before exporting it.
+
+## Non-issues
+
+Reports may include notable non-issues. These are areas the agents reviewed and
+marked clean. Non-issues are useful for audit coverage because they show where
+the scan spent time even when no finding was recorded.

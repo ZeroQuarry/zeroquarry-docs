@@ -1,0 +1,993 @@
+# ---------------------------------------------------------------------------
+# ZeroQuarry HTTP API specification
+#
+# SCOPE
+# -----
+# This file documents the **public JSON API** at https://api.zeroquarry.com.
+# An API gateway sits in front of the Flask app and rewrites
+#   https://api.zeroquarry.com/v1/...   →   <backend>/api/v1/...
+# so the spec describes paths from the consumer's perspective (no `/api/`
+# prefix on path entries). Server-rendered HTML routes (`/`, `/login`,
+# `/projects/...`, `/disclosures/...`, etc.) and superadmin routes (`/admin/*`)
+# are intentionally NOT documented here — they're internal.
+#
+# MAINTENANCE
+# -----------
+# KEEP THIS SPEC IN SYNC WITH routes/api.py.
+# Any change to the JSON surface in routes/api.py MUST be reflected here in
+# the same commit. Reviewers should reject API-touching PRs without a matching
+# spec change.
+# ---------------------------------------------------------------------------
+openapi: 3.1.0
+info:
+  title: ZeroQuarry API
+  version: "1.0.0"
+  summary: >
+    JSON API for ZeroQuarry — programmatic access for CI pipelines and
+    third-party integrations.
+  description: |
+    All endpoints below are reached at `https://api.zeroquarry.com`. A gateway
+    rewrites `/v1/...` onto the backend's `/api/v1/...`, so the paths in this
+    spec are the public-facing ones.
+
+    Authentication is by Bearer token minted from `/account/api-keys` on the
+    web UI. Tokens look like `zq_<40 url-safe chars>` and act with the role
+    of the user who minted them.
+
+    Tier-gated endpoints (disclosures, patches, PoC + email artifacts,
+    HackerOne review) return `403` with `{"error": "..."}` when the caller's
+    account tier does not include the feature, mirroring the corresponding
+    HTML pages.
+  contact:
+    name: ZeroQuarry
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.zeroquarry.com
+    description: Public API (gateway-fronted; rewrites `/v1/...` → backend `/api/v1/...`).
+
+tags:
+  - name: identity
+    description: Caller-identity sanity check.
+  - name: projects
+    description: Project CRUD.
+  - name: scans
+    description: Create and manage scans.
+  - name: reports
+    description: Read-only views of completed scans + report exports.
+  - name: disclosures
+    description: Responsible-disclosure tracker (tier-gated).
+  - name: patches
+    description: LLM-generated fix patches for findings (tier-gated).
+
+# ---------------------------------------------------------------------------
+# Reusable components
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: zq_ token
+      description: >
+        API key minted from `/account/api-keys` on the web UI. Keys look like
+        `zq_<40 url-safe chars>` and act with the role of the user who minted
+        them.
+
+  parameters:
+    ScanId:
+      name: scan_id
+      in: path
+      required: true
+      schema: { type: string }
+    FindingId:
+      name: finding_id
+      in: path
+      required: true
+      schema: { type: string }
+    PatchId:
+      name: patch_id
+      in: path
+      required: true
+      schema: { type: string }
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema: { type: string }
+    DiscId:
+      name: disc_id
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    NoContent:
+      description: Success with no body.
+    NotFound:
+      description: Resource not found or not visible to the caller.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated, but not allowed (tier / role / ownership).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadRequest:
+      description: Malformed request — missing or invalid fields.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflict with current resource state.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PaymentRequired:
+      description: Tier limit (concurrent scans, monthly tokens, disk, ...) exceeded.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: Human-readable failure reason. }
+
+    Project:
+      type: object
+      properties:
+        id:         { type: string }
+        name:       { type: string }
+        account_id: { type: string }
+        is_default: { type: boolean }
+        created_at: { type: [string, "null"], format: date-time }
+
+    ScanTarget:
+      type: object
+      properties:
+        kind:       { type: string, enum: [git, upload, path, url] }
+        value:      { type: string }
+        git_commit: { type: [string, "null"] }
+
+    Scan:
+      type: object
+      properties:
+        id:             { type: string }
+        status:         { type: string, enum: [queued, running, completed, failed, cancelled, awaiting_batch] }
+        mode:           { type: string, enum: [source, binary, remote] }
+        model:          { type: string }
+        name:           { type: [string, "null"] }
+        created_at:     { type: string, format: date-time }
+        updated_at:     { type: [string, "null"], format: date-time }
+        started_at:     { type: [string, "null"], format: date-time }
+        completed_at:   { type: [string, "null"], format: date-time }
+        summary:        { type: [string, "null"] }
+        project_id:     { type: [string, "null"] }
+        lineage_id:     { type: [string, "null"] }
+        version:        { type: integer }
+        parent_scan_id: { type: [string, "null"] }
+        targets:
+          type: array
+          items: { $ref: "#/components/schemas/ScanTarget" }
+
+    SeverityCounts:
+      type: object
+      additionalProperties: { type: integer }
+      description: >
+        Map of severity label (`critical` / `high` / `medium` / `low` / `info`)
+        to count. Only non-zero entries are included.
+
+    Finding:
+      type: object
+      properties:
+        id:               { type: string }
+        scan_id:          { type: string }
+        title:            { type: string }
+        severity:         { type: string, enum: [critical, high, medium, low, info] }
+        severity_score:   { type: number }
+        confidence_score: { type: number }
+        vuln_type:        { type: [string, "null"] }
+        source:           { type: [string, "null"] }
+        description:      { type: [string, "null"] }
+        cve_refs:
+          type: array
+          items: { type: string }
+        cvss_vector:      { type: [string, "null"] }
+        fingerprint:      { type: [string, "null"] }
+        h1_status:        { type: [string, "null"] }
+        vendor_verdict:   { type: [string, "null"] }
+        rebuttal_result:  { type: [string, "null"] }
+        created_at:       { type: string, format: date-time }
+        updated_at:       { type: [string, "null"], format: date-time }
+
+    Disclosure:
+      type: object
+      properties:
+        id:              { type: string }
+        finding_id:      { type: string }
+        scan_id:         { type: string }
+        status:          { type: string, enum: [active, completed, abandoned] }
+        reported_at:     { type: [string, "null"], format: date }
+        vendor_ack_at:   { type: [string, "null"], format: date }
+        vendor_fix_at:   { type: [string, "null"], format: date }
+        public_at:       { type: [string, "null"], format: date }
+        closed_at:       { type: [string, "null"], format: date }
+        reported_to:     { type: [string, "null"] }
+        report_url:      { type: [string, "null"], format: uri }
+        bounty_amount:   { type: [number, "null"] }
+        bounty_currency: { type: string }
+        credit_given:    { type: boolean }
+        credit_text:     { type: [string, "null"] }
+        credit_url:      { type: [string, "null"], format: uri }
+        notes:           { type: [string, "null"] }
+        created_at:      { type: string, format: date-time }
+        updated_at:      { type: string, format: date-time }
+
+    DisclosureEvent:
+      type: object
+      properties:
+        id:            { type: integer }
+        disclosure_id: { type: string }
+        event_type:    { type: string, description: "ack | fix | public | closed | bounty | credit | reported | note" }
+        event_date:    { type: string, format: date }
+        detail:        { type: [string, "null"] }
+        created_at:    { type: string, format: date-time }
+
+    Patch:
+      type: object
+      properties:
+        id:            { type: string }
+        finding_id:    { type: string }
+        scan_id:       { type: string }
+        version:       { type: integer }
+        feedback:      { type: [string, "null"] }
+        summary:       { type: [string, "null"] }
+        file_path:     { type: [string, "null"] }
+        model:         { type: string }
+        patch_content: { type: string, description: Unified-diff payload (only on detail/list responses with content). }
+        created_at:    { type: string, format: date-time }
+
+    NonIssue:
+      type: object
+      properties:
+        id:     { type: integer }
+        label:  { type: string }
+        detail: { type: [string, "null"] }
+
+# All endpoints require the bearer token unless overridden.
+security:
+  - bearerAuth: []
+
+# ---------------------------------------------------------------------------
+# Paths
+#
+# IMPORTANT: paths below are the consumer-visible URLs. The backend serves
+# them under `/api/v1/...`; the gateway strips the `/api` prefix.
+# ---------------------------------------------------------------------------
+paths:
+  # ===========================================================
+  # identity
+  # ===========================================================
+  /v1/whoami:
+    get:
+      tags: [identity]
+      summary: Caller-identity sanity check.
+      description: Verify an API key without side-effects. Useful as a CI smoke check.
+      responses:
+        "200":
+          description: Caller identity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_id: { type: string }
+                  user_id:    { type: [string, "null"] }
+                  role:       { type: [string, "null"] }
+                  api_key_id: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ===========================================================
+  # projects
+  # ===========================================================
+  /v1/projects:
+    get:
+      tags: [projects]
+      summary: List projects in the caller's account.
+      responses:
+        "200":
+          description: Project list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [projects]
+      summary: Create a new project. Subject to the tier's `max_projects` cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "201":
+          description: Project created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/projects/{project_id}:
+    parameters: [ { $ref: "#/components/parameters/ProjectId" } ]
+    get:
+      tags: [projects]
+      summary: Project detail with up to 200 most-recent scans.
+      responses:
+        "200":
+          description: Project + scans.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+                  scans:
+                    type: array
+                    items: { $ref: "#/components/schemas/Scan" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [projects]
+      summary: Rename a project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "200":
+          description: Updated project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [projects]
+      summary: Delete a project. The default project cannot be deleted; its scans are reassigned to the default project.
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # scans
+  # ===========================================================
+  /v1/scans:
+    get:
+      tags: [scans]
+      summary: List scans visible to the caller, with optional filters.
+      parameters:
+        - { name: project_id, in: query, schema: { type: string } }
+        - { name: status,     in: query, schema: { type: string, enum: [queued, running, completed, failed, cancelled, awaiting_batch] } }
+        - { name: mode,       in: query, schema: { type: string, enum: [source, binary, remote] } }
+        - { name: limit,      in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        "200":
+          description: Scan list (without target details — fetch a single scan for those).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  scans:
+                    type: array
+                    items: { $ref: "#/components/schemas/Scan" }
+    post:
+      tags: [scans]
+      summary: Create a new source-mode scan.
+      description: |
+        Kicks off a scan and returns the scan record. When `auto_delta` is true
+        and a prior completed scan exists for the same account + git URL set,
+        the server dispatches an `update_diff` rescan instead of a fresh run
+        (subsequent CI runs only re-scan changed files).
+
+        `multipart/form-data` is required when attaching uploads. Otherwise,
+        a plain JSON body is simpler to generate from `curl`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode:               { type: string, enum: [source] }
+                git_urls:           { type: array, items: { type: string } }
+                project_id:         { type: string }
+                project_name:       { type: string }
+                auto_delta:         { type: boolean, default: true }
+                model:              { type: string }
+                notes:              { type: string }
+                name:               { type: string }
+                tags:               { type: array, items: { type: string } }
+                batch_mode:         { type: boolean }
+                adversarial_review: { type: boolean }
+                git_credential_id:  { type: string }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                mode:               { type: string, enum: [source] }
+                git_urls:           { type: string, description: "Comma- or newline-separated list" }
+                uploads:
+                  type: array
+                  items: { type: string, format: binary }
+                project_id:         { type: string }
+                project_name:       { type: string }
+                auto_delta:         { type: boolean }
+                model:              { type: string }
+                notes:              { type: string }
+                name:               { type: string }
+                tags:               { type: string }
+                batch_mode:         { type: boolean }
+                adversarial_review: { type: boolean }
+                git_credential_id:  { type: string }
+      responses:
+        "201":
+          description: Scan (or rescan) dispatched.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Scan"
+                  - type: object
+                    properties:
+                      dispatch: { type: string, enum: [fresh, delta] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/scans/{scan_id}:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Look up a scan's status and metadata.
+      responses:
+        "200":
+          description: Scan record.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Scan" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [scans]
+      summary: Update the scan's name, tags, or project assignment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: [string, "null"] }
+                tags:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                      description: Comma-separated.
+                project_id: { type: string }
+      responses:
+        "200":
+          description: Updated scan.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Scan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [scans]
+      summary: Delete a scan and all of its artifacts.
+      description: Refuses to delete a scan that's still queued or running — cancel it first.
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/scans/{scan_id}/cancel:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Cancel a running or queued scan.
+      responses:
+        "200":
+          description: Scan record after cancellation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Scan" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/rescan:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Re-run an existing scan.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rescan_mode:
+                  type: string
+                  enum: [reuse, update, update_diff, fresh]
+                  default: reuse
+                notes: { type: string }
+      responses:
+        "201":
+          description: New scan dispatched.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Scan"
+                  - type: object
+                    properties:
+                      dispatch:       { type: string, enum: [rescan] }
+                      parent_scan_id: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/h1-review:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Trigger a HackerOne-eligibility review against the scan's current findings.
+      description: >
+        Tier-gated. Requires both `allow_disclosure_tracking` and
+        `allow_h1_review` on the active tier, and the scan must have been
+        created with disclosure tracking enabled. Runs asynchronously — the
+        response confirms the review was started.
+      responses:
+        "202":
+          description: Review started in the background.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id: { type: string }
+                  status:  { type: string, enum: [review_started] }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/clones:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    delete:
+      tags: [scans]
+      summary: Free the scan's on-disk clone(s) without deleting findings.
+      responses:
+        "200":
+          description: Paths that were freed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:        { type: string }
+                  deleted_paths:  { type: array, items: { type: string } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/findings:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: List a scan's findings with a severity-count summary.
+      responses:
+        "200":
+          description: Findings + aggregates.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:          { type: string }
+                  count:            { type: integer }
+                  severity_counts:  { $ref: "#/components/schemas/SeverityCounts" }
+                  findings:
+                    type: array
+                    items: { $ref: "#/components/schemas/Finding" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # reports — read-only views and exports of completed scans
+  # ===========================================================
+  /v1/reports/{scan_id}:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [reports]
+      summary: Report metadata — scan + targets + finding summary + non-issues.
+      responses:
+        "200":
+          description: Report metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan: { $ref: "#/components/schemas/Scan" }
+                  targets:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScanTarget" }
+                  summary:          { type: [string, "null"] }
+                  finding_count:    { type: integer }
+                  severity_counts:  { $ref: "#/components/schemas/SeverityCounts" }
+                  non_issues:
+                    type: array
+                    items: { $ref: "#/components/schemas/NonIssue" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reports/{scan_id}/findings/{finding_id}:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+    get:
+      tags: [reports]
+      summary: Single-finding detail with full description, CVSS, adversarial-review state, etc.
+      responses:
+        "200":
+          description: Finding.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Finding" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reports/{scan_id}/findings/{finding_id}/poc:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+    get:
+      tags: [reports]
+      summary: Raw proof-of-concept artifact for a finding.
+      description: >
+        Tier-gated by `allow_artifact_generation`. Tiers without artifact
+        generation get a 404 (not 403) so they can't infer artifact
+        existence.
+      responses:
+        "200":
+          description: Binary or text PoC payload.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reports/{scan_id}/findings/{finding_id}/email:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+    get:
+      tags: [reports]
+      summary: Draft disclosure email for a finding (Markdown).
+      description: >
+        Tier-gated by both `allow_artifact_generation` and
+        `allow_disclosure_tracking`. Returns 404 when either is missing.
+      responses:
+        "200":
+          description: Markdown email draft.
+          content:
+            text/markdown:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reports/{scan_id}/export:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [reports]
+      summary: Generate a report export in markdown, single-file HTML, or pentester-style PDF.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [format]
+              properties:
+                format:
+                  type: string
+                  enum: [markdown, html, pdf]
+                sections:
+                  type: array
+                  items: { type: string }
+                  description: >
+                    Which report sections to include in the export. Omit to
+                    include all available sections. Ignored for PDF (the
+                    pentester layout is fixed).
+                include_full_findings:
+                  type: boolean
+                  description: PDF only — include the section-5 per-finding writeups.
+                include_rejected:
+                  type: boolean
+                  default: false
+                  description: >
+                    When false (the default), findings the vendor marked as
+                    `rejected` during adversarial review are dropped from
+                    the export — including from the severity-count tables.
+                min_confidence:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  description: >
+                    Findings with `confidence_score` below this threshold
+                    are dropped. Defaults to the caller's account
+                    low-confidence threshold; pass `null` (or the JSON
+                    string "") to disable the filter entirely.
+      responses:
+        "200":
+          description: Exported report payload.
+          content:
+            text/markdown:        { schema: { type: string } }
+            text/html:            { schema: { type: string } }
+            application/pdf:      { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # disclosures — tier-gated by allow_disclosure_tracking
+  # ===========================================================
+  /v1/disclosures:
+    get:
+      tags: [disclosures]
+      summary: List disclosures in the caller's account.
+      parameters:
+        - { name: status,     in: query, schema: { type: string, enum: [active, completed, abandoned] } }
+        - { name: project_id, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Disclosure list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  disclosures:
+                    type: array
+                    items: { $ref: "#/components/schemas/Disclosure" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [disclosures]
+      summary: Open a disclosure record for a finding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [finding_id]
+              properties:
+                finding_id:      { type: string }
+                reported_at:     { type: string, format: date }
+                reported_to:     { type: string }
+                report_url:      { type: string, format: uri }
+                notes:           { type: string }
+                bounty_amount:   { type: number }
+                bounty_currency: { type: string, default: USD }
+                credit_given:    { type: boolean }
+                credit_text:     { type: string }
+                credit_url:      { type: string, format: uri }
+      responses:
+        "201":
+          description: Created disclosure.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Disclosure" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/disclosures/{disc_id}:
+    parameters: [ { $ref: "#/components/parameters/DiscId" } ]
+    get:
+      tags: [disclosures]
+      summary: Disclosure detail with timeline events.
+      responses:
+        "200":
+          description: Disclosure + events.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  disclosure: { $ref: "#/components/schemas/Disclosure" }
+                  events:
+                    type: array
+                    items: { $ref: "#/components/schemas/DisclosureEvent" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [disclosures]
+      summary: Update disclosure metadata.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:          { type: string, enum: [active, completed, abandoned] }
+                reported_at:     { type: string, format: date }
+                vendor_ack_at:   { type: string, format: date }
+                vendor_fix_at:   { type: string, format: date }
+                public_at:       { type: string, format: date }
+                closed_at:       { type: string, format: date }
+                reported_to:     { type: string }
+                report_url:      { type: string, format: uri }
+                bounty_amount:   { type: number }
+                bounty_currency: { type: string }
+                credit_given:    { type: boolean }
+                credit_text:     { type: string }
+                credit_url:      { type: string, format: uri }
+                notes:           { type: string }
+      responses:
+        "200":
+          description: Updated disclosure.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Disclosure" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [disclosures]
+      summary: Delete a disclosure record.
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/disclosures/{disc_id}/events:
+    parameters: [ { $ref: "#/components/parameters/DiscId" } ]
+    post:
+      tags: [disclosures]
+      summary: Append an event to the disclosure's timeline.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_type]
+              properties:
+                event_type:
+                  type: string
+                  description: "ack | fix | public | closed | bounty | credit | reported | note"
+                event_date:
+                  type: string
+                  format: date
+                  description: Defaults to today if omitted.
+                detail: { type: string }
+      responses:
+        "201":
+          description: Created event.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisclosureEvent" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # patches — tier-gated by allow_patch_generation
+  # ===========================================================
+  /v1/scans/{scan_id}/findings/{finding_id}/patches:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+    get:
+      tags: [patches]
+      summary: List generated patches for a finding (most recent version first).
+      responses:
+        "200":
+          description: Patch list (no diff bodies — fetch a single patch for those).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  patches:
+                    type: array
+                    items: { $ref: "#/components/schemas/Patch" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [patches]
+      summary: Generate a new patch (optionally with feedback for revision).
+      description: >
+        The scan must have on-disk source (i.e. recent enough that clones
+        haven't been freed). If the source is gone the call returns 400 —
+        re-clone or re-upload first.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feedback:
+                  type: string
+                  description: Optional feedback that the agent should incorporate into the next revision.
+      responses:
+        "201":
+          description: Generated patch (with full unified-diff body).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Patch" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502":
+          description: Patch generation failed in the agent loop.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/scans/{scan_id}/findings/{finding_id}/patches/{patch_id}:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+      - $ref: "#/components/parameters/PatchId"
+    get:
+      tags: [patches]
+      summary: Fetch a single patch including its diff body.
+      responses:
+        "200":
+          description: Patch.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Patch" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/findings/{finding_id}/patches/{patch_id}/download:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+      - $ref: "#/components/parameters/PatchId"
+    get:
+      tags: [patches]
+      summary: Download the patch as a `.patch` (unified-diff) file.
+      responses:
+        "200":
+          description: Unified-diff payload.
+          content:
+            text/x-patch:
+              schema: { type: string }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }

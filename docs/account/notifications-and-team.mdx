@@ -1,0 +1,45 @@
+---
+id: notifications-and-team
+title: Notifications and team settings
+sidebar_position: 2
+---
+
+Account settings control collaboration, notifications, and report defaults for
+your workspace.
+
+## Completion email
+
+Enable scan completion email from **Account**. You can override the default on
+individual scan forms.
+
+Email notifications are best for long-running scans or Batch API artifact
+generation.
+
+## Slack notifications
+
+Add an incoming Slack webhook under **Account** to post scan completion
+summaries to a channel. When Slack is configured, scan forms can enable or
+disable Slack posting for that scan.
+
+Use a channel that matches the audience of the scan. For example, route CI scan
+summaries to an engineering security channel, not a broad company channel.
+
+## Team members
+
+Plans that allow invitations can add teammates under **Account**. Roles are
+account-scoped.
+
+Use the smallest role that lets a teammate complete their work. Remove members
+who no longer need access.
+
+## Preferences
+
+Useful account preferences include:
+
+- low-confidence cutoff for exports
+- whether to show the Disclosures shortcut
+- scan completion email defaults
+- report disclaimer overrides, when the plan allows report customization
+
+These settings affect future interactions and exports. They do not rewrite
+historical scan evidence.

@@ -1,0 +1,52 @@
+---
+id: confidence-and-review
+title: Confidence and review
+sidebar_position: 2
+---
+
+ZeroQuarry separates severity from confidence.
+
+Severity answers: how bad would this be if real?
+
+Confidence answers: how likely is this finding to survive review?
+
+## Confidence score
+
+Confidence is stored as a number from `0.0` to `1.0`. It is affected by review
+signals such as:
+
+- whether the vendor-style reviewer accepted or challenged the issue
+- whether the researcher rebuttal restored confidence
+- whether the same fingerprint appears across related scan versions
+
+Use the account-level low-confidence cutoff to decide which findings are hidden
+from default exports.
+
+## Adversarial vendor review
+
+When enabled, ZeroQuarry runs an additional skeptical pass over findings. The
+vendor reviewer attempts to reject weak evidence, identify non-exploitability,
+and flag issues that look like false positives.
+
+For challenged findings, a rebuttal pass lets the researcher agent respond with
+evidence or retract the claim. Reports show the vendor verdict and researcher
+response where available.
+
+This pass increases LLM usage, but it is useful before sharing reports outside
+the security team.
+
+## HackerOne eligibility review
+
+When enabled and available on the account tier, ZeroQuarry can label findings
+against HackerOne core-ineligible categories. This does not delete or downgrade
+findings. It adds review context so you can decide whether a finding is likely
+to fit a disclosure or bounty workflow.
+
+You can trigger a HackerOne eligibility review from the report after a scan has
+completed. Re-running it overwrites previous eligibility labels.
+
+## Fingerprints across versions
+
+Findings can carry fingerprints that let ZeroQuarry compare related scan
+versions. If the same issue appears across versions in a lineage, the report can
+surface that recurrence as part of confidence and review context.

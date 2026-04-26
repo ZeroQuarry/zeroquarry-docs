@@ -1,0 +1,56 @@
+---
+id: exports-and-disclosures
+title: Exports and disclosures
+sidebar_position: 3
+---
+
+Reports and individual findings can be exported for review, handoff, or
+disclosure.
+
+## Report exports
+
+The report export flow supports:
+
+- Markdown
+- single-file HTML
+- PDF
+
+Exports can include selected sections, such as summary, targets, findings,
+non-issues, report chat, and authentication context. The PDF export uses a
+pentester-style layout with a cover page, executive summary, finding overview,
+and per-asset finding list.
+
+## Export filters
+
+Exports can filter findings by confidence and vendor-review state. By default,
+low-confidence rejected findings can be excluded based on the account threshold.
+
+Use this before sending a report to engineering, leadership, or a third-party
+program.
+
+## Finding exports
+
+Individual findings can also be exported as Markdown, HTML, or PDF. Use finding
+exports when you need to file a focused ticket, send one issue to a vendor, or
+attach a single vulnerability to a remediation workflow.
+
+## Disclosure drafts
+
+When disclosure tracking and artifact generation are enabled, findings can
+include draft disclosure emails. These drafts are starting points. Review the
+technical claims, affected versions, remediation guidance, and recipient details
+before sending them.
+
+## Disclosure tracker
+
+The disclosure tracker records the lifecycle of an externally reported issue:
+
+- reported date
+- vendor acknowledgement
+- vendor fix
+- public advisory date
+- bounty or credit
+- notes and timeline events
+
+Use disclosures for bug bounty, coordinated vulnerability disclosure, vendor
+coordination, or customer-facing advisory tracking.

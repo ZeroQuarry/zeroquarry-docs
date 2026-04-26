@@ -1,0 +1,65 @@
+---
+id: intro
+slug: /
+title: ZeroQuarry overview
+sidebar_position: 1
+---
+
+ZeroQuarry is a cloud platform for finding security vulnerabilities before they
+reach attackers. It runs agent-led assessments against three kinds of assets:
+
+- source code repositories and uploaded source archives
+- binary artifacts such as Android packages, JARs, firmware, installers, and archives
+- authorized live targets such as web applications, APIs, and SaaS assets
+
+The primary UI is the ZeroQuarry console at
+[console.zeroquarry.com](https://console.zeroquarry.com). Programmatic access is
+available through the public API gateway at `https://api.zeroquarry.com`.
+
+## Core concepts
+
+**Projects** group scans for one product, service, repository, or target set.
+Every scan belongs to a project.
+
+**Scans** are asynchronous security assessments. A scan has one mode: source,
+binary, or remote. Scans move through states such as queued, running,
+awaiting batch artifacts, completed, failed, or cancelled.
+
+**Targets** are the concrete inputs for a scan: uploaded files, Git
+repositories, or URLs.
+
+**Findings** are confirmed or candidate vulnerabilities recorded by the agents.
+Each finding includes severity, CVSS-style scoring, evidence, and source
+context where available.
+
+**Artifacts** are generated outputs attached to findings, including proof of
+concept material and, when enabled, a draft disclosure email.
+
+**Reports** are the durable review surface for a scan. Reports include findings,
+non-issues, target metadata, logs, chat, exports, and re-run controls.
+
+## How scans work
+
+ZeroQuarry uses a coordinator and worker model.
+
+1. The coordinator maps the target surface and builds a checklist.
+2. Worker agents investigate focused areas, files, endpoints, or binary outputs.
+3. Triage reviews recorded findings and filters weak or duplicate issues.
+4. Artifact generation creates PoCs and disclosure drafts when the plan allows it.
+5. Optional review passes can add HackerOne eligibility labels, vendor-style
+   challenge results, rebuttals, and confidence scores.
+
+The result is a report that is intended to be actionable: evidence first,
+reproducibility where possible, and enough context for an engineer or security
+reviewer to decide what to do next.
+
+## What to read first
+
+Start with [Run your first scan](/getting-started/first-scan), then read the
+mode-specific page for the target you want to assess:
+
+- [Source code scans](/scans/source-code)
+- [Binary artifact scans](/scans/binary-artifacts)
+- [Remote target scans](/scans/remote-targets)
+
+For CI-driven source scanning, use [GitHub Actions](/workflows/github-actions).

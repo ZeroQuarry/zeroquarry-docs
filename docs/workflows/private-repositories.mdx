@@ -1,0 +1,53 @@
+---
+id: private-repositories
+title: Private repositories
+sidebar_position: 2
+---
+
+ZeroQuarry can clone private Git repositories using credentials saved at the
+account level.
+
+## Credential types
+
+HTTPS credentials are available from **Account > Git Access**. Use them for
+GitHub, GitLab, Bitbucket, and other HTTPS Git hosts.
+
+SSH credentials are available only on account tiers that enable SSH private repo
+access.
+
+## Add an HTTPS credential
+
+1. Open **Account > Git Access**.
+2. Add a credential name.
+3. Enter the Git host, such as `github.com`.
+4. Enter the username required by the host.
+5. Enter a personal access token or password accepted by the host.
+
+The credential applies to HTTPS Git URLs whose host matches the saved host.
+
+## Use the credential in a scan
+
+In the console, select the credential from **Private repo credential** while
+creating a source scan.
+
+In the API, include `git_credential_id` in the scan request.
+
+```json
+{
+  "mode": "source",
+  "git_urls": ["https://github.com/example/private-repo.git"],
+  "git_credential_id": "credential-uuid"
+}
+```
+
+## Operational notes
+
+- Use one host and credential per scan when possible.
+- Use least-privilege repository tokens.
+- Prefer read-only deploy tokens for CI.
+- Revoke credentials that are no longer used.
+- Rotate credentials after a suspected leak.
+
+Credential values are stored encrypted in ZeroQuarry, but cloned repository
+contents are still part of the scan workspace and may be sent to the configured
+LLM provider during analysis.

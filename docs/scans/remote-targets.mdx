@@ -1,0 +1,75 @@
+---
+id: remote-targets
+title: Remote target scans
+sidebar_position: 3
+---
+
+Remote scans actively probe a running web application, API, or SaaS endpoint.
+Use them only for systems you own or have explicit permission to test.
+
+:::caution Authorization required
+
+Remote scans send real HTTP payloads for classes such as SQL injection, XSS,
+SSRF, path traversal, and authentication flaws. Unauthorized scanning may
+violate computer-misuse laws and program rules.
+
+:::
+
+## Inputs
+
+Remote scans require:
+
+- an entry URL
+- scope hosts
+- an authorization confirmation
+
+If you do not enter scope hosts, ZeroQuarry uses the entry URL host. Scope hosts
+limit where agents should send probes.
+
+## Required headers
+
+Some bug bounty programs require identifying headers on every request, such as
+`X-HackerOne-Handle`, `X-Bugcrowd-Ninja`, or `X-Researcher`.
+
+Use **Required headers** for these values. ZeroQuarry attaches them to every
+probe, including form-login setup. Required header names and values are shown in
+scan logs so you can verify compliance.
+
+## Authentication
+
+Remote scans can attach authentication context to probes:
+
+| Method | Use it for |
+| --- | --- |
+| Cookies | Browser session cookies copied from developer tools. |
+| Custom headers | Bearer tokens, API keys, or app-specific headers. |
+| HTTP Basic auth | Targets protected by Basic auth. |
+| Form login | A one-time login request that obtains session cookies before probing. |
+
+Sensitive authentication values are redacted from scan logs. They are still
+sent to the LLM agent as scan context and to the target as HTTP headers or
+cookies. Use authentication only with LLM providers and target environments you
+are comfortable exposing to that data.
+
+## Safe scoping
+
+Before queueing a remote scan:
+
+- use a staging or test environment when possible
+- include every in-scope host explicitly
+- exclude third-party infrastructure that is not in scope
+- add required program headers
+- avoid production-only credentials unless they are approved for testing
+- use notes to describe fragile endpoints, rate limits, or program rules
+
+## Example notes
+
+```text
+Authorized staging target. Keep probes non-destructive. Focus on IDOR in
+/api/accounts/* and SSRF in the import-url feature.
+```
+
+```text
+Bug bounty target. Required headers are configured. Only test app.example.com
+and api.example.com.
+```
