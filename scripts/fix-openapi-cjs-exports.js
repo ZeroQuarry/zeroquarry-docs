@@ -13,7 +13,7 @@ let patchedReferences = 0;
 const bareExportsPattern = /(^|[^.])\bexports\./g;
 
 for (const file of fs.readdirSync(assetsDir)) {
-  if (!/^common\..*\.js$/.test(file)) {
+  if (!/\.js$/.test(file)) {
     continue;
   }
 
