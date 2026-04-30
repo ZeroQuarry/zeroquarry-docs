@@ -4,8 +4,12 @@ title: Findings
 sidebar_position: 1
 ---
 
-Findings are the main output of a scan. They are sorted by severity score in the
-report and are intended to contain enough evidence for review and remediation.
+Findings are the main output of a scan, but they are not meant to be accepted
+blindly. Treat each finding as a security claim with evidence attached.
+
+The report sorts findings by severity score so the highest-impact claims are
+visible first. Your triage process should then consider confidence, evidence,
+business context, and remediation cost.
 
 ## Finding fields
 
@@ -33,6 +37,20 @@ material. PoCs vary by mode:
 Treat PoCs as starting points for validation. Review them before running them
 against sensitive systems.
 
+## How to review a finding
+
+For each important finding:
+
+1. Read the source, URL, artifact path, or other evidence location.
+2. Confirm the affected asset and environment.
+3. Check the severity rationale and CVSS vector.
+4. Review confidence and vendor-review signals.
+5. Validate the PoC or ask for a safer reproduction path.
+6. Decide whether to fix, challenge, accept, disclose, or monitor.
+
+Use [Triage to remediation](/use-cases/triage-to-remediation) for the full
+workflow.
+
 ## Finding chat
 
 Each finding has its own chat thread. Use it to:
@@ -44,6 +62,20 @@ Each finding has its own chat thread. Use it to:
 - ask the model to revise the title, severity, or description
 
 If the model revises the finding, refresh the report before exporting it.
+
+Good finding-chat prompts are specific:
+
+```text
+Explain this as a Jira ticket for the team that owns project membership.
+```
+
+```text
+What evidence would disprove this finding?
+```
+
+```text
+Rewrite the reproduction steps for a staging environment with two test users.
+```
 
 ## Non-issues
 

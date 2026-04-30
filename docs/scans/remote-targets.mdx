@@ -7,6 +7,10 @@ sidebar_position: 3
 Remote scans actively probe a running web application, API, or SaaS endpoint.
 Use them only for systems you own or have explicit permission to test.
 
+Remote scans are for vulnerabilities that require runtime behavior: routing,
+sessions, deployed configuration, API gateway behavior, redirects, server-side
+fetching, CORS, role state, and real HTTP responses.
+
 :::caution Authorization required
 
 Remote scans send real HTTP payloads for classes such as SQL injection, XSS,
@@ -25,6 +29,23 @@ Remote scans require:
 
 If you do not enter scope hosts, ZeroQuarry uses the entry URL host. Scope hosts
 limit where agents should send probes.
+
+Treat scope hosts as a safety control, not documentation. Add every approved
+host explicitly when a workflow crosses subdomains, APIs, or CDN-backed routes.
+
+## When remote scans are the right tool
+
+Use a remote scan when you need to test:
+
+- IDOR and authorization flaws in a running application
+- SSRF reachability and outbound request behavior
+- XSS, SQL injection, path traversal, and parser payload handling
+- API gateway or reverse-proxy behavior
+- deployed headers, redirects, CORS, cookies, and session state
+- bug-bounty or staging targets where active probing is authorized
+
+Prefer source or binary scans when you are not authorized to send traffic, the
+target is fragile, or you only need static evidence.
 
 ## Required headers
 
@@ -51,6 +72,21 @@ sent to the LLM agent as scan context and to the target as HTTP headers or
 cookies. Use authentication only with LLM providers and target environments you
 are comfortable exposing to that data.
 
+## Authenticated testing strategy
+
+For authorization bugs, one credential is often not enough. Consider running
+separate scans for:
+
+- unauthenticated user
+- low-privilege user
+- normal customer or tenant admin
+- internal support role
+- cross-tenant test accounts
+
+Name and tag each scan so the report makes the tested role obvious. Never use
+production administrator credentials unless that is explicitly approved for the
+test.
+
 ## Safe scoping
 
 Before queueing a remote scan:
@@ -61,6 +97,20 @@ Before queueing a remote scan:
 - add required program headers
 - avoid production-only credentials unless they are approved for testing
 - use notes to describe fragile endpoints, rate limits, or program rules
+
+## Review remote findings
+
+Remote findings should be reviewed for:
+
+- exact request sequence
+- target account, role, and environment
+- whether payloads were destructive or read-only
+- response evidence and status codes
+- whether required headers were attached
+- whether a source or binary scan can explain the root cause
+
+For externally reported issues, move from the finding to
+[External disclosure workflow](/use-cases/external-disclosure).
 
 ## Example notes
 

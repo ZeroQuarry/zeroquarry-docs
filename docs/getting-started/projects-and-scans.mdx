@@ -4,8 +4,11 @@ title: Projects and scans
 sidebar_position: 2
 ---
 
-Projects are the main organizational boundary in ZeroQuarry. Use them to group
-scans for a product, repository, service, mobile app, or external target set.
+Projects are the main organizational boundary in ZeroQuarry. They are how you
+turn individual scans into product history.
+
+Use projects to group scans for a product, repository, service, mobile app,
+external target set, or release train.
 
 ## Projects
 
@@ -23,6 +26,21 @@ Use separate projects when you want to separate:
 Project pages show scan history, mode, status, severity counts, tags, and
 summary statistics.
 
+## Model projects around decisions
+
+A project should answer a question someone will ask later:
+
+- "What security work happened for the billing service?"
+- "Which scans supported the 2.8 mobile release?"
+- "Did this finding recur after the fix?"
+- "Which bug-bounty reports came from this target family?"
+
+For most teams, one project per product or service is better than one project
+per scan. It keeps source, binary, and remote evidence together.
+
+Use separate projects when ownership, data sensitivity, or authorization scope
+changes.
+
 ## Scan names and tags
 
 Names make individual reports easy to identify. Tags make scan history easier
@@ -35,6 +53,9 @@ Recommended tag patterns:
 - workflow: `ci`, `release`, `bug-bounty`
 - team or service name: `billing`, `identity`, `mobile`
 
+For release reviews, include the version as a tag, such as `v2.8.0-rc1`.
+For CI scans, include `ci` and the repository or service name.
+
 ## Versions and rescans
 
 Reports can be re-run without overwriting the previous result. A re-run creates
@@ -45,6 +66,13 @@ For Git-backed source scans, API-triggered scans can use `auto_delta`. When a
 previous completed scan exists for the same Git URL set, ZeroQuarry can focus
 the next scan on changed files and nearby data flow instead of repeating a full
 repository audit.
+
+Use lineages for "same target, new question" work:
+
+- validate a fix
+- rerun after a release-candidate change
+- compare a fresh full scan with a delta scan
+- preserve findings while changing notes or review settings
 
 ## Status lifecycle
 
@@ -60,3 +88,12 @@ Common scan statuses:
 | `cancelled` | A user cancelled the scan. |
 
 Cancelled and failed scans may still contain logs and partial findings.
+
+## When to delete or free data
+
+Deleting a scan removes the report and artifacts. Freeing clones removes
+on-disk cloned source material while preserving report evidence and findings.
+
+Use clone cleanup when you want to reduce retained source data but still keep
+the security review record. Use scan deletion when the report itself should no
+longer be available.

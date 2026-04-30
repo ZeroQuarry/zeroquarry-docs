@@ -4,8 +4,11 @@ title: Exports and disclosures
 sidebar_position: 3
 ---
 
-Reports and individual findings can be exported for review, handoff, or
-disclosure.
+Reports and individual findings can be exported for review, handoff, release
+approval, remediation, or disclosure.
+
+Choose the export based on the recipient. A product owner needs a different
+artifact than an engineer, auditor, bug-bounty triager, or executive sponsor.
 
 ## Report exports
 
@@ -19,6 +22,14 @@ Exports can include selected sections, such as summary, targets, findings,
 non-issues, report chat, and authentication context. The PDF export uses a
 pentester-style layout with a cover page, executive summary, finding overview,
 and per-asset finding list.
+
+Use report exports for:
+
+- release approval records
+- security review packets
+- auditor evidence
+- customer-facing summaries after review
+- internal postmortems or risk acceptance
 
 ## Export filters
 
@@ -34,12 +45,18 @@ Individual findings can also be exported as Markdown, HTML, or PDF. Use finding
 exports when you need to file a focused ticket, send one issue to a vendor, or
 attach a single vulnerability to a remediation workflow.
 
+Before exporting a finding, review the evidence, confidence, PoC, and any
+generated patch. Remove unrelated data before sharing outside your workspace.
+
 ## Disclosure drafts
 
 When disclosure tracking and artifact generation are enabled, findings can
 include draft disclosure emails. These drafts are starting points. Review the
 technical claims, affected versions, remediation guidance, and recipient details
 before sending them.
+
+Disclosure drafts are most useful after you have already validated scope and
+program rules. They should not be sent directly from the model output.
 
 ## Disclosure tracker
 
@@ -54,3 +71,5 @@ The disclosure tracker records the lifecycle of an externally reported issue:
 
 Use disclosures for bug bounty, coordinated vulnerability disclosure, vendor
 coordination, or customer-facing advisory tracking.
+
+Read next: [External disclosure workflow](/use-cases/external-disclosure).

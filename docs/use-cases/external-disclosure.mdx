@@ -1,0 +1,102 @@
+---
+id: external-disclosure
+title: External disclosure workflow
+sidebar_position: 5
+---
+
+Use this workflow when a ZeroQuarry finding may be reported to a vendor, bug
+bounty program, customer, or coordinated vulnerability disclosure process.
+
+The goal is to turn a scanner finding into a careful, reproducible, policy-aware
+submission.
+
+## Before you scan
+
+For bug bounty or third-party targets, confirm:
+
+- the target is in scope
+- automated testing is allowed
+- required researcher headers are configured
+- rate limits and destructive-test rules are understood
+- credentials are approved for testing
+- disclosure timing and public-advisory rules are clear
+
+Remote scans are active tests. If program rules are narrow, start with source or
+binary evidence you are allowed to analyze, then use remote probing only inside
+the approved scope.
+
+Read next: [Authorization and acceptable use](/security/authorization).
+
+## Configure the scan for disclosure-quality evidence
+
+Use notes that encode program constraints:
+
+```text
+Authorized bug bounty target. Required headers are configured. Keep probes
+non-destructive. Focus on IDOR in organization and project routes. Do not test
+payment provider callbacks.
+```
+
+For source or binary findings that may become a disclosure, enable:
+
+- adversarial vendor review for a skeptical challenge
+- HackerOne eligibility review when available and relevant
+- artifact generation for PoCs and disclosure drafts
+
+## Validate the finding
+
+Before reporting externally:
+
+1. Read the finding evidence and PoC.
+2. Confirm the target, account, role, and scope.
+3. Ask finding chat for the minimum reproduction path.
+4. Check whether the finding falls into a program-ineligible category.
+5. Remove secrets, unrelated customer data, and excessive payload detail from
+   the external write-up.
+
+HackerOne eligibility labels are review context. They do not replace the
+program policy.
+
+## Create a disclosure record
+
+If your tier includes disclosure tracking, open a disclosure record from the
+finding or through the API. Record:
+
+- where the issue was reported
+- report URL
+- reported date
+- acknowledgement date
+- fix date
+- public disclosure date
+- bounty or credit details
+- notes and timeline events
+
+The tracker is useful even when you report outside HackerOne. It gives your
+team one place to preserve the history of the issue.
+
+## Export the right material
+
+Use an individual finding export when you need a concise submission. Use a full
+report export when the recipient needs broader assessment context.
+
+Always review generated disclosure emails before sending. Adjust:
+
+- affected product and version
+- reproduction steps
+- impact language
+- remediation advice
+- disclosure timeline language
+- any program-specific formatting
+
+Read next: [Exports and disclosures](/reports/exports-and-disclosures).
+
+## Keep the timeline current
+
+After reporting, add timeline events for acknowledgement, fix, public advisory,
+credit, bounty, and closure. This helps answer later questions such as:
+
+- Did the vendor acknowledge within policy?
+- Which scan found the issue?
+- Which evidence was shared?
+- Was credit granted?
+- Did the issue recur in a later scan?

@@ -8,6 +8,27 @@ Binary scans inspect shipped artifacts rather than source repositories. Use them
 for mobile apps, firmware, Java packages, installers, release archives, and
 other packaged software.
 
+Binary scans answer a different question than source scans: what did we
+actually ship?
+
+They are useful when build steps, packaging, signing, dependency bundling,
+minification, generated code, or vendor components can change the security
+profile between repository and release artifact.
+
+## When binary scans are the right tool
+
+Use binary scans for:
+
+- mobile app release candidates
+- firmware images and update packages
+- installer bundles and desktop releases
+- JARs or JVM services distributed outside your build system
+- third-party packages you are allowed to inspect
+- source-unavailable artifacts from suppliers or acquired products
+
+Pair binary scans with source scans when you need to connect artifact evidence
+back to code ownership.
+
 ## Inputs
 
 Upload one or more binary files or archives. Typical inputs include:
@@ -21,6 +42,10 @@ Upload one or more binary files or archives. Typical inputs include:
 ZeroQuarry prepares an analysis workspace from the upload. Where possible, it
 extracts archives, records metadata, collects strings, and uses available
 decompilation or inspection outputs for the agents.
+
+Upload the artifact that matches the release or environment you care about. A
+debug APK, unsigned firmware image, or locally rebuilt archive may produce a
+different finding set than the artifact customers receive.
 
 ## What agents inspect
 
@@ -37,6 +62,21 @@ Binary-focused workers review the prepared workspace for:
 
 The evidence for a binary finding may be a manifest entry, string hit,
 decompiled source location, extracted filesystem path, or disassembly reference.
+
+## Review strategy
+
+Start review with findings that indicate the artifact differs from your
+expectations:
+
+- production artifacts containing staging endpoints
+- secrets, keys, or tokens embedded in the package
+- exported mobile components that were expected to be private
+- update or signature behavior that does not match release policy
+- bundled libraries that differ from the approved dependency set
+
+Then compare against related source and remote scans in the same project. A
+binary finding becomes more actionable when you can identify the owning
+repository, build step, or deployed service.
 
 ## Notes and focus
 
@@ -63,3 +103,9 @@ optional disclosure artifacts.
 
 Not every binary issue can produce a runnable exploit. When that happens, the
 PoC should still explain the reproduction path and the artifact evidence.
+
+## Common next steps
+
+- Use [Release security review](/use-cases/release-security-review) when the binary is a release candidate.
+- Use [Remote target scans](/scans/remote-targets) when the artifact exposes endpoints or deep links.
+- Use [Triage to remediation](/use-cases/triage-to-remediation) to turn artifact evidence into engineering work.

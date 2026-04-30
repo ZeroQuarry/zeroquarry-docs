@@ -1,0 +1,100 @@
+---
+id: continuous-ci-scanning
+title: Continuous CI scanning
+sidebar_position: 3
+---
+
+Continuous scanning is for catching security regressions while the change is
+still small enough to understand.
+
+The goal is not to run a full assessment on every commit. The goal is to create
+a steady signal around risky changes, then escalate to deeper review when the
+signal warrants it.
+
+## What CI is good at
+
+Use CI-triggered source scans for:
+
+- pull requests that touch authentication, authorization, billing, file upload,
+  webhook, parser, or networking code
+- main-branch regression checks
+- nightly or weekly scans of high-risk repositories
+- security review on release branches
+
+Use manual scans instead when the input includes uploaded artifacts, credentials
+that should not live in CI, or remote targets with special authorization rules.
+
+## Recommended architecture
+
+1. Create a ZeroQuarry project per repository or service.
+2. Mint a ZeroQuarry API key for CI.
+3. Store the key as a CI secret.
+4. Trigger source scans with `auto_delta: true`.
+5. Poll for completion only when you need to gate the pipeline.
+6. Link the ZeroQuarry report from CI output.
+
+With `auto_delta`, the first scan establishes a baseline. Later scans for the
+same Git URL set can focus on changed files and nearby data flow.
+
+Read next: [GitHub Actions](/workflows/github-actions).
+
+## Choose a gating policy
+
+Not every team should block on the same threshold.
+
+| Team maturity | Suggested behavior |
+| --- | --- |
+| New rollout | Do not block. Post report links and learn the finding profile. |
+| Stabilizing | Fail only on critical findings with high confidence. |
+| Mature | Fail on critical or high findings above the agreed confidence threshold. |
+| Regulated release branch | Require a reviewed export before promotion. |
+
+If a strict gate creates too much noise, do not disable CI scanning. Lower the
+gate, add better notes, or run it on fewer branches.
+
+## Write CI-specific scan notes
+
+CI notes should help the scanner understand the change boundary:
+
+```text
+CI scan for this branch. Prioritize changed files and data flow into authz,
+tenant selection, file upload, webhook handling, and outbound HTTP calls.
+```
+
+For a pull request that changes a specific subsystem:
+
+```text
+This PR changes invite acceptance and role assignment. Focus on privilege
+escalation, replay, token lifetime, and cross-organization membership.
+```
+
+## Route results to the right people
+
+Use account notifications intentionally:
+
+- Slack summaries work well for shared security channels.
+- Email works well for long-running scans or release branches.
+- Report exports work better than raw CI logs for security review meetings.
+
+Read next: [Notifications and team settings](/account/notifications-and-team).
+
+## Handle private repositories
+
+For private Git URLs, configure Git credentials in ZeroQuarry and pass the
+credential ID in the scan request. Keep those credentials read-only and scoped
+to the smallest set of repositories that CI needs.
+
+Read next: [Private repositories](/workflows/private-repositories).
+
+## Escalate from CI to deeper review
+
+Use CI as a tripwire. Escalate when:
+
+- a finding touches authentication, authorization, payment, tenant boundaries,
+  secrets, or remote code execution
+- the same fingerprint recurs across versions
+- a finding is high impact but low confidence
+- a change introduces new externally reachable behavior
+
+The next step is usually a focused source rescan, then either adversarial review
+or a remote scan of staging.

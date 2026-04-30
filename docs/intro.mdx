@@ -6,7 +6,8 @@ sidebar_position: 1
 ---
 
 ZeroQuarry is a cloud platform for finding security vulnerabilities before they
-reach attackers. It runs agent-led assessments against three kinds of assets:
+reach attackers. It runs agent-led assessments against the assets teams
+actually ship and operate:
 
 - source code repositories and uploaded source archives
 - binary artifacts such as Android packages, JARs, firmware, installers, and archives
@@ -16,10 +17,32 @@ The primary UI is the ZeroQuarry console at
 [console.zeroquarry.com](https://console.zeroquarry.com). Programmatic access is
 available through the public API gateway at `https://api.zeroquarry.com`.
 
+## What ZeroQuarry is for
+
+Use ZeroQuarry when you need security review capacity around software that is
+changing faster than a human team can manually inspect every time.
+
+Common use cases:
+
+- **Release security review**: scan a release branch, shipped artifact, and
+  staging target before promotion.
+- **Continuous CI scanning**: trigger source scans from CI and use delta scans
+  to focus on changed code.
+- **Triage and remediation**: challenge findings, generate fix patches, export
+  engineer-ready evidence, and re-run after fixes.
+- **External disclosure**: prepare PoCs, disclosure drafts, HackerOne review
+  context, and a disclosure timeline.
+- **Multi-surface assessment**: combine source, binary, and remote scans when a
+  vulnerability crosses build, packaging, and runtime boundaries.
+
+Start with [Choose the right assessment](/use-cases/choose-an-assessment) if
+you are deciding what to scan first.
+
 ## Core concepts
 
 **Projects** group scans for one product, service, repository, or target set.
-Every scan belongs to a project.
+Every scan belongs to a project. Use projects to preserve history across source,
+binary, and remote reviews of the same product.
 
 **Scans** are asynchronous security assessments. A scan has one mode: source,
 binary, or remote. Scans move through states such as queued, running,
@@ -33,10 +56,14 @@ Each finding includes severity, CVSS-style scoring, evidence, and source
 context where available.
 
 **Artifacts** are generated outputs attached to findings, including proof of
-concept material and, when enabled, a draft disclosure email.
+concept material, generated patches, and, when enabled, a draft disclosure
+email.
 
 **Reports** are the durable review surface for a scan. Reports include findings,
 non-issues, target metadata, logs, chat, exports, and re-run controls.
+
+**Disclosures** track externally reported issues across acknowledgement, fix,
+public advisory, bounty, credit, and closure.
 
 ## How scans work
 
@@ -53,7 +80,22 @@ The result is a report that is intended to be actionable: evidence first,
 reproducibility where possible, and enough context for an engineer or security
 reviewer to decide what to do next.
 
-## What to read first
+## How to read these docs
+
+If you are planning work, start with a playbook:
+
+- [Release security review](/use-cases/release-security-review)
+- [Continuous CI scanning](/use-cases/continuous-ci-scanning)
+- [Triage to remediation](/use-cases/triage-to-remediation)
+- [External disclosure workflow](/use-cases/external-disclosure)
+
+If you already know what asset you want to scan, go straight to the scan mode:
+
+- [Source code scans](/scans/source-code)
+- [Binary artifact scans](/scans/binary-artifacts)
+- [Remote target scans](/scans/remote-targets)
+
+If you are new to the console, run a small scan first:
 
 Start with [Run your first scan](/getting-started/first-scan), then read the
 mode-specific page for the target you want to assess:

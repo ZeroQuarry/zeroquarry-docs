@@ -8,6 +8,25 @@ Source scans inspect uploaded source files, archives, and Git repositories.
 They are designed for application code, infrastructure code, services, plugins,
 and libraries.
 
+Use source scanning when the most important evidence is in control flow, data
+flow, authorization checks, framework configuration, dependency use, or code
+review context.
+
+## When source scans are the right tool
+
+Source scans are strongest when you need to answer questions like:
+
+- Can a user cross an account, tenant, project, or role boundary?
+- Does user-controlled input reach a command, file path, URL fetch, parser, or
+  template sink?
+- Are secrets, tokens, or signing keys handled safely?
+- Did a recent pull request change a security boundary?
+- Does the code implement the policy that the product assumes?
+
+They are weaker when the relevant behavior only appears after deployment,
+packaging, gateway configuration, or runtime authentication. Pair the scan with
+a binary or remote scan when those surfaces matter.
+
 ## Inputs
 
 You can provide:
@@ -19,6 +38,9 @@ You can provide:
 
 Archives are expanded automatically. Git repositories are cloned into an
 isolated scan workspace for the duration of the assessment.
+
+For repeatable work, prefer Git URLs over one-off uploads. Git-backed scans can
+support lineages, rescans, and CI delta scans more naturally.
 
 ## What agents inspect
 
@@ -36,6 +58,29 @@ source-focused workers. Workers look for issues such as:
 
 Findings should include concrete source locations when the evidence comes from
 code.
+
+## Good source-scan notes
+
+Good notes identify the business boundary or recent change, not just a file
+name. Examples:
+
+```text
+Focus on project membership and billing entitlement checks. Treat cross-account
+data access as critical.
+```
+
+```text
+This scan supports a release gate for the SAML callback rewrite. Follow the
+callback through user lookup, session creation, and role assignment.
+```
+
+```text
+CI delta scan. Prioritize changed files and nearby call paths into webhook
+signature verification, retry handling, and replay protection.
+```
+
+When you have no specific focus, say what the product does and which assets are
+most sensitive.
 
 ## Scan settings
 
@@ -61,3 +106,10 @@ first scan is a full scan and later scans can focus on changed files for the
 same Git URL set.
 
 See [GitHub Actions](/workflows/github-actions) for a working pattern.
+
+## Common next steps
+
+- For release reviews, pair source evidence with [Binary artifact scans](/scans/binary-artifacts).
+- For deployed authorization or SSRF behavior, add a [Remote target scan](/scans/remote-targets).
+- For recurring scans, use [Continuous CI scanning](/use-cases/continuous-ci-scanning).
+- After a finding lands, use [Triage to remediation](/use-cases/triage-to-remediation).

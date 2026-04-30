@@ -4,6 +4,18 @@ module.exports = {
     "intro",
     {
       type: "category",
+      label: "Use cases and playbooks",
+      link: {type: "generated-index", title: "Use cases and playbooks"},
+      items: [
+        "use-cases/choose-an-assessment",
+        "use-cases/release-security-review",
+        "use-cases/continuous-ci-scanning",
+        "use-cases/triage-to-remediation",
+        "use-cases/external-disclosure",
+      ],
+    },
+    {
+      type: "category",
       label: "Getting started",
       link: {type: "generated-index", title: "Getting started"},
       items: [
