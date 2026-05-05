@@ -25,6 +25,12 @@ Some workspaces use ZeroQuarry-managed LLMs. Others require an account-level LLM
 API key before scans can run. If your plan requires bring-your-own keys, add one
 under **Account** before creating a scan.
 
+On a brand-new account, the first sign-in also includes a workflow-mode choice.
+`Guided scan` keeps the scan form quiet and lets ZeroQuarry choose most scan
+defaults. `Security research` exposes the full set of scan and review controls.
+`AppSec triage` keeps review-oriented controls visible while hiding most model
+and cost tuning.
+
 ## Choose a good first target
 
 Pick a repository or archive where you understand the business logic. The best
@@ -47,11 +53,10 @@ Avoid starting with a huge monorepo unless you can provide focused notes.
 2. Choose **Source code scan**.
 3. Select a project.
 4. Upload source files or archives, add Git repository URLs, or do both.
-5. Select the model to use for the scan.
-6. Add focused notes if you know what should be reviewed.
-7. Choose optional review settings, such as Batch API artifacts or adversarial
-   vendor review, if your plan exposes them.
-8. Queue the scan.
+5. Add focused notes if you know what should be reviewed.
+6. If your workflow mode exposes them, choose the model and any optional review
+   settings, such as Batch API artifacts or adversarial vendor review.
+7. Queue the scan.
 
 The scan detail page shows live log output while workers claim and process the
 job.
