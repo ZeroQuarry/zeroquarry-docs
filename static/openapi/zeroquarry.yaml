@@ -13,10 +13,11 @@
 #
 # MAINTENANCE
 # -----------
-# KEEP THIS SPEC IN SYNC WITH routes/api.py.
-# Any change to the JSON surface in routes/api.py MUST be reflected here in
-# the same commit. Reviewers should reject API-touching PRs without a matching
-# spec change.
+# KEEP THIS SPEC IN SYNC WITH the JSON routes under `/api/v1/...`.
+# Most live in routes/api.py; one (`GET /api/v1/search`) lives in
+# routes/search.py alongside its HTML sibling. Any change to the JSON
+# surface MUST be reflected here in the same commit. Reviewers should
+# reject API-touching PRs without a matching spec change.
 # ---------------------------------------------------------------------------
 openapi: 3.1.0
 info:
@@ -60,6 +61,16 @@ tags:
     description: Responsible-disclosure tracker (tier-gated).
   - name: patches
     description: LLM-generated fix patches for findings (tier-gated).
+  - name: search
+    description: Account-scoped full-text search across projects, scans, findings, repos, and disclosures.
+  - name: stream
+    description: Server-Sent Events for live scan logs.
+  - name: schedules
+    description: Periodic scheduled rescans (per-lineage).
+  - name: shares
+    description: Read-only share links for findings (tier-gated).
+  - name: autofix
+    description: GitHub auto-fix bot — generate, approve, and reject patches that get pushed as PRs (tier-gated).
 
 # ---------------------------------------------------------------------------
 # Reusable components
@@ -98,6 +109,16 @@ components:
       schema: { type: string }
     DiscId:
       name: disc_id
+      in: path
+      required: true
+      schema: { type: string }
+    ProposalId:
+      name: proposal_id
+      in: path
+      required: true
+      schema: { type: string }
+    ShareId:
+      name: share_id
       in: path
       required: true
       schema: { type: string }
@@ -263,6 +284,85 @@ components:
         id:     { type: integer }
         label:  { type: string }
         detail: { type: [string, "null"] }
+
+    SearchHit:
+      type: object
+      properties:
+        entity_type: { type: string, enum: [project, scan, finding, repo, disclosure] }
+        entity_id:   { type: string }
+        title:       { type: string }
+        url:         { type: string, description: Server-rendered HTML URL for the entity (web UI). }
+        context:     { type: [string, "null"], description: Short bucket-specific context line (e.g. severity for findings). }
+        snippet:     { type: string, description: HTML snippet with `<mark>` highlights around matched terms. }
+        label:       { type: string, description: Friendly bucket label (e.g. "Findings"). }
+        icon:        { type: string, description: Material Symbols icon name for the bucket. }
+
+    Schedule:
+      type: object
+      description: >
+        Periodic-rescan schedule for a scan lineage. Resolved from a
+        `scan_id` because callers usually have the scan handy; the row
+        itself is keyed by `lineage_id`.
+      properties:
+        lineage_id:   { type: string }
+        account_id:   { type: string }
+        enabled:      { type: boolean }
+        cadence:      { type: string, enum: [daily, weekly, monthly] }
+        rescan_mode:  { type: string, enum: [update, update_diff] }
+        day_of_week:  { type: [integer, "null"], minimum: 0, maximum: 6, description: "0=Sunday..6=Saturday (weekly cadence only)." }
+        day_of_month: { type: [integer, "null"], minimum: 1, maximum: 28, description: "Capped at 28 so February doesn't silently skip." }
+        hour:         { type: integer, minimum: 0, maximum: 23 }
+        minute:       { type: integer, minimum: 0, maximum: 59 }
+        tz:           { type: string, description: IANA timezone (e.g. "America/Los_Angeles"). }
+        next_run_at:  { type: [string, "null"], description: Naive UTC ISO-8601 timestamp. NULL when `enabled` is false. }
+        last_run_at:  { type: [string, "null"] }
+        last_status:  { type: [string, "null"], enum: [ran, skipped_nochange, failed, null] }
+        last_commit:  { type: [string, "null"] }
+        last_message: { type: [string, "null"] }
+
+    Share:
+      type: object
+      properties:
+        id:                 { type: string }
+        account_id:         { type: string }
+        recipient_email:    { type: string }
+        message:            { type: [string, "null"] }
+        expires_at:         { type: string, format: date-time }
+        revoked_at:         { type: [string, "null"], format: date-time }
+        created_at:         { type: string, format: date-time }
+        updated_at:         { type: string, format: date-time }
+        created_by_user_id: { type: [string, "null"] }
+        finding_count:      { type: [integer, "null"] }
+        view_count:         { type: [integer, "null"] }
+
+    AutofixProposal:
+      type: object
+      description: >
+        A staged auto-fix patch produced by the restricted-agent pipeline.
+        Lifecycle: `staged` → `approved`/`rejected`/`failed`/`superseded`,
+        with `pushed` as the success terminal once the PR is open.
+      properties:
+        id:                   { type: string }
+        account_id:           { type: string }
+        scan_id:              { type: string }
+        finding_id:           { type: string }
+        finding_fingerprint:  { type: [string, "null"] }
+        repo_slug:            { type: [string, "null"], description: "`owner/repo` of the GitHub repo (NULL for upload-only scans)." }
+        base_branch:          { type: [string, "null"] }
+        branch_name:          { type: [string, "null"] }
+        status:               { type: string, enum: [staged, approved, pushed, rejected, failed, superseded] }
+        model:                { type: [string, "null"] }
+        summary:              { type: [string, "null"] }
+        patch_content:        { type: [string, "null"], description: Unified-diff body. NULL on `failed` rows. }
+        severity_score:       { type: [number, "null"] }
+        size_lines:           { type: [integer, "null"] }
+        size_files:           { type: [integer, "null"] }
+        error:                { type: [string, "null"], description: Reason a `failed` row was recorded. }
+        pr_url:               { type: [string, "null"], format: uri }
+        pr_number:            { type: [integer, "null"] }
+        decided_at:           { type: [string, "null"], format: date-time }
+        decided_by_user_id:   { type: [string, "null"] }
+        created_at:           { type: string, format: date-time }
 
 # All endpoints require the bearer token unless overridden.
 security:
@@ -975,6 +1075,64 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # ===========================================================
+  # search
+  # ===========================================================
+  /v1/search:
+    get:
+      tags: [search]
+      summary: Full-text search across the caller's projects, scans, findings, repos, and disclosures.
+      description: >
+        Backed by the FTS5 search index. Used by the global search-box
+        dropdown, but also useful programmatically (e.g. find a scan
+        by title or a finding by CVE id).
+
+        Empty `q`, or a `q` whose tokens reduce to nothing after
+        stripping FTS5-meaningful punctuation, returns an empty result
+        set rather than 400. The last token is prefix-matched so partial
+        input ("auth" → matches "authentication") behaves the way an
+        autocomplete user expects.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+          description: Free-text query.
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [project, scan, finding, repo, disclosure]
+          description: >
+            Restrict to a single entity bucket. When omitted, the response
+            returns up to `per_group` hits *per* bucket. Unknown values
+            return an empty result set (not 400).
+        - name: per_group
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
+          description: >
+            Cap on hits per bucket when `type` is omitted, or total hits
+            when `type` is set.
+      responses:
+        "200":
+          description: Search results grouped by entity type.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query: { type: string }
+                  total: { type: integer, description: Sum of hits across all returned buckets. }
+                  groups:
+                    type: object
+                    description: >
+                      Map of entity type → list of hits. Empty buckets are
+                      omitted (not present as empty arrays).
+                    additionalProperties:
+                      type: array
+                      items: { $ref: "#/components/schemas/SearchHit" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /v1/scans/{scan_id}/findings/{finding_id}/patches/{patch_id}/download:
     parameters:
       - $ref: "#/components/parameters/ScanId"
@@ -991,3 +1149,329 @@ paths:
               schema: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # stream — live scan logs
+  # ===========================================================
+  /v1/scans/{scan_id}/stream:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [stream]
+      summary: Server-Sent Events stream of live scan logs.
+      description: |
+        Tails the scan's log buffer over `text/event-stream`. Three event
+        types:
+
+          * `status` — emitted once on connect; data is `{"status": "..."}`
+          * `log`    — emitted per log row; data is the row record
+                       (`id`, `ts`, `level`, `agent`, `message`)
+          * `done`   — emitted when the scan reaches a terminal status
+                       (`completed`/`failed`/`cancelled`); the stream
+                       then closes.
+
+        Each connection is capped at ~120s; clients should reconnect
+        with `?since=<last_id>` to resume after the previous final `log`
+        event without dropping or duplicating rows.
+      parameters:
+        - name: since
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+          description: Resume cursor; the highest `id` already received.
+      responses:
+        "200":
+          description: SSE stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # schedules — periodic scheduled rescans
+  # ===========================================================
+  /v1/scans/{scan_id}/schedule:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [schedules]
+      summary: Read the lineage's schedule (if any).
+      responses:
+        "200":
+          description: "Schedule (or `schedule: null` if none is set)."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lineage_id: { type: string }
+                  schedule:   { oneOf: [{ $ref: "#/components/schemas/Schedule" }, { type: "null" }] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [schedules]
+      summary: Set or replace the lineage's schedule.
+      description: >
+        Pass `enabled: false` to keep the row but stop firing; `DELETE`
+        to clear the row entirely. `cadence` and time-of-day fields are
+        required when `enabled` is true; the server validates the IANA
+        `tz` and clamps `day_of_month` to 28.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, cadence, rescan_mode]
+              properties:
+                enabled:      { type: boolean }
+                cadence:      { type: string, enum: [daily, weekly, monthly] }
+                rescan_mode:  { type: string, enum: [update, update_diff] }
+                day_of_week:  { type: [integer, "null"], minimum: 0, maximum: 6 }
+                day_of_month: { type: [integer, "null"], minimum: 1, maximum: 28 }
+                hour:         { type: integer, minimum: 0, maximum: 23, default: 0 }
+                minute:       { type: integer, minimum: 0, maximum: 59, default: 0 }
+                tz:           { type: string, default: UTC }
+      responses:
+        "200":
+          description: Saved schedule.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lineage_id: { type: string }
+                  schedule:   { $ref: "#/components/schemas/Schedule" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [schedules]
+      summary: Disable + clear the schedule for this lineage.
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # shares — read-only links (tier-gated by allow_shares)
+  # ===========================================================
+  /v1/shares:
+    get:
+      tags: [shares]
+      summary: List the caller's outgoing share links.
+      responses:
+        "200":
+          description: Share list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  shares:
+                    type: array
+                    items: { $ref: "#/components/schemas/Share" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/scans/{scan_id}/shares:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [shares]
+      summary: Mint a new share link covering one or more findings on this scan.
+      description: >
+        The response is the **only** time the caller sees the bare
+        `token` and `password` — both are stored only as hashes. The
+        recipient receives an email with the URL + password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [finding_ids, recipient_email]
+              properties:
+                finding_ids:
+                  type: array
+                  items: { type: string }
+                  minItems: 1
+                recipient_email: { type: string, format: email }
+                expiry_days:
+                  type: integer
+                  minimum: 1
+                  default: 30
+                  description: Clamped to the tier's `max_share_expiry_days` ceiling.
+                password:
+                  type: string
+                  minLength: 8
+                  description: Optional; if omitted, the server generates a 4-word passphrase.
+                message:
+                  type: string
+                  maxLength: 1000
+      responses:
+        "201":
+          description: Share created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:              { type: string }
+                  share_url:       { type: string, format: uri, description: Public landing-page URL the recipient pastes into a browser. }
+                  token:           { type: string, description: Bare token (one-time-only — store immediately). }
+                  password:        { type: string, description: Plain password (one-time-only). }
+                  recipient_email: { type: string }
+                  expires_at:      { type: string, format: date-time }
+                  expiry_days:     { type: integer }
+                  finding_ids:
+                    type: array
+                    items: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "402": { $ref: "#/components/responses/PaymentRequired" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/shares/{share_id}:
+    parameters: [ { $ref: "#/components/parameters/ShareId" } ]
+    delete:
+      tags: [shares]
+      summary: Revoke a share. The token + password stop working on the next access.
+      responses:
+        "204": { $ref: "#/components/responses/NoContent" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # autofix — GitHub auto-fix bot
+  #
+  # Tier-gated by `allow_github_autofix_bot`. Each proposal lives at the
+  # (scan, finding) pair and progresses through:
+  #   staged → approved/rejected/failed/superseded
+  # with `pushed` as the success terminal once the PR is open. Approving
+  # is what calls GitHub; rejecting is local-only.
+  # ===========================================================
+  /v1/scans/{scan_id}/autofix-proposals:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [autofix]
+      summary: List auto-fix proposals for this scan, newest first.
+      responses:
+        "200":
+          description: Proposal list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id: { type: string }
+                  count:   { type: integer }
+                  proposals:
+                    type: array
+                    items: { $ref: "#/components/schemas/AutofixProposal" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/findings/{finding_id}/autofix-proposals:
+    parameters:
+      - $ref: "#/components/parameters/ScanId"
+      - $ref: "#/components/parameters/FindingId"
+    post:
+      tags: [autofix]
+      summary: Generate an auto-fix proposal on demand.
+      description: >
+        Runs the restricted agent (read-only tools, file deny-list, size
+        cap) against the finding and stages a proposal. If an `open`
+        proposal already exists for the same fingerprint+repo, that one
+        is returned with `200` instead — idempotent on the dev-tool
+        path, so a CI loop can safely retry.
+
+        If the agent declined to produce a patch (forbidden file, model
+        refusal, …), the response is still `201` with a `failed`-status
+        proposal whose `error` carries the reason.
+      responses:
+        "200":
+          description: Existing open proposal returned (idempotent).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutofixProposal" }
+        "201":
+          description: Newly staged proposal (or a `failed` row if the agent declined).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutofixProposal" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/autofix-proposals/{proposal_id}/approve:
+    parameters: [ { $ref: "#/components/parameters/ProposalId" } ]
+    post:
+      tags: [autofix]
+      summary: Push the proposal as a GitHub PR via the shared ZeroQuarryBot App.
+      description: |
+        Runs the layered safety stack before the network call:
+
+          1. tier flag is on
+          2. account-level kill switch is OFF
+          3. proposal is associated with a github.com repo
+          4. ZeroQuarryBot App is configured + has access to this repo
+             for the calling account (cross-tenant authz boundary)
+          5. per-repo kill switch is OFF
+
+        If layer 4 fails because the bot isn't installed on the org/user
+        that owns the repo, the response is `403` with
+        `reason_code: "not_installed"` and the `repo_slug` to install
+        on. The caller should direct the user to `/account/github` to
+        complete the install — there's no in-band way to trigger that
+        from the API (GitHub's own UI handles consent).
+
+        On a GitHub-side failure (network error, dry-run apply rejected
+        the patch, the App's installation token expired or was revoked,
+        etc.) the proposal status flips to `failed` and the response
+        is `502`.
+      responses:
+        "200":
+          description: "PR opened. Proposal record now has `status: pushed`, `pr_url`, `pr_number`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutofixProposal" }
+        "403":
+          description: |
+            Safety check rejected the push. `reason_code: "not_installed"`
+            means the bot isn't installed for this repo; other 403s carry
+            no `reason_code` and indicate kill-switch / tier / non-GitHub
+            repo failures.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    properties:
+                      reason_code: { type: string, enum: [not_installed] }
+                      repo_slug:   { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Proposal is not in `staged` state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502":
+          description: GitHub push failed; proposal was transitioned to `failed`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: ZeroQuarryBot App is not configured on the server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/autofix-proposals/{proposal_id}/reject:
+    parameters: [ { $ref: "#/components/parameters/ProposalId" } ]
+    post:
+      tags: [autofix]
+      summary: Reject a staged proposal. Not tier-gated.
+      responses:
+        "200":
+          description: Updated proposal (status now `rejected`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AutofixProposal" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }

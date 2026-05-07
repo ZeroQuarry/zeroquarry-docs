@@ -17,7 +17,7 @@ When building outside `c:\Users\eskib\git-repos`, set one of:
 
 ```bash
 ZEROQUARRY_OPENAPI_SPEC=/path/to/ZeroQuarry.spec.yml
-ZEROQUARRY_APP_DIR=/path/to/security-bug-finder
+ZEROQUARRY_APP_DIR=/path/to/zeroquarry
 ```
 
 ## Build

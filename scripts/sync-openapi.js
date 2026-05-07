@@ -5,7 +5,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const defaultSpecPath = path.resolve(
   repoRoot,
   "..",
-  "security-bug-finder",
+  "zeroquarry",
   "static",
   "ZeroQuarry.spec.yml",
 );
