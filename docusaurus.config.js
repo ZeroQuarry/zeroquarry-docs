@@ -137,6 +137,14 @@ const config = {
               {label: "Data handling", to: "/security/data-handling"},
             ],
           },
+          {
+            title: "Social",
+            items: [
+              {label: "LinkedIn", href: "https://www.linkedin.com/company/zeroquarry/"},
+              {label: "Discord", href: "https://discord.gg/PygTTeuU"},
+              {label: "GitHub", href: "https://github.com/ZeroQuarry/"},
+            ],
+          },
         ],
         copyright: `Copyright ${new Date().getFullYear()} ZeroQuarry.`,
       },
