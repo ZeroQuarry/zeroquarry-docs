@@ -33,7 +33,9 @@ written to `static/img/screenshots/`.
 
 Use a dedicated production docs account with public-safe demo data. The scripts
 never store credentials; they use either a saved browser auth state or a session
-cookie supplied by the environment.
+cookie supplied by the environment. During capture, the helper removes the
+sidebar tier label and replaces visible email addresses with
+`example@example.com` by default.
 
 First-time local setup:
 
@@ -62,8 +64,20 @@ Optional overrides:
 - `ZEROQUARRY_SCREENSHOT_DIR`: output directory
 - `ZEROQUARRY_SCREENSHOT_HEADLESS=0`: show the browser during capture
 - `ZEROQUARRY_SCREENSHOT_WIDTH` / `ZEROQUARRY_SCREENSHOT_HEIGHT`: viewport size
+- `ZEROQUARRY_SCREENSHOT_EMAIL_REPLACEMENT`: replacement text for any visible
+  email addresses
 - `ZEROQUARRY_SCREENSHOT_REDACTIONS`: comma-separated text to replace with
   `[redacted]` before capture
+
+Seeded screenshot targets that need stable production IDs can be supplied with:
+
+- `ZEROQUARRY_DOCS_PROJECT_ID`
+- `ZEROQUARRY_DOCS_SCAN_ID`
+- `ZEROQUARRY_DOCS_FINDING_ID`
+- `ZEROQUARRY_DOCS_DISCLOSURE_ID`
+
+Targets that depend on one of those IDs are skipped automatically when the
+environment variable is not set.
 
 Reference generated images from docs as `/img/screenshots/<name>.png`.
 

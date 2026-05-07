@@ -13,6 +13,7 @@ const {
 
 const SECRET_SELECTORS = [
   "input[type='password']",
+  "input[type='email']",
   "input[name*='api' i]",
   "input[name*='key' i]",
   "input[name*='token' i]",
@@ -21,6 +22,11 @@ const SECRET_SELECTORS = [
   "textarea[name*='token' i]",
   "textarea[name*='secret' i]",
   "[data-screenshot-mask]",
+];
+
+const DEFAULT_EMAIL_REPLACEMENT = "example@example.com";
+const HIDE_SELECTORS = [
+  ".sidebar-top .sidebar-meta[title='Your current tier']",
 ];
 
 async function newBrowser() {
@@ -70,13 +76,22 @@ async function assertSignedIn(page) {
 }
 
 async function preparePage(page) {
+  const emailReplacement =
+    (process.env.ZEROQUARRY_SCREENSHOT_EMAIL_REPLACEMENT || "").trim() ||
+    DEFAULT_EMAIL_REPLACEMENT;
   const redactions = (process.env.ZEROQUARRY_SCREENSHOT_REDACTIONS || "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
 
-  if (redactions.length) {
-    await page.evaluate((values) => {
+  await page.evaluate(
+    ({ values, replacement, hideSelectors }) => {
+      for (const selector of hideSelectors) {
+        document.querySelectorAll(selector).forEach((element) => {
+          element.remove();
+        });
+      }
+
       const walker = document.createTreeWalker(
         document.body,
         NodeFilter.SHOW_TEXT
@@ -84,14 +99,39 @@ async function preparePage(page) {
       const nodes = [];
       while (walker.nextNode()) nodes.push(walker.currentNode);
       for (const node of nodes) {
-        let text = node.nodeValue || "";
+        let text = (node.nodeValue || "").replace(
+          /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+          replacement
+        );
         for (const value of values) {
           text = text.split(value).join("[redacted]");
         }
         node.nodeValue = text;
       }
-    }, redactions);
-  }
+
+      document
+        .querySelectorAll("input, textarea")
+        .forEach((element) => {
+          if (typeof element.value === "string" && element.value) {
+            element.value = element.value.replace(
+              /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+              replacement
+            );
+          }
+          if (typeof element.placeholder === "string" && element.placeholder) {
+            element.placeholder = element.placeholder.replace(
+              /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+              replacement
+            );
+          }
+        });
+    },
+    {
+      values: redactions,
+      replacement: emailReplacement,
+      hideSelectors: HIDE_SELECTORS,
+    }
+  );
 
   await page.addStyleTag({
     content: `
@@ -100,6 +140,7 @@ async function preparePage(page) {
       }
 
       input[type='password'],
+      input[type='email'],
       input[name*='api' i],
       input[name*='key' i],
       input[name*='token' i],
