@@ -29,6 +29,10 @@ Use CI-triggered source scans for:
 Use manual scans instead when the input includes uploaded artifacts, credentials
 that should not live in CI, or remote targets with special authorization rules.
 
+Use a [scheduled rescan](/workflows/scheduled-rescans) when you want a security
+cadence independent of CI. The scheduler checks whether the repository commit
+changed and records a no-change skip instead of scanning identical source.
+
 ## Recommended architecture
 
 1. Create a ZeroQuarry project per repository or service.
@@ -40,6 +44,10 @@ that should not live in CI, or remote targets with special authorization rules.
 
 With `auto_delta`, the first scan establishes a baseline. Later scans for the
 same Git URL set can focus on changed files and nearby data flow.
+
+If an identical Git scan is already in progress, the API can suppress the
+duplicate dispatch and return the existing scan ID. CI should treat that as a
+successful dispatch and follow the returned scan.
 
 Read next: [GitHub Actions](/workflows/github-actions).
 
@@ -83,6 +91,10 @@ Use account notifications intentionally:
 
 Read next: [Notifications and team settings](/account/notifications-and-team).
 
+Do not let CI failure become the only remediation record. Validate the result,
+record its [lifecycle state](/reports/finding-lifecycle), and file accepted work
+into Jira, ServiceNow, or GitHub Issues.
+
 ## Handle private repositories
 
 For private Git URLs, configure Git credentials in ZeroQuarry and pass the
@@ -103,3 +115,8 @@ Use CI as a tripwire. Escalate when:
 
 The next step is usually a focused source rescan, then either adversarial review
 or a remote scan of staging.
+
+For repositories with stable ownership and strong branch protections, you can
+also connect [Auto-fix pull requests](/workflows/autofix) so accepted findings
+arrive as reviewable code changes. Exclude `zeroquarry/fix/**` branches from the
+scan trigger to avoid feedback loops.

@@ -1,0 +1,67 @@
+---
+id: evidence-room
+title: Evidence Room
+sidebar_position: 1
+---
+
+The Evidence Room is an account-wide, asset-oriented view of completed security
+work. Reports normally begin with a scan; the Evidence Room begins with the
+actual target that was assessed.
+
+Use it to answer “what is the latest security evidence for these systems?”
+without manually assembling individual report files.
+
+## What the view contains
+
+Open **Account > Evidence Room** to see:
+
+- total targets, reports, projects, completed scans, and findings
+- targets grouped by kind: Git repository, URL, path, or upload
+- the latest project and report associated with each target
+- report and finding counts, including critical and high findings
+- the latest completion date
+
+You can filter the target inventory by project or target type.
+
+## Download the latest report for one target
+
+Use **Latest PDF** on a target row. ZeroQuarry resolves the latest report for
+that exact normalized target and produces the account's current pentester-style
+PDF.
+
+This is useful for a focused customer request or an internal service review.
+
+## Build a combined evidence PDF
+
+1. Filter the view to the relevant project or target kind.
+2. Select the targets in scope.
+3. Choose **Download PDF**.
+4. ZeroQuarry selects the latest report for each chosen target and combines the
+   target context and findings into one evidence pack.
+
+The selection is capped by the export limit shown in the console. For a large
+asset inventory, create several coherent packs rather than one unreviewable
+document.
+
+## Configure the organization name
+
+The account's evidence-report organization name is used in the combined
+document. Report branding, watermark, disclaimer, and finding definitions are
+resolved from the account tier and platform settings at export time.
+
+## Freshness and interpretation
+
+The Evidence Room packages the latest available report per selected target. It
+does not claim that:
+
+- every product asset is represented
+- the latest report is recent enough for a specific control
+- all findings are resolved
+- the account complies with a framework
+
+Before sharing, check the completion dates, target scope, important finding
+states, and whether a full or changed-code assessment produced the report.
+
+For the audience and delivery workflow, read
+[Customer assurance and audit evidence](/use-cases/customer-assurance).
+

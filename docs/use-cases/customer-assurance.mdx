@@ -1,0 +1,83 @@
+---
+id: customer-assurance
+title: Customer assurance and audit evidence
+sidebar_position: 7
+---
+
+Customers and auditors rarely need every internal scan detail. They need a
+defensible answer to three questions: what was assessed, when was it assessed,
+and what did you do with the result?
+
+ZeroQuarry separates the internal working record from the artifact you provide
+to a specific audience.
+
+## Build evidence continuously
+
+Evidence is strongest when it is a by-product of the operating process:
+
+- projects preserve product and service history
+- scan lineages preserve versions and retests
+- finding states record validation, dispute, mitigation, regression, accepted
+  risk, and archive decisions
+- the audit log records analysis runs, models, actors, outcomes, and reasons
+- reports preserve targets, findings, non-issues, and review context
+
+Do not wait for an audit request to reconstruct this history from tickets and
+chat messages.
+
+## Choose the narrowest artifact
+
+| Request | Best starting artifact |
+| --- | --- |
+| “Show recent testing for these systems” | Evidence Room combined PDF for selected targets |
+| “Explain this vulnerability and its status” | Secure share containing only the relevant findings |
+| “Provide the full assessment record” | Filtered report export |
+| “Show how an external issue was handled” | Disclosure record and timeline |
+| “Show that a fix was verified” | Original report, later scan version, and retest lifecycle event |
+
+Start narrow and expand only when the recipient has a legitimate need.
+
+## Prepare an asset evidence pack
+
+1. Open **Account > Evidence Room**.
+2. Filter by project or target type.
+3. Review the latest report and finding counts for each asset.
+4. Select only the targets in scope for the request.
+5. Download the combined PDF. The export uses the latest available report for
+   each selected target and applies the account's report branding and
+   disclaimer settings.
+6. Review the PDF before delivery, especially high and critical findings and
+   any content that exposes sensitive implementation detail.
+
+Read [Evidence Room](/reports/evidence-room) for selection and freshness
+details.
+
+## Share findings without sharing the workspace
+
+When a customer, auditor, or partner needs a small set of findings:
+
+1. Select the finding or findings from the report.
+2. Create a share for the named recipient.
+3. Choose delivery by ZeroQuarry email or create the link only.
+4. Use an auto-generated passphrase or set a strong custom password.
+5. Set the shortest useful expiry.
+6. Send the password through a separate channel when your process requires it.
+7. Monitor views and revoke the share when the review ends.
+
+Recipients get a read-only view of only the selected findings. They do not get
+the rest of the scan or account. Read [Secure sharing](/reports/secure-sharing).
+
+## Review before anything leaves the workspace
+
+- remove low-confidence or rejected material that is not relevant
+- confirm findings have a current lifecycle decision
+- check that source paths, credentials, notes, and authentication context are
+  appropriate for the audience
+- describe accepted risk as a business decision with scope and expiry, not as a
+  claim that the issue does not exist
+- include a retest or current assessment date where the recipient may otherwise
+  assume the evidence is evergreen
+
+The Evidence Room is an evidence packaging surface, not an automatic assertion
+of compliance or product security.
+

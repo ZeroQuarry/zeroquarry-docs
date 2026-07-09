@@ -29,6 +29,17 @@ downstream actions come together for one security claim._
 | Source | File, line, URL, binary artifact, or other evidence location. |
 | Description | Technical explanation and impact. |
 | CVE references | Related known-vulnerability references when applicable. |
+| Lifecycle state | The team's current decision, backed by append-only history. |
+
+## Record the decision
+
+New results begin as candidates. After review, use the finding controls to move
+the issue through validation, mitigation, retest, accepted risk, dispute, or
+archive. Decisions that close or contest a finding should include enough reason
+for a future reviewer to understand the product context.
+
+Lifecycle state is different from severity and confidence: it records what the
+team decided to do. Read [Finding lifecycle and audit trail](/reports/finding-lifecycle).
 
 ## Proofs of concept
 
@@ -66,7 +77,9 @@ Each finding has its own chat thread. Use it to:
 - challenge the finding as a false positive
 - ask the model to revise the title, severity, or description
 
-If the model revises the finding, refresh the report before exporting it.
+Finding discussions can continue for multiple review rounds. If the model
+revises the finding, confirm the updated title, severity, description, PoC, and
+lifecycle decision before exporting it.
 
 Good finding-chat prompts are specific:
 
@@ -87,3 +100,12 @@ Rewrite the reproduction steps for a staging environment with two test users.
 Reports may include notable non-issues. These are areas the agents reviewed and
 marked clean. Non-issues are useful for audit coverage because they show where
 the scan spent time even when no finding was recorded.
+
+## Next action
+
+- Use [Auto-fix pull requests](/workflows/autofix) for source findings that need
+  an engineer-reviewable code change.
+- Use [Jira, ServiceNow, and GitHub Issues](/workflows/issue-trackers) to hand
+  work into the owning team's system.
+- Use [Secure sharing](/reports/secure-sharing) when an external recipient
+  should see only selected findings.

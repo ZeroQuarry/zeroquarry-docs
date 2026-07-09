@@ -4,20 +4,8 @@ module.exports = {
     "intro",
     {
       type: "category",
-      label: "Use cases and playbooks",
-      link: {type: "generated-index", title: "Use cases and playbooks"},
-      items: [
-        "use-cases/choose-an-assessment",
-        "use-cases/release-security-review",
-        "use-cases/continuous-ci-scanning",
-        "use-cases/triage-to-remediation",
-        "use-cases/external-disclosure",
-      ],
-    },
-    {
-      type: "category",
-      label: "Getting started",
-      link: {type: "generated-index", title: "Getting started"},
+      label: "Start here",
+      link: {type: "generated-index", title: "Start with ZeroQuarry"},
       items: [
         "getting-started/first-scan",
         "getting-started/projects-and-scans",
@@ -25,8 +13,23 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Scans",
-      link: {type: "generated-index", title: "Scans"},
+      label: "Security operating playbooks",
+      link: {type: "generated-index", title: "Security operating playbooks"},
+      items: [
+        "use-cases/security-program",
+        "use-cases/choose-an-assessment",
+        "use-cases/release-security-review",
+        "use-cases/continuous-ci-scanning",
+        "use-cases/inbound-report-triage",
+        "use-cases/triage-to-remediation",
+        "use-cases/customer-assurance",
+        "use-cases/external-disclosure",
+      ],
+    },
+    {
+      type: "category",
+      label: "Run assessments",
+      link: {type: "generated-index", title: "Run assessments"},
       items: [
         "scans/source-code",
         "scans/binary-artifacts",
@@ -35,21 +38,35 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Reports",
-      link: {type: "generated-index", title: "Reports"},
+      label: "Automate and receive work",
+      link: {type: "generated-index", title: "Automate and receive security work"},
       items: [
-        "reports/findings",
-        "reports/confidence-and-review",
-        "reports/exports-and-disclosures",
+        "workflows/github-actions",
+        "workflows/scheduled-rescans",
+        "workflows/email-triage",
+        "workflows/private-repositories",
       ],
     },
     {
       type: "category",
-      label: "Workflows",
-      link: {type: "generated-index", title: "Workflows"},
+      label: "Decide and remediate",
+      link: {type: "generated-index", title: "Decide and remediate"},
       items: [
-        "workflows/github-actions",
-        "workflows/private-repositories",
+        "reports/findings",
+        "reports/finding-lifecycle",
+        "reports/confidence-and-review",
+        "workflows/autofix",
+        "workflows/issue-trackers",
+      ],
+    },
+    {
+      type: "category",
+      label: "Share and prove",
+      link: {type: "generated-index", title: "Share and prove security work"},
+      items: [
+        "reports/evidence-room",
+        "reports/secure-sharing",
+        "reports/exports-and-disclosures",
       ],
     },
     {

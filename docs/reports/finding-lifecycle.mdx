@@ -1,0 +1,82 @@
+---
+id: finding-lifecycle
+title: Finding lifecycle and audit trail
+sidebar_position: 2
+---
+
+A finding is an investigation result. Its lifecycle state records the decision
+your team made about that result.
+
+State changes are appended as signals with an actor, time, source surface, and
+optional reason. This creates decision history instead of silently replacing a
+status field.
+
+## Lifecycle states
+
+| State | Use it when |
+| --- | --- |
+| Candidate | The scan recorded the issue and no later decision exists. |
+| Needs Validation | Evidence or product context is not yet sufficient. |
+| Validated | The team accepts that the issue is real and applicable. |
+| Disputed | The issue is rejected or contested in this context. |
+| Mitigated | A control or code change is believed to address the risk. |
+| Retested | The mitigation was checked with a later test. |
+| Regression | A previously addressed issue has returned. |
+| Accepted Risk | An authorized owner chose to tolerate the known risk. |
+| Archived | The finding is intentionally closed outside the normal fix path. |
+
+Disputed, regression, accepted-risk, and archived decisions require a reason.
+Add useful notes for every decision that would otherwise be hard to reconstruct.
+
+## A recommended path
+
+```text
+Candidate → Needs Validation → Validated → Mitigated → Retested
+```
+
+Not every finding follows the happy path:
+
+- use **Disputed** with a concrete reason when evidence is wrong, unreachable,
+  intended behavior, out of scope, duplicated, or does not apply to the
+  environment
+- use **Accepted Risk** only after validation; name the business reason and
+  planned review point
+- use **Regression** when a later scan shows the risk returned
+- use **Archived** for intentionally closed records that do not mean “fixed”
+
+## Change a finding state
+
+1. Open the finding.
+2. Review evidence, confidence, discussion, and adversarial-review output.
+3. Use **Accept finding** for a validated result, **Reject finding** for a
+   disputed result, or **Actions > Change state** for the full lifecycle.
+4. Add the reason and context.
+5. Create the engineering ticket or remediation proposal.
+
+Changing state does not rewrite the finding's technical content and does not
+delete previous state events.
+
+## What the audit log records
+
+The report and finding audit views combine:
+
+- original scan and follow-up analysis runs
+- whole-scan and finding-specific review passes
+- artifact, patch, and deployment-package generation
+- the model resolved for each stage
+- user or actor, start/end time, outcome, and errors
+- finding lifecycle changes and reasons
+
+Use this history to answer who made a decision, what analysis supported it,
+and whether a later retest actually occurred.
+
+## Separate state from confidence and severity
+
+- **Severity** estimates impact if the vulnerability is real.
+- **Confidence** estimates how likely the claim is to survive review.
+- **Lifecycle state** records the team's current decision and operating status.
+
+A high-severity, low-confidence candidate should usually move to **Needs
+Validation**, not disappear. A validated low-severity issue may still require
+action because of customer commitments or chained risk.
+

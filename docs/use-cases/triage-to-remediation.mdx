@@ -25,7 +25,8 @@ Triage should produce four decisions for each important finding:
 4. What evidence belongs in the ticket, export, or disclosure?
 
 ZeroQuarry provides severity, confidence, PoCs, vendor review, chat, exports,
-and patch generation to support those decisions.
+finding lifecycle states, patch generation, auto-fix proposals, and issue
+tracker handoff to support those decisions.
 
 ## Step 1: Start from severity, then check confidence
 
@@ -76,7 +77,15 @@ Do not treat a rejected vendor verdict as automatic deletion. Treat it as a
 signal to read the evidence and decide whether the product context changes the
 answer.
 
-## Step 4: Generate or request remediation help
+Record the outcome on the finding:
+
+- **Validated** when the claim applies to your product
+- **Needs Validation** when an important assumption is unresolved
+- **Disputed** with a reason when the claim is not actionable in context
+
+Read [Finding lifecycle and audit trail](/reports/finding-lifecycle).
+
+## Step 4: Create remediation work
 
 When the finding comes from source code and the scan still has source available,
 use patch generation if your tier includes it. A patch is a starting point, not
@@ -92,6 +101,18 @@ Review generated patches for:
 If the first patch is close but not quite right, use feedback to generate a new
 revision.
 
+For an enrolled GitHub repository, an auto-fix proposal can take the reviewed
+diff into a bot-created pull request. Manual approval is the starting posture;
+auto-push is an explicit per-repository opt-in. ZeroQuarry never auto-merges.
+
+If code generation is not appropriate, file the finding into Jira,
+ServiceNow, or GitHub Issues from the finding actions. The engineering ticket
+should name the expected mitigation and how the security retest will determine
+success.
+
+Read [Auto-fix pull requests](/workflows/autofix) and
+[Jira, ServiceNow, and GitHub Issues](/workflows/issue-trackers).
+
 ## Step 5: Hand off the right artifact
 
 Different audiences need different outputs:
@@ -103,6 +124,7 @@ Different audiences need different outputs:
 | Product owner | Summary, affected feature, customer impact, timeline |
 | External vendor | Disclosure draft plus manually reviewed PoC |
 | Auditor | Report export including targets and non-issues |
+| Customer or partner | Expiring secure share containing only selected findings |
 
 Read next: [Exports and disclosures](/reports/exports-and-disclosures).
 
@@ -118,3 +140,8 @@ invite acceptance, session creation, and project membership paths.
 
 Use finding fingerprints and report history to confirm whether the issue
 disappeared, changed shape, or moved to a related path.
+
+Move the original finding to **Mitigated** when a fix is expected to address the
+risk. Move it to **Retested** only after the later assessment provides evidence.
+Use **Regression** if the issue returns. These state changes become part of the
+report audit trail.

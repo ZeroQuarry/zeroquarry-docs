@@ -2,10 +2,14 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.resolve(__dirname, "..");
-const defaultSpecPath = path.resolve(
+const siblingProductDirs = ["ZeroQuarry", "zeroquarry", "security-bug-finder"];
+const discoveredSpecPath = siblingProductDirs
+  .map((dir) => path.resolve(repoRoot, "..", dir, "static", "ZeroQuarry.spec.yml"))
+  .find((candidate) => fs.existsSync(candidate));
+const defaultSpecPath = discoveredSpecPath || path.resolve(
   repoRoot,
   "..",
-  "zeroquarry",
+  "ZeroQuarry",
   "static",
   "ZeroQuarry.spec.yml",
 );

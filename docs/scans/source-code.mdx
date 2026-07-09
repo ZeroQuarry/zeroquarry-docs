@@ -100,7 +100,8 @@ most sensitive.
 
 ## Private repositories
 
-Add credentials under **Account > Git Access** before starting the scan. See
+Add credentials under **Account > Integrations > Git Private Repositories**
+before starting the scan. See
 [Private repositories](/workflows/private-repositories) for credential behavior
 and CI usage.
 
@@ -112,9 +113,21 @@ same Git URL set.
 
 See [GitHub Actions](/workflows/github-actions) for a working pattern.
 
+## Scheduled rescans and remediation
+
+For a recurring baseline, attach a daily, weekly, or monthly schedule to the
+scan lineage. Scheduled runs check whether Git HEAD changed and can either scan
+the updated repository broadly or focus on the diff. Read
+[Scheduled rescans](/workflows/scheduled-rescans).
+
+For findings in connected GitHub repositories, ZeroQuarry can generate a patch
+proposal and open a reviewable pull request through ZeroQuarryBot. Read
+[Auto-fix pull requests](/workflows/autofix).
+
 ## Common next steps
 
 - For release reviews, pair source evidence with [Binary artifact scans](/scans/binary-artifacts).
 - For deployed authorization or SSRF behavior, add a [Remote target scan](/scans/remote-targets).
-- For recurring scans, use [Continuous CI scanning](/use-cases/continuous-ci-scanning).
+- For recurring scans, choose [Continuous CI scanning](/use-cases/continuous-ci-scanning)
+  or [Scheduled rescans](/workflows/scheduled-rescans).
 - After a finding lands, use [Triage to remediation](/use-cases/triage-to-remediation).

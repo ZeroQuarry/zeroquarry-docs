@@ -1,0 +1,78 @@
+---
+id: scheduled-rescans
+title: Scheduled rescans
+sidebar_position: 2
+---
+
+Scheduled rescans provide baseline coverage when a repository does not have a
+reliable CI integration or when you want an independent security cadence.
+
+A schedule belongs to a scan lineage, not one historical scan. On each due run,
+ZeroQuarry checks the latest Git target for changes. If the commit has not
+moved, it records a no-change skip instead of spending a scan on identical
+source.
+
+## When to use a schedule
+
+Use a scheduled rescan for:
+
+- weekly coverage of an important repository
+- a monthly control independent of individual developer workflows
+- repositories maintained by a vendor or separate engineering system
+- services where main-branch changes are a better trigger than every pull
+  request
+
+Use [GitHub Actions](/workflows/github-actions) when the scan must be associated
+with a specific pull request or CI decision.
+
+## Create a schedule
+
+1. Complete a Git-backed source scan. The baseline provides the lineage,
+   repository checkout, and prior commit.
+2. Open its report and find the scheduled-scan settings.
+3. Enable the schedule.
+4. Choose daily, weekly, or monthly cadence.
+5. Choose the local time and IANA timezone. ZeroQuarry calculates runs in that
+   timezone so daylight-saving changes preserve the intended wall-clock time.
+6. For weekly schedules choose a weekday. For monthly schedules choose a day
+   from 1 through 28.
+7. Choose the rescan mode:
+   - **Update and rescan** pulls the latest repository and reviews it broadly.
+   - **Update and focus on changes** uses the Git diff to focus the next scan
+     while still allowing the agents to follow nearby data flow.
+8. Save the schedule.
+
+Schedules are available only for source/Git lineages because those targets
+provide a reliable commit-change signal.
+
+## Interpret schedule outcomes
+
+The schedule records its last run and one of these outcomes:
+
+- `ran`: a new scan version was created
+- `skipped_nochange`: the repository commit had not changed
+- `failed`: the repository could not be updated or the rescan could not start
+
+A no-change skip is a successful control outcome. A repeated failure needs
+investigation, usually around Git credentials, repository availability, or
+worker health.
+
+## Set the right cadence
+
+| Change profile | Starting cadence |
+| --- | --- |
+| High-risk service with frequent changes | Daily changed-code scan plus periodic broad review |
+| Normal product repository | Weekly changed-code scan |
+| Low-change internal or vendor component | Monthly broad review |
+
+Avoid making every scheduled scan a release gate. Use schedules for coverage;
+use release or CI workflows for time-sensitive decisions.
+
+## Keep the schedule healthy
+
+- Preserve the Git credential used by private targets.
+- Review the latest run status after credential rotation or repository moves.
+- Keep the source clone available if the schedule depends on updating it.
+- Disable the schedule when the product or repository is retired.
+- Run a fresh baseline when the target set changes materially.
+

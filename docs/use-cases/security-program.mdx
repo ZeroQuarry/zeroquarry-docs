@@ -1,0 +1,111 @@
+---
+id: security-program
+title: Build a security operating rhythm
+sidebar_position: 1
+---
+
+ZeroQuarry is most useful as a repeatable security operating system, not a
+scanner that someone remembers to run before a major launch.
+
+The practical goal is to give every important product surface a review rhythm,
+give every credible finding an owner and decision, and retain evidence without
+requiring a large internal security team to coordinate every step.
+
+## The operating loop
+
+| Stage | Question | ZeroQuarry workflow |
+| --- | --- | --- |
+| Intake | What changed or arrived? | Pull request, scheduled rescan, manual assessment, or forwarded report |
+| Assess | Where can the product fail? | Source, binary, and authorized remote scans |
+| Validate | Is the claim real in our context? | Evidence, PoCs, adversarial review, rebuttal, and finding discussion |
+| Decide | What will we do about it? | Finding lifecycle state, reason, owner in the system of work |
+| Remediate | How does the fix reach production? | Generated patch, auto-fix PR, Jira, ServiceNow, or GitHub Issue |
+| Verify | Did the change close the risk? | Focused rescan, lineage history, fingerprints, and retest state |
+| Prove | Can we show the work later? | Audit log, exports, secure shares, disclosures, and Evidence Room |
+
+The loop matters more than scan volume. Ten reviewed findings with decisions
+are usually more valuable than hundreds of untriaged alerts.
+
+## Match coverage to company stage
+
+Company stage is a proxy for product complexity, buyer pressure, and the cost
+of a miss. Adapt the pattern to your actual risk.
+
+### Seed: establish a defensible baseline
+
+- Create one project per product or service, not per scan.
+- Run a source scan on the primary repository.
+- Scan the release artifact or staging target before consequential launches.
+- Validate critical and high findings; record why disputed findings are not
+  actionable.
+- Keep one reviewed report that can support investor, customer, or insurance
+  conversations.
+
+At this stage, the objective is visibility and a credible response process—not
+an elaborate control framework.
+
+### Series A–B: put security in the delivery system
+
+- Trigger delta scans on security-sensitive pull requests or main-branch
+  changes.
+- Schedule a full or changed-code rescan for important repositories.
+- Send actionable results into the team's issue tracker.
+- Re-run after fixes and use finding states consistently.
+- Forward inbound researcher reports to the correct product project.
+
+The objective is to make security work happen in the same systems and cadence
+as engineering work.
+
+### Series C–E: separate execution, decisions, and evidence
+
+- Use projects and tags to reflect service ownership and product boundaries.
+- Apply explicit validation, accepted-risk, mitigation, and retest decisions.
+- Use adversarial review before high-impact remediation or external sharing.
+- Enroll selected repositories in auto-fix with repository and account kill
+  switches.
+- Build evidence packs by asset for customers, audits, and internal assurance.
+- Use API automation where the standard console workflows do not fit the
+  control environment.
+
+The objective is consistent execution and traceability across a growing asset
+inventory, without forcing a central team to manually operate every scan.
+
+## Define the human control points
+
+Automation should increase coverage without making silent risk decisions. Name
+the points that still require human judgment:
+
+- who authorizes remote target testing
+- who validates or disputes critical and high findings
+- who may accept risk, and what reason must be recorded
+- which repositories may receive auto-fix PRs
+- whether CI blocks immediately or waits for triage
+- what can leave the workspace in a share or export
+
+ZeroQuarry can perform the investigation and preserve the decision trail. Your
+team remains responsible for authorization, business context, and production
+change approval.
+
+## A practical first 30 days
+
+1. **Week 1:** create the project map and run a source baseline on the most
+   important service.
+2. **Week 2:** triage the baseline, connect the issue tracker, and re-run one
+   remediated finding.
+3. **Week 3:** add CI or a scheduled rescan to one repository; choose a gating
+   policy that accounts for validation time.
+4. **Week 4:** add the release artifact or staging target, then generate a
+   reviewed evidence pack.
+
+Expand only after the loop from finding to decision to verification works for
+one product area.
+
+## Choose the next playbook
+
+- To establish coverage, use [Choose the right assessment](/use-cases/choose-an-assessment).
+- To put checks around releases, use [Release security review](/use-cases/release-security-review).
+- To automate code-change coverage, use [Continuous CI scanning](/use-cases/continuous-ci-scanning).
+- To operationalize external reports, use [Handle inbound security reports](/use-cases/inbound-report-triage).
+- To close findings, use [Triage to remediation](/use-cases/triage-to-remediation).
+- To answer assurance requests, use [Customer assurance and audit evidence](/use-cases/customer-assurance).
+

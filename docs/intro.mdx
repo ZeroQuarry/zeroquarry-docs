@@ -5,9 +5,22 @@ title: ZeroQuarry overview
 sidebar_position: 1
 ---
 
-ZeroQuarry is a cloud platform for finding security vulnerabilities before they
-reach attackers. It runs agent-led assessments against the assets teams
-actually ship and operate:
+ZeroQuarry is an AI security-operations platform for teams that need more
+security coverage than their headcount can provide. It turns product context
+and software assets into a repeatable operating loop:
+
+1. **Receive work** from engineering, scheduled reviews, or forwarded security
+   reports.
+2. **Assess the right surface**: source, a shipped binary, or an authorized live
+   target.
+3. **Decide what is real** using evidence, adversarial review, finding states,
+   and a recorded audit trail.
+4. **Move remediation into engineering** through patches, auto-fix pull
+   requests, Jira, ServiceNow, or GitHub Issues.
+5. **Prove the work happened** with reports, controlled shares, disclosures,
+   and an account-wide Evidence Room.
+
+The assessment layer covers the assets teams actually ship and operate:
 
 - source code repositories and uploaded source archives
 - binary artifacts such as Android packages, JARs, firmware, installers, and archives
@@ -26,26 +39,35 @@ New accounts start with a short workflow-mode setup step. This lets ZeroQuarry
 tailor the scan UI for a guided owner/operator experience, a security-research
 workflow, or an AppSec triage workflow before the first scan is created.
 
-## What ZeroQuarry is for
+## Why teams use ZeroQuarry
 
-Use ZeroQuarry when you need security review capacity around software that is
-changing faster than a human team can manually inspect every time.
+Use ZeroQuarry when software is changing faster than a human security team can
+manually inspect it, or when the company is not yet ready to staff every
+security specialty internally.
 
 Common use cases:
 
 - **Release security review**: scan a release branch, shipped artifact, and
   staging target before promotion.
 - **Continuous CI scanning**: trigger source scans from CI and use delta scans
-  to focus on changed code.
-- **Triage and remediation**: challenge findings, generate fix patches, export
-  engineer-ready evidence, and re-run after fixes.
+  to focus on changed code, or schedule lineage-aware rescans independently of
+  CI.
+- **Inbound report handling**: forward researcher or customer security reports
+  into a project-specific inbox, constrain what may be scanned, and turn valid
+  targets into assessment work.
+- **Triage and remediation**: challenge findings, record accountable lifecycle
+  decisions, generate fix patches or pull requests, and re-run after fixes.
 - **External disclosure**: prepare PoCs, disclosure drafts, HackerOne review
   context, and a disclosure timeline.
+- **Customer and audit evidence**: package the latest evidence for selected
+  assets, or share only the findings a recipient should see.
 - **Multi-surface assessment**: combine source, binary, and remote scans when a
   vulnerability crosses build, packaging, and runtime boundaries.
 
-Start with [Choose the right assessment](/use-cases/choose-an-assessment) if
-you are deciding what to scan first.
+Start with [Build a security operating rhythm](/use-cases/security-program) if
+you are deciding where ZeroQuarry fits in your company. Use
+[Choose the right assessment](/use-cases/choose-an-assessment) if the outcome is
+clear and you are deciding what to scan first.
 
 ## Core concepts
 
@@ -69,7 +91,18 @@ concept material, generated patches, and, when enabled, a draft disclosure
 email.
 
 **Reports** are the durable review surface for a scan. Reports include findings,
-non-issues, target metadata, logs, chat, exports, and re-run controls.
+non-issues, target metadata, logs, discussions, exports, re-run controls, and an
+audit log of analysis and finding-state changes.
+
+**Finding states** record the human decision around a vulnerability, from
+candidate and validation through mitigation, retest, accepted risk, or archive.
+They are append-only decisions, not just mutable labels.
+
+**Shares** expose only selected findings to a named recipient through an
+expiring, password-protected, read-only link.
+
+**The Evidence Room** groups completed work by actual scan target and can build
+a combined PDF from the latest report for each selected asset.
 
 **Disclosures** track externally reported issues across acknowledgement, fix,
 public advisory, bounty, credit, and closure.
@@ -91,11 +124,14 @@ reviewer to decide what to do next.
 
 ## How to read these docs
 
-If you are planning work, start with a playbook:
+If you are planning a security program, start with a playbook:
 
+- [Build a security operating rhythm](/use-cases/security-program)
 - [Release security review](/use-cases/release-security-review)
 - [Continuous CI scanning](/use-cases/continuous-ci-scanning)
+- [Handle inbound security reports](/use-cases/inbound-report-triage)
 - [Triage to remediation](/use-cases/triage-to-remediation)
+- [Customer assurance and audit evidence](/use-cases/customer-assurance)
 - [External disclosure workflow](/use-cases/external-disclosure)
 
 If you already know what asset you want to scan, go straight to the scan mode:
@@ -113,4 +149,6 @@ mode-specific page for the target you want to assess:
 - [Binary artifact scans](/scans/binary-artifacts)
 - [Remote target scans](/scans/remote-targets)
 
-For CI-driven source scanning, use [GitHub Actions](/workflows/github-actions).
+For automation, choose [GitHub Actions](/workflows/github-actions),
+[scheduled rescans](/workflows/scheduled-rescans), or
+[email triage](/workflows/email-triage) based on what should create the work.

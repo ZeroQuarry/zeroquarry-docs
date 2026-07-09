@@ -35,10 +35,12 @@ info:
     web UI. Tokens look like `zq_<40 url-safe chars>` and act with the role
     of the user who minted them.
 
-    Tier-gated endpoints (disclosures, patches, PoC + email artifacts,
+    Tier-gated endpoints (disclosures, patches, share creation, auto-fix,
     HackerOne review) return `403` with `{"error": "..."}` when the caller's
     account tier does not include the feature, mirroring the corresponding
-    HTML pages.
+    HTML pages. Proof-of-concept artifacts intentionally return `404` when
+    artifact generation is unavailable, so callers cannot infer artifact
+    existence from the status code.
   contact:
     name: ZeroQuarry
   license:
@@ -68,9 +70,11 @@ tags:
   - name: schedules
     description: Periodic scheduled rescans (per-lineage).
   - name: shares
-    description: Read-only share links for findings (tier-gated).
+    description: Share links for findings. Creation is tier-gated; listing and revocation remain available for auditing after downgrade.
   - name: autofix
     description: GitHub auto-fix bot — generate, approve, and reject patches that get pushed as PRs (tier-gated).
+  - name: workers
+    description: Data-plane worker registration, heartbeat, and queue claims.
 
 # ---------------------------------------------------------------------------
 # Reusable components
@@ -85,6 +89,13 @@ components:
         API key minted from `/account/api-keys` on the web UI. Keys look like
         `zq_<40 url-safe chars>` and act with the role of the user who minted
         them.
+    workerAuth:
+      type: apiKey
+      in: header
+      name: X-ZQ-Worker-Signature
+      description: >
+        HMAC-signed worker request. Also send X-ZQ-Worker-Id,
+        X-ZQ-Worker-Timestamp, and X-ZQ-Worker-Nonce.
 
   parameters:
     ScanId:
@@ -364,6 +375,20 @@ components:
         decided_by_user_id:   { type: [string, "null"] }
         created_at:           { type: string, format: date-time }
 
+    Worker:
+      type: object
+      properties:
+        id:             { type: string }
+        name:           { type: string }
+        status:         { type: string, enum: [active, revoked] }
+        region:         { type: [string, "null"] }
+        capabilities:   { type: object, additionalProperties: true }
+        secret_prefix:  { type: string }
+        registered_at:  { type: string, format: date-time }
+        last_seen_at:   { type: [string, "null"], format: date-time }
+        last_seen_ip:   { type: [string, "null"] }
+        revoked_at:     { type: [string, "null"], format: date-time }
+
 # All endpoints require the bearer token unless overridden.
 security:
   - bearerAuth: []
@@ -375,6 +400,91 @@ security:
 # them under `/api/v1/...`; the gateway strips the `/api` prefix.
 # ---------------------------------------------------------------------------
 paths:
+  # ===========================================================
+  # workers
+  # ===========================================================
+  /v1/workers/register:
+    post:
+      tags: [workers]
+      summary: Register a data-plane worker.
+      security: []
+      description: Uses the deployment `WORKER_REGISTRATION_TOKEN`; returns the worker secret exactly once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                registration_token: { type: string }
+                name: { type: string }
+                region: { type: string }
+                capabilities: { type: object, additionalProperties: true }
+      responses:
+        "201":
+          description: Registered worker and one-time secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  worker: { $ref: "#/components/schemas/Worker" }
+                  secret: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/heartbeat:
+    post:
+      tags: [workers]
+      summary: Record worker liveness.
+      security:
+        - workerAuth: []
+      responses:
+        "200":
+          description: Heartbeat accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  worker: { $ref: "#/components/schemas/Worker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/me:
+    get:
+      tags: [workers]
+      summary: Inspect the authenticated worker identity.
+      security:
+        - workerAuth: []
+      responses:
+        "200":
+          description: Worker identity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  worker: { $ref: "#/components/schemas/Worker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/claim:
+    post:
+      tags: [workers]
+      summary: Claim the next queued scan for this worker.
+      security:
+        - workerAuth: []
+      responses:
+        "200":
+          description: Claimed scan id, or null if no work is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   # ===========================================================
   # identity
   # ===========================================================
@@ -526,17 +636,31 @@ paths:
           application/json:
             schema:
               type: object
-              required: [mode]
               properties:
                 mode:               { type: string, enum: [source] }
-                git_urls:           { type: array, items: { type: string } }
+                git_urls:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                      description: Comma- or newline-separated list.
+                gits:
+                  type: string
+                  description: Backward-compatible alias for `git_urls`.
                 project_id:         { type: string }
                 project_name:       { type: string }
                 auto_delta:         { type: boolean, default: true }
                 model:              { type: string }
+                model_review:       { type: string, description: Optional review-stage model override. }
+                model_artifact:     { type: string, description: Optional artifact/patch-stage model override. }
                 notes:              { type: string }
                 name:               { type: string }
-                tags:               { type: array, items: { type: string } }
+                tags:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                      description: Comma-separated list.
                 batch_mode:         { type: boolean }
                 adversarial_review: { type: boolean }
                 git_credential_id:  { type: string }
@@ -546,6 +670,7 @@ paths:
               properties:
                 mode:               { type: string, enum: [source] }
                 git_urls:           { type: string, description: "Comma- or newline-separated list" }
+                gits:               { type: string, description: "Backward-compatible alias for `git_urls`." }
                 uploads:
                   type: array
                   items: { type: string, format: binary }
@@ -553,6 +678,8 @@ paths:
                 project_name:       { type: string }
                 auto_delta:         { type: boolean }
                 model:              { type: string }
+                model_review:       { type: string, description: Optional review-stage model override. }
+                model_artifact:     { type: string, description: Optional artifact/patch-stage model override. }
                 notes:              { type: string }
                 name:               { type: string }
                 tags:               { type: string }
@@ -560,6 +687,16 @@ paths:
                 adversarial_review: { type: boolean }
                 git_credential_id:  { type: string }
       responses:
+        "200":
+          description: Idempotent duplicate dispatch suppressed because an identical git scan is already in progress.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:  { type: string }
+                  dispatch: { type: string, enum: [dedup] }
+                  message:  { type: string }
         "201":
           description: Scan (or rescan) dispatched.
           content:
@@ -569,7 +706,8 @@ paths:
                   - $ref: "#/components/schemas/Scan"
                   - type: object
                     properties:
-                      dispatch: { type: string, enum: [fresh, delta] }
+                      dispatch:       { type: string, enum: [fresh, delta] }
+                      parent_scan_id: { type: [string, "null"], description: Present on delta dispatches. }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "402": { $ref: "#/components/responses/PaymentRequired" }
@@ -799,13 +937,15 @@ paths:
       summary: Draft disclosure email for a finding (Markdown).
       description: >
         Tier-gated by both `allow_artifact_generation` and
-        `allow_disclosure_tracking`. Returns 404 when either is missing.
+        `allow_disclosure_tracking`. Missing artifact generation returns
+        404; missing disclosure tracking returns 403.
       responses:
         "200":
           description: Markdown email draft.
           content:
             text/markdown:
               schema: { type: string }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/reports/{scan_id}/export:
@@ -1219,7 +1359,6 @@ paths:
           application/json:
             schema:
               type: object
-              required: [enabled, cadence, rescan_mode]
               properties:
                 enabled:      { type: boolean }
                 cadence:      { type: string, enum: [daily, weekly, monthly] }
@@ -1250,12 +1389,13 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
 
   # ===========================================================
-  # shares — read-only links (tier-gated by allow_shares)
+  # shares — read-only links
   # ===========================================================
   /v1/shares:
     get:
       tags: [shares]
       summary: List the caller's outgoing share links.
+      description: Always available to authenticated callers so previously-created shares can be audited after a tier downgrade.
       responses:
         "200":
           description: Share list.

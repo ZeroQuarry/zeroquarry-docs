@@ -27,6 +27,10 @@ If no model is available, scans cannot be queued.
 Some plans require account-wide LLM API keys. Add keys under **Account** before
 running scans.
 
+Keys are provider-wide: saving a key for one model makes it available to the
+active models configured for the same provider. This avoids storing duplicate
+keys for several OpenAI, Anthropic, or compatible model entries.
+
 Account-level keys apply to every user in the account. Treat them like
 production secrets:
 
@@ -48,6 +52,19 @@ LLM providers may receive:
 
 Use providers and models that match your organization's data handling
 requirements.
+
+## Stage defaults
+
+Account model settings can resolve different defaults for:
+
+- **Scan**: coordinator and worker investigation
+- **Review**: triage, HackerOne eligibility, adversarial vendor review, and
+  rebuttal
+- **Artifact**: PoCs, disclosure drafts, patches, and deployment packages
+
+Security Research mode can expose per-scan overrides. Guided and AppSec modes
+use more of the account defaults to keep scan creation focused on the target and
+outcome.
 
 ## Batch API mode
 

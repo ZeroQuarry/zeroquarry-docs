@@ -8,6 +8,11 @@ Use the public API to trigger source scans from GitHub Actions. The generated
 API reference documents request and response details, but this workflow is the
 recommended starting pattern.
 
+The console also provides a generated `zeroquarry.yml` under
+**Account > Integrations > Automated Scans**. Use that file when you want the
+latest maintained template, including API error handling and the optional
+polling gate.
+
 ![ZeroQuarry account API keys page for automation credentials.](/img/screenshots/account-api-keys.png)
 
 _The API key page is the console-side setup step for any GitHub Actions or CI
@@ -75,6 +80,11 @@ jobs:
           echo "scan_id=$scan_id" >> "$GITHUB_OUTPUT"
 ```
 
+The first matching Git target creates a full baseline. Later requests with
+`auto_delta: true` can dispatch a changed-code scan. If the same Git scan is
+already running, the API can return the existing scan with `dispatch: dedup`;
+treat it as a successful trigger and follow the returned ID.
+
 ## Optional gate on high severity findings
 
 Add a polling step if you want the workflow to fail when the completed scan has
@@ -127,3 +137,7 @@ credential ID in the scan payload:
 ```
 
 See [Private repositories](/workflows/private-repositories).
+
+If the workflow runs on every branch, exclude `zeroquarry/fix/**` before
+enabling [auto-fix pull requests](/workflows/autofix). This prevents bot-created
+fix branches from continuously creating new scans.

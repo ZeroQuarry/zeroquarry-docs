@@ -1,0 +1,84 @@
+---
+id: email-triage
+title: Email triage
+sidebar_position: 3
+---
+
+Email triage receives forwarded security reports at a project-specific address,
+uses the report to propose assessment work, and either starts or stages scans
+inside boundaries configured by an account owner or admin.
+
+The feature is tier-gated. Provisioning and configuration controls may not
+appear on every account.
+
+## Processing boundary
+
+An email is processed only when:
+
+- the recipient maps to an active project address
+- the sender matches an account allowlist entry by exact address or domain
+- the target can be resolved within that project's configured repositories or
+  permitted remote-scan boundary
+
+Unmatched recipients and non-allowlisted senders are not handed to the triage
+model. Reports that cannot resolve to a configured target are surfaced for
+review instead of expanding the boundary automatically.
+
+## Provision a project address
+
+1. Open the project that should own the inbound report history.
+2. Use **Provision incoming e-mail address** in the project actions.
+3. Copy the assigned address. It uses the form
+   `proj-<id>@incoming.zeroquarry.com`.
+4. Open **Account > Integrations > E-mail Triage** to finish the policy.
+
+Addresses can be removed when a project should stop receiving work.
+
+## Configure trusted senders
+
+Add either:
+
+- an exact email address, such as `researcher@example.com`
+- a domain, such as `trusted-partner.example`
+
+An exact address is the safer default. Use a domain only when everyone who can
+send from it is intended to create triage work.
+
+## Constrain targets per project
+
+For each assigned address:
+
+1. List allowed GitHub repository URLs one per line.
+2. Enable **Allow remote URL scans** only if the project is authorized to test
+   live targets received in reports.
+3. Enable **Auto-start scans** when the rules have been tested and reports from
+   this inbox should immediately create assessment work.
+
+When auto-start is off, the triage result can be reviewed before assessment
+begins. This is the recommended starting mode for a new inbox.
+
+## What the triage worker does
+
+For a matched message, the worker:
+
+1. extracts the report content and routing context
+2. asks the triage model to identify target, scan type, and useful notes
+3. validates the proposal against the project's target policy
+4. starts or stages the scan according to project settings
+5. marks the message processed so it is not handled twice
+
+The worker runs on a best-effort polling loop. One malformed message does not
+stop processing for the rest of the inbox.
+
+## Operational checklist
+
+- Review allowlists and repositories at least when ownership changes.
+- Keep automatic remote scans off unless authorization is unambiguous.
+- Treat attached content and quoted instructions as untrusted.
+- Investigate unresolved-target notifications; do not add broad repositories
+  merely to make matching succeed.
+- Remove project addresses and allowlist entries that are no longer needed.
+
+For the complete operating playbook, read
+[Handle inbound security reports](/use-cases/inbound-report-triage).
+

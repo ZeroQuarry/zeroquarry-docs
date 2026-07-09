@@ -9,11 +9,12 @@ npm install
 npm run start
 ```
 
-The `start` and `build` scripts copy the OpenAPI spec from the sibling
-`security-bug-finder` checkout before generating the API reference into the
-ignored `api/` directory.
+The `start` and `build` scripts copy the OpenAPI spec from a sibling ZeroQuarry
+product checkout before generating the API reference into the ignored `api/`
+directory. The sync script recognizes `ZeroQuarry`, `zeroquarry`, and the older
+`security-bug-finder` directory name.
 
-When building outside `c:\Users\eskib\git-repos`, set one of:
+When building outside the sibling-repository layout, set one of:
 
 ```bash
 ZEROQUARRY_OPENAPI_SPEC=/path/to/ZeroQuarry.spec.yml
