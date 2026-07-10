@@ -20,6 +20,16 @@ const screenshotTargets = [
     description: "Account overview, usage, integrations, and team settings",
   },
   {
+    name: "integrations-overview",
+    path: "/account/integrations",
+    description: "Integration hub for notifications, tickets, automation, and intake",
+  },
+  {
+    name: "evidence-room",
+    path: "/account/evidence",
+    description: "Account-wide evidence inventory grouped by scan target",
+  },
+  {
     name: "projects-manage",
     path: "/projects",
     description: "Projects index with account-wide project management",
@@ -55,7 +65,7 @@ const screenshotTargets = [
   },
   {
     name: "account-git-access",
-    path: "/account/git-credentials",
+    path: "/account/integrations/git-private-repos",
     description: "Account-level Git credential management for private repositories",
   },
   {
@@ -64,15 +74,55 @@ const screenshotTargets = [
     description: "Account API key management for CI and automation",
   },
   {
+    name: "email-triage",
+    path: "/account/integrations/email-triage",
+    description: "Project inboxes, sender allowlist, and target boundaries for email triage",
+  },
+  {
+    name: "github-autofix",
+    path: "/account/integrations/github",
+    description: "ZeroQuarryBot installation, kill switches, and repository controls",
+  },
+  {
     name: "report-overview",
     path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/",
     description: "Report overview with findings, lineage, and review controls",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
   },
   {
+    name: "scheduled-rescan",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/",
+    description: "Scheduled rescan cadence and changed-code coverage controls",
+    requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
+    prepare: async (page) => {
+      await page.locator('button.report-tab[data-tab="rerun"]').click();
+      await page
+        .locator('input[name="rescan_approach"][value="workflow2"]')
+        .evaluate((input) => {
+          input.checked = true;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      await page
+        .locator('input[name="w2_schedule"][value="scheduled"]')
+        .evaluate((input) => {
+          input.checked = true;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      await page
+        .locator('[data-fold="scan-scope-scheduled"]')
+        .waitFor({ state: "visible" });
+    },
+  },
+  {
     name: "finding-detail",
     path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/findings/{ZEROQUARRY_DOCS_FINDING_ID}",
     description: "Finding detail with evidence, PoC, review state, and follow-up actions",
+    requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID", "ZEROQUARRY_DOCS_FINDING_ID"],
+  },
+  {
+    name: "share-create",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/findings/{ZEROQUARRY_DOCS_FINDING_ID}/share",
+    description: "Recipient, password, expiry, and disclosure controls for a finding share",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID", "ZEROQUARRY_DOCS_FINDING_ID"],
   },
   {
@@ -88,9 +138,26 @@ const screenshotTargets = [
   },
   {
     name: "disclosure-detail",
-    path: "/disclosures/{ZEROQUARRY_DOCS_DISCLOSURE_ID}",
+    path: env("ZEROQUARRY_DOCS_DISCLOSURE_ID")
+      ? "/disclosures/{ZEROQUARRY_DOCS_DISCLOSURE_ID}"
+      : "/disclosures",
     description: "Disclosure detail with timeline and reporting metadata",
-    requiredEnv: ["ZEROQUARRY_DOCS_DISCLOSURE_ID"],
+    prepare: async (page) => {
+      if (env("ZEROQUARRY_DOCS_DISCLOSURE_ID")) return;
+      const links = page.locator('a[href^="/disclosures/"]');
+      const count = await links.count();
+      if (!count) {
+        throw new Error(
+          "Could not capture disclosure-detail: the docs account has no disclosures. " +
+            "Create public-safe seed data or set ZEROQUARRY_DOCS_DISCLOSURE_ID."
+        );
+      }
+      const href = await links.first().getAttribute("href");
+      const response = await page.goto(href, { waitUntil: "networkidle" });
+      if (!response || !response.ok()) {
+        throw new Error(`Could not open seeded disclosure ${href}.`);
+      }
+    },
   },
 ];
 

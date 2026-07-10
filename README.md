@@ -69,16 +69,27 @@ Optional overrides:
   email addresses
 - `ZEROQUARRY_SCREENSHOT_REDACTIONS`: comma-separated text to replace with
   `[redacted]` before capture
+- `ZEROQUARRY_SCREENSHOT_ONLY`: comma-separated target names when refreshing a
+  subset, such as `evidence-room,scheduled-rescan,share-create`
 
 Seeded screenshot targets that need stable production IDs can be supplied with:
 
 - `ZEROQUARRY_DOCS_PROJECT_ID`
 - `ZEROQUARRY_DOCS_SCAN_ID`
 - `ZEROQUARRY_DOCS_FINDING_ID`
-- `ZEROQUARRY_DOCS_DISCLOSURE_ID`
+- `ZEROQUARRY_DOCS_DISCLOSURE_ID` (optional; otherwise the first disclosure in
+  the public-safe docs account is used)
 
 Targets that depend on one of those IDs are skipped automatically when the
-environment variable is not set.
+environment variable is not set. Feature-specific account pages such as email
+triage and ZeroQuarryBot are captured unconditionally; the dedicated docs
+account should therefore use a tier that exposes the documented product
+surface. A non-success response fails the run instead of saving an error page as
+a screenshot.
+
+The capture manifest also prepares interactive views when needed. For example,
+the scheduled-rescan capture opens the report's re-run tab and expands the
+scheduled path before taking the image.
 
 Reference generated images from docs as `/img/screenshots/<name>.png`.
 

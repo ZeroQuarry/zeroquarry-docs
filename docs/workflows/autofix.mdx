@@ -11,6 +11,11 @@ Auto-fix reduces the translation work between a security finding and an
 engineer-reviewable change. It does not replace code review, testing, or change
 approval.
 
+![ZeroQuarryBot setup showing GitHub App installation and the account-wide kill switch.](/img/screenshots/github-autofix.png)
+
+_Installation access and the emergency kill switch are separate controls; repo
+enrollment adds another explicit gate._
+
 ## Choose between patches and auto-fix
 
 - Use **Generate patch** when you want a downloadable or revisable diff without
@@ -96,4 +101,3 @@ on:
     branches-ignore:
       - "zeroquarry/fix/**"
 ```
-

@@ -12,6 +12,11 @@ ZeroQuarry checks the latest Git target for changes. If the commit has not
 moved, it records a no-change skip instead of spending a scan on identical
 source.
 
+![ZeroQuarry report re-run workflow with changed-code coverage and weekly schedule controls.](/img/screenshots/scheduled-rescan.png)
+
+_The schedule is configured from the report lineage after choosing to update
+the source and run repeated scans._
+
 ## When to use a schedule
 
 Use a scheduled rescan for:
@@ -75,4 +80,3 @@ use release or CI workflows for time-sensitive decisions.
 - Keep the source clone available if the schedule depends on updating it.
 - Disable the schedule when the product or repository is retired.
 - Run a fresh baseline when the target set changes materially.
-
