@@ -35,7 +35,6 @@ Before provisioning an address, decide:
 2. which exact sender addresses or domains are trusted
 3. which GitHub repositories the triage model may select
 4. whether the project may initiate remote URL scans
-5. whether matched work starts automatically or waits for manual kickoff
 
 Repository and remote-scan constraints are important. They turn an untrusted
 email body into a request that can only operate inside a boundary you defined.
@@ -49,8 +48,7 @@ email body into a request that can only operate inside a boundary you defined.
 5. For the project, list allowed GitHub repository URLs one per line.
 6. Enable remote URL scans only if reports for that project legitimately need
    live-target validation.
-7. Choose whether scans start automatically.
-8. Forward trusted reports to the assigned `proj-<id>@incoming.zeroquarry.com`
+7. Forward trusted reports to the assigned `proj-<id>@incoming.zeroquarry.com`
    address.
 
 For exact field behavior and safeguards, read [Email triage](/workflows/email-triage).
@@ -62,11 +60,10 @@ For each forwarded report:
 1. Confirm the report was matched to the intended project and target.
 2. Read the generated scan notes; they are the bridge between the email and the
    assessment plan.
-3. If automatic start is off, review the proposed work before kickoff.
-4. Validate findings against the reporter's claim and the product context.
-5. Record the finding state and the reason for any dispute or accepted risk.
-6. Route remediation through the appropriate engineering system.
-7. If the report is external, create a controlled share or disclosure record
+3. Validate findings against the reporter's claim and the product context.
+4. Record the finding state and the reason for any dispute or accepted risk.
+5. Route remediation through the appropriate engineering system.
+6. If the report is external, create a controlled share or disclosure record
    only after validation.
 
 ## Operate the inbox safely
@@ -74,9 +71,8 @@ For each forwarded report:
 - Keep allowlists narrow. Prefer exact addresses for individual researchers.
 - Review allowed repositories when ownership changes or a project is archived.
 - Leave remote scans off unless the project has a stable authorization model.
-- Use manual kickoff while tuning the intake rules.
-- Treat email text and attachments as untrusted input even from an allowlisted
-  sender.
+- Begin with exact senders and one repository while tuning the intake rules.
+- Treat email text as untrusted input even from an allowlisted sender.
 - Review unmatched or unresolved notifications instead of silently broadening
   the project boundary.
 
@@ -86,4 +82,3 @@ Useful measures are time to first technical assessment, percentage of reports
 that resolve to a known asset, time to a validated or disputed decision, and
 time from validation to remediation ownership. Email volume by itself is not a
 measure of security effectiveness.
-

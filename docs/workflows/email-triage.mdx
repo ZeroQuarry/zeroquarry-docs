@@ -56,11 +56,10 @@ For each assigned address:
 1. List allowed GitHub repository URLs one per line.
 2. Enable **Allow remote URL scans** only if the project is authorized to test
    live targets received in reports.
-3. Enable **Auto-start scans** when the rules have been tested and reports from
-   this inbox should immediately create assessment work.
 
-When auto-start is off, the triage result can be reviewed before assessment
-begins. This is the recommended starting mode for a new inbox.
+Matching reports create assessment work after the sender, project, repository,
+remote-target, account-tier, and model checks pass. Begin with exact sender
+addresses and one approved repository, then expand the boundary deliberately.
 
 ## What the triage worker does
 
@@ -69,7 +68,7 @@ For a matched message, the worker:
 1. extracts the report content and routing context
 2. asks the triage model to identify target, scan type, and useful notes
 3. validates the proposal against the project's target policy
-4. starts or stages the scan according to project settings
+4. starts the scan after the entitlement and target checks pass
 5. marks the message processed so it is not handled twice
 
 The worker runs on a best-effort polling loop. One malformed message does not
