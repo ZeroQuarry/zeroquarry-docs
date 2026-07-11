@@ -12,6 +12,16 @@ const config = {
   projectName: "zeroquarry-docs",
   trailingSlash: false,
 
+  customFields: {
+    googleAnalyticsMeasurementId:
+      process.env.GOOGLE_ANALYTICS_MEASUREMENT_ID || "G-ZRT44MWJT1",
+    posthogProjectKey: process.env.POSTHOG_PROJECT_API_KEY || "",
+    posthogPublicHost:
+      process.env.POSTHOG_PUBLIC_HOST || "https://events.zeroquarry.com",
+    posthogUiHost:
+      process.env.POSTHOG_UI_HOST || "https://us.posthog.com",
+  },
+
   onBrokenLinks: "throw",
   markdown: {
     hooks: {
