@@ -99,3 +99,8 @@ Use:
 
 - Build command: `npm run build`
 - Publish directory: `build`
+
+Configure `GOOGLE_ANALYTICS_MEASUREMENT_ID`, `POSTHOG_PROJECT_API_KEY`,
+`POSTHOG_PUBLIC_HOST`, and `POSTHOG_UI_HOST` in Netlify using the same values as
+the marketing website and product. Analytics is loaded only after the shared
+`zeroquarry.com` consent choice is accepted.
