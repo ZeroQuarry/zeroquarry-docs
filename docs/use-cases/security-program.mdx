@@ -26,12 +26,14 @@ requiring a large internal security team to coordinate every step.
 The loop matters more than scan volume. Ten reviewed findings with decisions
 are usually more valuable than hundreds of untriaged alerts.
 
-## Match coverage to company stage
+## Match coverage to the security need
 
-Company stage is a proxy for product complexity, buyer pressure, and the cost
-of a miss. Adapt the pattern to your actual risk.
+Choose the operating pattern based on product exposure, delivery frequency,
+customer pressure, ownership complexity, and the cost of a miss. These
+conditions do not move in lockstep, so start with the workflow creating the
+most risk or operational drag.
 
-### Seed: establish a defensible baseline
+### Establish a defensible baseline
 
 - Create one project per product or service, not per scan.
 - Run a source scan on the primary repository.
@@ -41,10 +43,10 @@ of a miss. Adapt the pattern to your actual risk.
 - Keep one reviewed report that can support investor, customer, or insurance
   conversations.
 
-At this stage, the objective is visibility and a credible response process—not
-an elaborate control framework.
+The objective is visibility and a credible response process, not an elaborate
+control framework.
 
-### Series A–B: put security in the delivery system
+### Put security in the delivery system
 
 - Trigger delta scans on security-sensitive pull requests or main-branch
   changes.
@@ -56,7 +58,7 @@ an elaborate control framework.
 The objective is to make security work happen in the same systems and cadence
 as engineering work.
 
-### Series C–E: separate execution, decisions, and evidence
+### Standardize execution, decisions, and evidence
 
 - Use projects and tags to reflect service ownership and product boundaries.
 - Apply explicit validation, accepted-risk, mitigation, and retest decisions.
@@ -108,4 +110,3 @@ one product area.
 - To operationalize external reports, use [Handle inbound security reports](/use-cases/inbound-report-triage).
 - To close findings, use [Triage to remediation](/use-cases/triage-to-remediation).
 - To answer assurance requests, use [Customer assurance and audit evidence](/use-cases/customer-assurance).
-
