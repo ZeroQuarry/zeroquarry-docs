@@ -47,6 +47,23 @@ isolated scan workspace for the duration of the assessment.
 For repeatable work, prefer Git URLs over one-off uploads. Git-backed scans can
 support lineages, rescans, and CI delta scans more naturally.
 
+## Deterministic analysis plus agent investigation
+
+Before the coordinator starts, ZeroQuarry runs a bounded deterministic static
+analysis pass over source targets. The current worker uses a frozen local
+Opengrep rule pack; it does not fetch registry rules during the scan.
+
+Rule matches are retained as **candidates**, not promoted directly to findings.
+The coordinator and specialist agents use a bounded subset as investigation
+leads, then test them against control flow, reachability, product context, and
+other repository evidence. This combines fast coverage of recognizable unsafe
+patterns with the contextual reasoning needed for authorization, tenant
+isolation, business logic, and multi-file attack paths.
+
+Treat `sast-candidates.json` as analysis provenance rather than an alert list. A
+candidate becomes actionable only if the assessment records it as a finding
+with supporting evidence.
+
 ## What agents inspect
 
 The coordinator maps the repository or prepared workspace, then dispatches
@@ -98,12 +115,21 @@ most sensitive.
 | HackerOne review | Labels findings against HackerOne core-ineligible categories when disclosure tracking is enabled. |
 | Adversarial vendor review | Runs a skeptical vendor-style challenge and researcher rebuttal pass to improve confidence scoring. |
 
+Some guided workflows apply entitled review defaults without showing every
+advanced control. Review the queued scan configuration or report audit log when
+you need to confirm the resolved settings.
+
 ## Private repositories
 
 Add credentials under **Account > Integrations > Git Private Repositories**
 before starting the scan. See
 [Private repositories](/workflows/private-repositories) for credential behavior
 and CI usage.
+
+Enterprise accounts can instead clone Git source and run the assessment from a
+customer-controlled Docker host. Private-runner source scans accept Git targets
+only; browser uploads would first transit the ZeroQuarry control plane. See
+[Private runners](/workflows/private-runners).
 
 ## Delta scans from CI
 

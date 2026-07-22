@@ -25,6 +25,8 @@ const workerDocs = [
   ["record-worker-liveness", "Record worker liveness.", "post"],
   ["inspect-the-authenticated-worker-identity", "Inspect the authenticated worker identity.", "get"],
   ["claim-the-next-queued-scan-for-this-worker", "Claim the next queued scan for this worker.", "post"],
+  ["renew-an-active-worker-attempt-lease", "Renew an active worker-attempt lease.", "post"],
+  ["submit-the-fenced-result-of-a-private-execution-attempt", "Submit the fenced result of a private execution attempt.", "post"],
 ];
 const hasWorkerPages = workerDocs.every(([id]) =>
   fs.existsSync(path.join(repoRoot, "api", `${id}.api.mdx`)),

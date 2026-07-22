@@ -45,7 +45,9 @@ with a specific pull request or CI decision.
    - **Update and rescan** pulls the latest repository and reviews it broadly.
    - **Update and focus on changes** uses the Git diff to focus the next scan
      while still allowing the agents to follow nearby data flow.
-8. Save the schedule.
+8. Enable **Re-check previous findings** when the run should explicitly test
+   unresolved findings from the lineage.
+9. Save the schedule.
 
 Schedules are available only for source/Git lineages because those targets
 provide a reliable commit-change signal.
@@ -61,6 +63,24 @@ The schedule records its last run and one of these outcomes:
 A no-change skip is a successful control outcome. A repeated failure needs
 investigation, usually around Git credentials, repository availability, or
 worker health.
+
+## Verify previous findings explicitly
+
+A broad or changed-code scan can discover the same issue again, but absence is
+not proof that an earlier finding was fixed. Enable **Re-check previous
+findings** on a one-off update or schedule when remediation verification is part
+of the goal.
+
+The report records one explicit outcome for each eligible previous finding:
+
+- **Fixed**: the recheck found evidence that the issue is no longer present.
+- **Still present**: the vulnerable behavior or code path remains.
+- **Inconclusive**: the available target, context, or evidence could not support
+  either conclusion.
+
+These outcomes are shown separately from newly discovered findings and link
+back to the previous occurrence. If rechecks were requested but no outcomes
+were recorded, inspect the scan log; do not mark findings fixed from silence.
 
 ## Set the right cadence
 

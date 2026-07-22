@@ -52,9 +52,10 @@ Not every finding follows the happy path:
 ## Change a finding state
 
 1. Open the finding.
-2. Review evidence, confidence, discussion, and adversarial-review output.
+2. Review evidence, confidence, the independent-review discussion, and its
+   challenge or rebuttal outcome.
 3. Use **Accept finding** for a validated result, **Reject finding** for a
-   disputed result, or **Actions > Change state** for the full lifecycle.
+   disputed result, or **More > Change state** for the full lifecycle.
 4. Add the reason and context.
 5. Create the engineering ticket or remediation proposal.
 
@@ -74,6 +75,17 @@ The report and finding audit views combine:
 
 Use this history to answer who made a decision, what analysis supported it,
 and whether a later retest actually occurred.
+
+## Recheck evidence is not inferred from absence
+
+When an update scan enables **Re-check previous findings**, ZeroQuarry records
+each prior unresolved finding as fixed, still present, or inconclusive, with
+reasoning and supporting evidence. The report keeps those results distinct from
+the new finding list and links current recurrences to the earlier finding.
+
+Only an explicit recheck outcome should support a **Retested** or **Regression**
+decision. A finding that simply does not reappear may have fallen outside the
+changed-code focus, available context, or completed analysis stages.
 
 ## Separate state from confidence and severity
 

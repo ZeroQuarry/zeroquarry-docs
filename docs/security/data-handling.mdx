@@ -41,6 +41,26 @@ to probes as needed.
 Sensitive credentials may still be visible to the LLM agent if they are required
 for analysis or authenticated probing.
 
+## Private-runner data boundary
+
+Enterprise private runners execute eligible Git source and remote scans on a
+customer-controlled Docker host. The runner makes outbound HTTPS connections to
+ZeroQuarry and calls the selected LLM provider directly with account-managed
+keys; no inbound firewall rule is required.
+
+Each pool controls what returns to the SaaS control plane:
+
+- **Minimized** returns allowlisted finding metadata and safe source locations.
+  Free-form evidence, remediation text, logs, errors, and runner-generated
+  artifacts remain on the runner.
+- **Standard** also returns detailed findings, relevant excerpts, logs, and
+  artifacts.
+
+Minimized results reduce what returns to ZeroQuarry, but they are not a claim
+that no data leaves the customer network: the selected LLM provider still
+receives assessment context directly from the runner. Review both the pool
+policy and provider configuration when defining the data boundary.
+
 ## Reports and artifacts
 
 Reports, findings, PoCs, disclosure drafts, chats, and exports remain available

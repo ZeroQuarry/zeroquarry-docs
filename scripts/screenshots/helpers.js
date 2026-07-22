@@ -21,6 +21,7 @@ const SECRET_SELECTORS = [
   "textarea[name*='key' i]",
   "textarea[name*='token' i]",
   "textarea[name*='secret' i]",
+  "#runner-enrollment-command",
   "[data-screenshot-mask]",
 ];
 
@@ -148,6 +149,7 @@ async function preparePage(page) {
       textarea[name*='key' i],
       textarea[name*='token' i],
       textarea[name*='secret' i],
+      #runner-enrollment-command,
       [data-screenshot-mask] {
         color: transparent !important;
         text-shadow: 0 0 10px rgba(0, 0, 0, 0.55) !important;

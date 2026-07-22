@@ -77,12 +77,15 @@ Seeded screenshot targets that need stable production IDs can be supplied with:
 - `ZEROQUARRY_DOCS_PROJECT_ID`
 - `ZEROQUARRY_DOCS_SCAN_ID`
 - `ZEROQUARRY_DOCS_FINDING_ID`
+- `ZEROQUARRY_DOCS_RECHECK_SCAN_ID` (a scan with explicit previous-finding
+  recheck outcomes)
 - `ZEROQUARRY_DOCS_DISCLOSURE_ID` (optional; otherwise the first disclosure in
   the public-safe docs account is used)
 
 Targets that depend on one of those IDs are skipped automatically when the
 environment variable is not set. Feature-specific account pages such as email
-triage and ZeroQuarryBot are captured unconditionally; the dedicated docs
+triage, ZeroQuarryBot, and Enterprise private runners are captured
+unconditionally; the dedicated docs
 account should therefore use a tier that exposes the documented product
 surface. A non-success response fails the run instead of saving an error page as
 a screenshot.

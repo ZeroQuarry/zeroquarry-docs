@@ -45,6 +45,7 @@ module.exports = {
         "workflows/scheduled-rescans",
         "workflows/email-triage",
         "workflows/private-repositories",
+        "workflows/private-runners",
       ],
     },
     {

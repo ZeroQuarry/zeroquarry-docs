@@ -53,6 +53,14 @@ LLM providers may receive:
 Use providers and models that match your organization's data handling
 requirements.
 
+Private runners require an account-managed key for every selected scan, review,
+and artifact model. The runner calls those providers directly rather than
+routing model requests through a ZeroQuarry-managed key. Calls funded by an
+account-managed key are billed by that provider and are not included in
+ZeroQuarry model-usage invoices or blocked by platform-funded token caps. The
+ZeroQuarry subscription and normal plan limits such as security-run capacity
+and concurrency still apply.
+
 ## Stage defaults
 
 Account model settings can resolve different defaults for:

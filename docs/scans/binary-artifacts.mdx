@@ -100,6 +100,22 @@ Review firmware update verification and any bundled private keys.
 Prioritize auth flows and embedded backend endpoints.
 ```
 
+## Scan settings
+
+Binary assessments use the same staged model and review controls as source
+assessments when the account and workflow expose them:
+
+| Setting | Use it for |
+| --- | --- |
+| Model and stage overrides | Choose separate investigation, review, and artifact models when advanced controls are available. |
+| Coordinator step budget | Trade broader investigation for additional runtime and model use. |
+| Batch API | Reduce artifact-generation cost where supported; finalization can take longer. |
+| HackerOne review | Add core-ineligible context when the artifact supports a disclosure workflow. |
+| Adversarial vendor review | Have a separate reviewer challenge binary findings before finalization. |
+
+Guided workflows may apply account defaults without displaying every advanced
+setting. The resolved stages remain visible in the report audit history.
+
 ## Report outputs
 
 Binary scan reports use the same finding model as source and remote scans:

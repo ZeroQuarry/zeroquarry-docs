@@ -41,6 +41,18 @@ const screenshotTargets = [
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
   },
   {
+    name: "project-execution-environments",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}",
+    description: "Project allowlist and default for cloud and private execution environments",
+    requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
+    prepare: async (page) => {
+      await page.locator('button.project-tab[data-tab="settings"]').click();
+      await page
+        .locator('[data-panel="settings"]')
+        .waitFor({ state: "visible" });
+    },
+  },
+  {
     name: "scan-new-picker",
     path: "/scans/new",
     description: "Scan mode picker for choosing source, binary, or remote assessments",
@@ -74,6 +86,11 @@ const screenshotTargets = [
     description: "Account API key management for CI and automation",
   },
   {
+    name: "account-private-runners",
+    path: "/account/private-runners",
+    description: "Enterprise private runner pools, result policies, and runner health",
+  },
+  {
     name: "email-triage",
     path: "/account/integrations/email-triage",
     description: "Project inboxes, sender allowlist, and target boundaries for email triage",
@@ -88,6 +105,18 @@ const screenshotTargets = [
     path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/",
     description: "Report overview with findings, lineage, and review controls",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
+  },
+  {
+    name: "finding-rechecks",
+    path: "/reports/{ZEROQUARRY_DOCS_RECHECK_SCAN_ID}/",
+    description: "Explicit fixed, still-present, and inconclusive finding recheck outcomes",
+    requiredEnv: ["ZEROQUARRY_DOCS_RECHECK_SCAN_ID"],
+    prepare: async (page) => {
+      await page.locator('button.report-tab[data-tab="findings"]').click();
+      await page
+        .locator('[data-panel="findings"]')
+        .waitFor({ state: "visible" });
+    },
   },
   {
     name: "scheduled-rescan",

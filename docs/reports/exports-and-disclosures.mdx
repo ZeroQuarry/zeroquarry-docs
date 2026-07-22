@@ -24,9 +24,14 @@ The report export flow supports:
 - PDF
 
 Exports can include selected sections, such as summary, targets, findings,
-non-issues, report chat, and authentication context. The PDF export uses a
-pentester-style layout with a cover page, executive summary, finding overview,
-and per-asset finding list.
+coverage notes, report chat, and authentication context.
+
+The customer-facing PDF defaults to a limited summary: report context and
+aggregate severity counts, without finding names, categories, identifiers,
+scores, write-ups, or exploit details. Enable **Include detailed findings** only
+when the recipient is authorized to receive the per-finding content. The
+detailed form uses a pentester-style layout with finding sections grouped by
+the assessed assets.
 
 Use report exports for:
 
@@ -46,6 +51,10 @@ low-confidence rejected findings can be excluded based on the account threshold.
 
 Use this before sending a report to engineering, leadership, or a third-party
 program.
+
+For a broad external audience, start with the limited PDF and add detail only
+when it changes the recipient's decision. Use a secure share instead when the
+recipient needs selected live findings with expiry and revocation controls.
 
 ## Finding exports
 

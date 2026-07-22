@@ -38,6 +38,12 @@ limit where agents should send probes.
 Treat scope hosts as a safety control, not documentation. Add every approved
 host explicitly when a workflow crosses subdomains, APIs, or CDN-backed routes.
 
+ZeroQuarry Cloud rejects loopback, link-local, RFC1918, and internal-DNS targets.
+Enterprise accounts can test authorized internal applications from a
+customer-controlled network by selecting an approved
+[private runner](/workflows/private-runners) for the project. The private runner
+changes reachability; it does not relax the authorization or scope requirement.
+
 ## When remote scans are the right tool
 
 Use a remote scan when you need to test:
@@ -102,6 +108,17 @@ Before queueing a remote scan:
 - add required program headers
 - avoid production-only credentials unless they are approved for testing
 - use notes to describe fragile endpoints, rate limits, or program rules
+
+## Scan settings
+
+Remote assessments can expose the same model, coordinator-budget, Batch API,
+HackerOne, and adversarial-review controls as other scan modes. Availability
+depends on the account tier and workflow. In guided modes, entitled review
+defaults may be applied without showing each advanced control.
+
+For internal targets, the scan form also shows **Execution environment** when
+the project allows a compatible private runner pool. Private jobs remain pinned
+to that pool and never fall back to ZeroQuarry Cloud automatically.
 
 ## Review remote findings
 

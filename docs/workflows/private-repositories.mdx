@@ -56,3 +56,16 @@ In the API, include `git_credential_id` in the scan request.
 Credential values are stored encrypted in ZeroQuarry, but cloned repository
 contents are still part of the scan workspace and may be sent to the configured
 LLM provider during analysis.
+
+## Keep source inside a customer-controlled network
+
+Enterprise accounts can assign Git source scans to a
+[private runner](/workflows/private-runners). The runner clones the repository
+directly from the customer network and calls the selected LLM provider with the
+account-managed provider key.
+
+Private-runner source scans require Git URLs. File and archive uploads are not
+accepted because those inputs would first need to pass through the SaaS control
+plane. Saved Git credentials are delivered in the authenticated job manifest
+for the attempt and removed from the runner's local job database when execution
+ends.

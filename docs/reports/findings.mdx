@@ -11,9 +11,9 @@ The report sorts findings by severity score so the highest-impact claims are
 visible first. Your triage process should then consider confidence, evidence,
 business context, and remediation cost.
 
-![ZeroQuarry finding detail view with evidence, proof-of-concept, and follow-up actions.](/img/screenshots/finding-detail.png)
+![ZeroQuarry finding detail view with evidence, exploit proof, and follow-up actions.](/img/screenshots/finding-detail.png)
 
-_Finding detail is where severity, confidence, evidence, PoCs, exports, and
+_Finding detail is where severity, confidence, evidence, exploit proofs, exports, and
 downstream actions come together for one security claim._
 
 ## Finding fields
@@ -41,16 +41,16 @@ for a future reviewer to understand the product context.
 Lifecycle state is different from severity and confidence: it records what the
 team decided to do. Read [Finding lifecycle and audit trail](/reports/finding-lifecycle).
 
-## Proofs of concept
+## Exploit proofs
 
-When artifact generation is enabled, each finding can include proof of concept
-material. PoCs vary by mode:
+When artifact generation is enabled, each finding can include an exploit proof
+(proof of concept). Proofs vary by mode:
 
 - source scans usually reference code paths and reproduction steps
 - binary scans may include artifact evidence and reproduction guidance
 - remote scans may include HTTP requests or payload sequences
 
-Treat PoCs as starting points for validation. Review them before running them
+Treat exploit proofs as starting points for validation. Review them before running them
 against sensitive systems.
 
 ## How to review a finding
@@ -60,8 +60,8 @@ For each important finding:
 1. Read the source, URL, artifact path, or other evidence location.
 2. Confirm the affected asset and environment.
 3. Check the severity rationale and CVSS vector.
-4. Review confidence and vendor-review signals.
-5. Validate the PoC or ask for a safer reproduction path.
+4. Review confidence and independent-review signals.
+5. Validate the exploit proof or ask for a safer reproduction path.
 6. Decide whether to fix, challenge, accept, disclose, or monitor.
 
 Use [Triage to remediation](/use-cases/triage-to-remediation) for the full
@@ -95,11 +95,12 @@ What evidence would disprove this finding?
 Rewrite the reproduction steps for a staging environment with two test users.
 ```
 
-## Non-issues
+## Coverage notes
 
-Reports may include notable non-issues. These are areas the agents reviewed and
-marked clean. Non-issues are useful for audit coverage because they show where
-the scan spent time even when no finding was recorded.
+Reports may include coverage notes. These are areas the researcher examined
+without recording a vulnerability. They help explain where the assessment
+spent time, but they are review evidence rather than a guarantee that an area is
+free of vulnerabilities.
 
 ## Next action
 
