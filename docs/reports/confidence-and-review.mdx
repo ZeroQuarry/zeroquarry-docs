@@ -20,17 +20,17 @@ finding list so operators can challenge or confirm claims in one place._
 Confidence is stored as a number from `0.0` to `1.0`. It is affected by review
 signals such as:
 
-- whether the vendor-style reviewer accepted or challenged the issue
+- whether the independent reviewer accepted or challenged the issue
 - whether the researcher rebuttal restored confidence
 - whether the same fingerprint appears across related scan versions
 
 Use the account-level low-confidence cutoff to decide which findings are hidden
 from default exports.
 
-## Adversarial vendor review
+## Independent adversarial review
 
 When enabled, ZeroQuarry runs an additional skeptical pass over findings. The
-vendor reviewer attempts to reject weak evidence, identify non-exploitability,
+independent reviewer attempts to reject weak evidence, identify non-exploitability,
 and flag issues that look like false positives.
 
 For challenged findings, a rebuttal pass lets the researcher agent respond with

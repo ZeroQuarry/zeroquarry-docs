@@ -162,7 +162,13 @@ async function maskedScreenshot(page, filePath) {
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
   await preparePage(page);
 
-  const masks = SECRET_SELECTORS.map((selector) => page.locator(selector));
+  const masks = [];
+  for (const selector of SECRET_SELECTORS) {
+    const matches = await page.locator(selector).all();
+    for (const match of matches) {
+      if (await match.isVisible()) masks.push(match);
+    }
+  }
   await page.screenshot({
     path: filePath,
     fullPage: true,

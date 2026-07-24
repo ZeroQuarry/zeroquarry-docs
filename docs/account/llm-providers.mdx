@@ -66,9 +66,9 @@ and concurrency still apply.
 Account model settings can resolve different defaults for:
 
 - **Scan**: coordinator and worker investigation
-- **Review**: triage, HackerOne eligibility, adversarial vendor review, and
+- **Review**: triage, HackerOne eligibility, independent adversarial review, and
   rebuttal
-- **Artifact**: PoCs, disclosure drafts, patches, and deployment packages
+- **Artifact**: exploit proofs, disclosure drafts, patches, and deployment packages
 
 Security Research mode can expose per-scan overrides. Guided and AppSec modes
 use more of the account defaults to keep scan creation focused on the target and
@@ -76,7 +76,7 @@ outcome.
 
 ## Batch API mode
 
-Batch mode applies to artifact generation, such as PoCs and disclosure emails,
+Batch mode applies to artifact generation, such as exploit proofs and disclosure emails,
 when the selected provider supports it and the account tier allows it. Agent
 loops still run synchronously. Batch mode can reduce cost, but final report
 finalization may take longer.

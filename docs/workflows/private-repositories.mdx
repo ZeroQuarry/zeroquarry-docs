@@ -1,41 +1,77 @@
 ---
 id: private-repositories
-title: Private repositories
-sidebar_position: 2
+title: Connect private repositories
+sidebar_position: 1
 ---
 
-ZeroQuarry can clone private Git repositories using credentials saved at the
-account level.
+ZeroQuarry can read private repositories through a connected GitHub App or an
+account-level HTTPS or SSH credential. Choose the narrowest access method that
+supports the repositories you need to scan.
 
 ![ZeroQuarry account Git access page for saved private-repository credentials.](/img/screenshots/account-git-access.png)
 
-_Private repository support is configured from account-level Git access so
-source scans can reuse approved credentials without embedding secrets in docs or CI._
+_The guided setup starts with the Git provider, then tailors its least-privilege
+instructions before saving any credential._
 
-## Credential types
+## Choose an access method
 
-HTTPS credentials are available from **Account > Git Access**. Use them for
-GitHub, GitLab, Bitbucket, and other HTTPS Git hosts.
+| Method | Prefer it when | Credential behavior |
+| --- | --- | --- |
+| Connected GitHub App | The repositories are on GitHub and can be shared with the app | Select repositories already granted to the installation without storing a long-lived personal token. |
+| HTTPS credential | You use GitLab, Bitbucket, another Git host, or a GitHub token is required | ZeroQuarry stores an encrypted, host-matched token and uses it only for clone operations. |
+| SSH deploy key | The account tier enables SSH and the repository supports deploy keys | Store a private key in ZeroQuarry and add the matching public key to the repository with read-only access. |
 
-SSH credentials are available only on account tiers that enable SSH private repo
-access.
+For GitHub, start with the connected GitHub App. Use a saved credential when the
+app is not appropriate for the repository or deployment model.
 
-## Add an HTTPS credential
+## Connect the GitHub App
 
-1. Open **Account > Git Access**.
-2. Add a credential name.
-3. Enter the Git host, such as `github.com`.
-4. Enter the username required by the host.
-5. Enter a personal access token or password accepted by the host.
+1. Open **Account > Integrations**.
+2. Connect the ZeroQuarry GitHub App.
+3. In GitHub, grant access only to the repositories ZeroQuarry should read.
+4. On a new source scan, choose **Connected GitHub repo** and select one or more
+   available repositories.
 
-The credential applies to HTTPS Git URLs whose host matches the saved host.
+The source scanner uses the installation to clone selected repositories.
+ZeroQuarryBot remediation access is a separate integration and permission path.
 
-## Use the credential in a scan
+## Add an HTTPS or SSH credential
 
-In the console, select the credential from **Private repo credential** while
-creating a source scan.
+Open **Account > Integrations > Git Private Repositories** and complete the
+three-step setup:
 
-In the API, include `git_credential_id` in the scan request.
+1. **Provider** — choose GitHub, GitLab, Bitbucket, or another Git host.
+2. **Access** — choose HTTPS or SSH where available and follow the displayed
+   provider-specific permission guidance.
+3. **Save** — name the credential and confirm the exact Git host.
+
+![ZeroQuarry private repository access step with GitHub least-privilege token guidance.](/img/screenshots/private-repo-access.png)
+
+_The access step translates each provider's permission model into the minimum
+clone-only scope ZeroQuarry needs._
+
+Minimum permissions:
+
+| Provider | Recommended access |
+| --- | --- |
+| GitHub | Fine-grained token limited to selected repositories with **Contents: Read-only**. |
+| GitLab | Project access token or deploy token with `read_repository` only. |
+| Bitbucket Cloud | Repository-scoped token with repository **Read** only. |
+| Other Git hosts | Clone, pull, or source-read access only; no push, admin, webhook, issue, or pipeline permissions. |
+
+For SSH, add the public key as a read-only deploy key and leave write access
+disabled. Add known-hosts data when your deployment policy requires pinned host
+keys.
+
+## Use a saved credential
+
+On a new source scan:
+
+1. Choose **Add Git URLs**.
+2. Enter repositories whose host exactly matches the saved credential.
+3. Select the credential under **Private repository credential**.
+
+In the API, include `git_credential_id`:
 
 ```json
 {
@@ -45,17 +81,21 @@ In the API, include `git_credential_id` in the scan request.
 }
 ```
 
-## Operational notes
+## Security and operations
 
-- Use one host and credential per scan when possible.
+- Use one host and saved credential per scan.
 - Use least-privilege repository tokens.
-- Prefer read-only deploy tokens for CI.
+- Prefer repository-scoped tokens or read-only deploy keys over account-wide
+  personal tokens.
 - Revoke credentials that are no longer used.
 - Rotate credentials after a suspected leak.
 
-Credential values are stored encrypted in ZeroQuarry, but cloned repository
-contents are still part of the scan workspace and may be sent to the configured
-LLM provider during analysis.
+Credential values are encrypted and never displayed again after saving.
+ZeroQuarry uses them for a temporary clone; it does not use saved clone
+credentials to push commits or open pull requests.
+
+Cloned repository contents are still part of the scan workspace and may be sent
+to the configured LLM provider during analysis.
 
 ## Keep source inside a customer-controlled network
 
@@ -69,3 +109,5 @@ accepted because those inputs would first need to pass through the SaaS control
 plane. Saved Git credentials are delivered in the authenticated job manifest
 for the attempt and removed from the runner's local job database when execution
 ends.
+
+Continue with [Set up a private runner](/workflows/private-runner-setup).

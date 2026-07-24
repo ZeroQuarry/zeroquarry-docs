@@ -29,7 +29,7 @@ workflow depth matches the question you need answered._
 | Approve a release candidate | Source scan plus binary scan | Report export, patch generation, completion notifications | Release risk summary and remediation tickets |
 | Validate a shipped artifact | Binary scan | Source scan of the matching tag, patch generation | Artifact evidence, embedded endpoint review, secrets review |
 | Test a staging service like an attacker | Remote scan | Required headers, authenticated context, source scan of the service | HTTP evidence, reproduction steps, affected routes |
-| Prepare a bug-bounty or disclosure submission | Source, binary, or remote scan | HackerOne review, disclosure tracker, finding export | Validated finding, PoC, disclosure timeline |
+| Prepare a bug-bounty or disclosure submission | Source, binary, or remote scan | HackerOne review, disclosure tracker, finding export | Validated finding, exploit proof, disclosure timeline |
 
 ## Pick a scan mode
 
@@ -88,7 +88,7 @@ tags, reports, and follow-up.
 Do not run the deepest review for every scan. Use review features where they
 change a decision:
 
-- Use adversarial vendor review before sharing findings outside the immediate
+- Use independent adversarial review before sharing findings outside the immediate
   security team.
 - Use HackerOne eligibility review when the output may become a bounty or
   coordinated disclosure.
@@ -103,7 +103,7 @@ For a new product, start with:
 
 1. Create a project named after the product or service.
 2. Run a source scan against the main repository.
-3. Review high and critical findings, plus non-issues for coverage.
+3. Review high and critical findings, plus coverage notes for coverage.
 4. Re-run with notes that target the riskiest subsystem.
 5. Add either a binary scan of the release artifact or a remote scan of staging.
 6. Export a report once the finding set has been reviewed.

@@ -8,6 +8,7 @@ module.exports = {
       link: {type: "generated-index", title: "Start with ZeroQuarry"},
       items: [
         "getting-started/first-scan",
+        "getting-started/workflow-modes",
         "getting-started/projects-and-scans",
       ],
     },
@@ -38,14 +39,23 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Connect code and private environments",
+      link: {type: "generated-index", title: "Connect code and private environments"},
+      items: [
+        "workflows/private-repositories",
+        "workflows/private-runners",
+        "workflows/private-runner-setup",
+        "workflows/private-runner-operations",
+      ],
+    },
+    {
+      type: "category",
       label: "Automate and receive work",
       link: {type: "generated-index", title: "Automate and receive security work"},
       items: [
         "workflows/github-actions",
         "workflows/scheduled-rescans",
         "workflows/email-triage",
-        "workflows/private-repositories",
-        "workflows/private-runners",
       ],
     },
     {

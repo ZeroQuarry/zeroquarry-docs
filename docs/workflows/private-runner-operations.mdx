@@ -1,0 +1,102 @@
+---
+id: private-runner-operations
+title: Operate private runners
+sidebar_position: 3
+---
+
+Private runners are customer-operated execution capacity. Monitor their health,
+preserve their local identity, and use the lifecycle controls before maintenance
+or incident response.
+
+## Monitor pools and runners
+
+Under **Account > Private Runners**, review:
+
+- pool status, supported scan modes, and result policy
+- online and registered runner counts
+- current running-job count
+- runner status, version, and last-seen time
+- recent private-runner audit events
+
+Keep at least one healthy runner online in any pool used for time-sensitive
+scans.
+
+## Drain before maintenance
+
+Select **Drain** before updating or stopping a runner. A draining runner stops
+claiming new work while an existing attempt can finish.
+
+After maintenance, restart the container with its existing state volume. Do not
+delete the volume unless you intend to enroll a replacement identity.
+
+## Update the worker image
+
+Pull the desired `zeroquarry/worker` tag and recreate the container while
+retaining its state volume. Stable releases update `latest`; production
+environments can pin an explicit version.
+
+```bash
+docker pull zeroquarry/worker:1.0.0
+```
+
+Use the image version approved by your deployment process. The runner page
+reports the connected worker version so you can identify pools that need an
+update.
+
+## Understand retries
+
+Workers renew a short lease while a scan runs. If a runner or network connection
+fails, the control plane expires that attempt and requeues it to the same pool.
+Attempt IDs fence late results so an old worker cannot overwrite the active
+retry.
+
+A private job never falls back to ZeroQuarry Cloud. Restore capacity in the
+selected pool or explicitly create a separate cloud scan when project policy
+allows it.
+
+## Drain, revoke, or archive
+
+| Action | Use it when | Effect |
+| --- | --- | --- |
+| Drain | Planned maintenance or replacement | Stops new claims without immediately invalidating the runner identity. |
+| Revoke | The host or runner credential may be compromised | Invalidates the runner credential immediately. Re-enrollment is required. |
+| Archive pool | A network or trust zone should no longer receive work | Prevents new assignment and revokes the pool's runners. |
+
+Do not use revocation as a routine restart mechanism. Preserve the state volume
+and drain the runner for ordinary maintenance.
+
+## Review the audit trail
+
+Pool creation, enrollment, project policy changes, drain, revocation, and
+archive actions appear in the account audit log. Use it to reconstruct who
+changed private execution capacity and when.
+
+## Troubleshooting checklist
+
+If a runner does not appear online:
+
+1. Confirm the one-use token has not expired or already been consumed.
+2. Check Docker output for a permanent enrollment rejection.
+3. Verify outbound HTTPS access to the control-plane URL in the generated
+   command.
+4. Generate a new command rather than reusing a rejected enrollment token.
+
+If a runner is online but cannot claim a scan:
+
+1. Confirm the scan type is enabled on the pool.
+2. Confirm the project allows that pool.
+3. Confirm the scan was explicitly assigned to the pool.
+4. Confirm every selected model stage has an account-managed provider key.
+
+If a private remote scan cannot reach a target:
+
+1. Test DNS and target reachability from the Docker host.
+2. Confirm every intended host is inside the authorized scan scope.
+3. Check firewall and proxy rules between the runner and target.
+
+## Related guidance
+
+- [Private execution](/workflows/private-runners)
+- [Set up a private runner](/workflows/private-runner-setup)
+- [Private repositories](/workflows/private-repositories)
+- [Remote target scans](/scans/remote-targets)

@@ -1,7 +1,7 @@
 ---
 id: private-runners
-title: Private runners
-sidebar_position: 5
+title: Private execution
+sidebar_position: 1
 ---
 
 Private runners execute eligible ZeroQuarry scans from Docker hosts inside
@@ -13,10 +13,10 @@ Private runner pools are an Enterprise capability. They support remote scans
 and Git-backed source scans; binary uploads and source file uploads continue to
 use ZeroQuarry Cloud.
 
-![ZeroQuarry private runner pools with scan-mode and returned-result controls.](/img/screenshots/account-private-runners.png)
+![ZeroQuarry private runner pools with guided network, scan-mode, and data controls.](/img/screenshots/account-private-runners.png)
 
-_A pool defines the network boundary, eligible scan modes, and how much result
-detail returns to ZeroQuarry._
+_Private execution starts by defining a network boundary. Setup then selects
+eligible scan modes and how much result detail may return to ZeroQuarry._
 
 ## Choose a private runner for the right reason
 
@@ -28,88 +28,72 @@ detail returns to ZeroQuarry._
 | Control network ingress | Runners initiate outbound HTTPS; no inbound firewall rule is required. |
 | Separate trust zones | Create distinct pools for environments such as a production VPC, staging network, or lab. |
 
-A private runner is not a local-LLM mode. It calls the selected provider
-directly, and every selected scan, review, and artifact model must have an
-account-managed API key.
+A private runner is not a standalone or air-gapped ZeroQuarry deployment. SaaS
+remains the control plane, while the customer-controlled host performs the scan
+and calls each selected LLM provider directly. Every selected scan, review, and
+artifact model must have an account-managed API key.
 
-## Create and enroll a pool
+## Choose where each part runs
 
-1. Open **Account > Private Runners** as an account owner or admin.
-2. Create a pool and choose the allowed scan modes: remote targets, Git source,
-   or both.
-3. Choose the returned-result policy:
-   - **Minimized** returns normalized metadata, severity, score, identifiers,
-     and safe source locations. Evidence, remediation text, logs, errors, and
-     runner-generated artifacts remain local.
-   - **Standard** also returns relevant excerpts, detailed findings, logs, and
-     artifacts.
-4. Select **Add runner**. The displayed enrollment token works once and expires
-   after 15 minutes.
-5. Run the generated Docker command on a host that can reach the targets, Git
-   host, selected LLM providers, and the ZeroQuarry control plane.
-6. Preserve the Docker state volume across upgrades. It stores the enrolled
-   worker ID and secret; deleting it requires a new enrollment token.
+| Component | Location |
+| --- | --- |
+| Account, project policy, job assignment, and centralized reporting | ZeroQuarry SaaS control plane |
+| Git clone or active target testing | Customer-controlled runner host |
+| LLM calls | Directly from the runner to the selected provider, using account-managed keys |
+| Detailed results | Returned to SaaS for Standard pools; retained locally where the Minimized policy excludes them |
 
-The generated command records affirmative acceptance of the worker EULA. The
-runner refuses to start without it.
+The runner initiates outbound HTTPS connections. ZeroQuarry does not require an
+inbound firewall rule into the customer network.
 
-## Allow the pool on a project
+## Standard and minimized results
 
-Pools do not become available to every project automatically.
+New pools use **Standard results** by default. Standard returns detailed
+findings, relevant excerpts, logs, and generated artifacts to the control plane,
+which supports the normal report and evidence workflows.
 
-![ZeroQuarry project settings for allowed and default execution environments.](/img/screenshots/project-execution-environments.png)
+Choose **Minimized results** when the approved boundary allows only normalized
+finding metadata, severity, score, identifiers, and safe source locations to
+leave the network. Evidence, remediation text, logs, errors, and
+runner-generated artifacts then remain on the runner.
 
-_Project policy keeps cloud and private execution explicit instead of making a
-new pool available everywhere by default._
+Result minimization is not local-LLM execution and does not remove the outbound
+control-plane or provider connections.
 
-1. Open the project and select **Settings**.
-2. Under **Execution environments**, enable ZeroQuarry Cloud, one or more
-   compatible private pools, or both.
-3. Choose the project default.
-4. Save the execution policy.
+## Supported scans
 
-When a scan form has more than one compatible environment, choose the target
-under **Execution environment**. A private job remains pinned to its selected
-pool and never falls back to ZeroQuarry Cloud automatically.
+Private pools support:
 
-## Private source scans
+- Git-backed source scans, where the runner clones the repository directly
+- authorized remote-target scans, including internal DNS and private address
+  ranges reachable from the Docker host
 
-Private execution accepts Git targets only. Configure a least-privilege saved
-Git credential when the repository is not public. The credential and selected
-LLM keys are delivered in the authenticated job manifest, retained locally only
-for the attempt, and deleted from the runner's job database when execution
-ends.
+Browser source uploads, archives, and binary uploads continue to use ZeroQuarry
+Cloud. Uploaded inputs cannot become private-runner jobs because they would pass
+through the SaaS control plane before execution.
 
-File or archive uploads cannot use a private runner because the browser would
-first upload them to the SaaS control plane.
+Private reachability does not expand authorization. Remote scans still require
+explicit scope, approved test credentials, and non-destructive operating
+constraints.
 
-## Internal remote scans
+## Project assignment and failure behavior
 
-ZeroQuarry Cloud retains SSRF protection and rejects internal targets. A private
-runner can reach targets visible from its Docker host, including internal DNS
-and private address ranges.
+Pools are not automatically available to every project. An owner or admin
+allows compatible pools under the project's **Execution environments** settings
+and chooses a default. Scan creators can select only an environment allowed for
+that project and scan type.
 
-This does not expand authorization. Continue to define explicit scope hosts,
-use test credentials, prefer non-destructive probes, and record the authorized
-environment in the scan notes.
+A private job remains pinned to its selected pool. If a runner or network
+connection fails, ZeroQuarry expires the attempt and requeues it to the same
+pool. It never falls back to ZeroQuarry Cloud automatically.
 
-## Operate runners safely
+## Continue
 
-- Use one pool per network or trust zone.
-- Keep at least one healthy runner online before assigning time-sensitive work.
-- **Drain** a runner before maintenance so it stops claiming new jobs.
-- **Revoke** a runner when its host or credential may be compromised.
-- Archive pools that should no longer receive work.
-- Monitor runner version, last-seen time, running jobs, and the account audit
-  log.
-
-Workers renew a short lease while a scan runs. If the worker or network fails,
-the control plane expires that attempt and requeues it to the same pool. Attempt
-IDs prevent late results from overwriting the active retry.
+- [Set up a private runner](/workflows/private-runner-setup)
+- [Operate private runners](/workflows/private-runner-operations)
+- [Connect private repositories](/workflows/private-repositories)
 
 ## Related guidance
 
-- [Private repositories](/workflows/private-repositories)
 - [Remote target scans](/scans/remote-targets)
 - [LLM providers and keys](/account/llm-providers)
 - [Data handling](/security/data-handling)

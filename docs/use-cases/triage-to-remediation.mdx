@@ -24,7 +24,7 @@ Triage should produce four decisions for each important finding:
 3. Who should fix or accept the risk?
 4. What evidence belongs in the ticket, export, or disclosure?
 
-ZeroQuarry provides severity, confidence, PoCs, vendor review, chat, exports,
+ZeroQuarry provides severity, confidence, exploit proofs, independent review, chat, exports,
 finding lifecycle states, patch generation, auto-fix proposals, and issue
 tracker handoff to support those decisions.
 
@@ -46,10 +46,10 @@ Read next: [Findings](/reports/findings) and
 For each candidate finding, inspect:
 
 - affected source path, URL, artifact path, or endpoint
-- reproduction steps or PoC
+- reproduction steps or exploit proof
 - assumptions about authentication and roles
 - CVSS vector and severity rationale
-- any related non-issues
+- any related coverage notes
 - vendor verdict and rebuttal, if present
 
 When evidence is thin, ask finding chat targeted questions:
@@ -68,8 +68,8 @@ What would make this a false positive?
 
 ## Step 3: Challenge important findings
 
-Use adversarial vendor review for findings that will be expensive, controversial,
-or shared outside the security team. The vendor reviewer tries to reject weak
+Use independent adversarial review for findings that will be expensive, controversial,
+or shared outside the security team. The independent reviewer tries to reject weak
 claims; the researcher rebuttal either restores confidence with evidence or
 lets the finding stand as challenged.
 
@@ -119,11 +119,11 @@ Different audiences need different outputs:
 
 | Audience | Best artifact |
 | --- | --- |
-| Engineer | Finding export with source, impact, PoC, and patch link |
+| Engineer | Finding export with source, impact, exploit proof, and patch link |
 | Security lead | Report export filtered by confidence and severity |
 | Product owner | Summary, affected feature, customer impact, timeline |
-| External vendor | Disclosure draft plus manually reviewed PoC |
-| Auditor | Report export including targets and non-issues |
+| External vendor | Disclosure draft plus manually reviewed exploit proof |
+| Auditor | Report export including targets and coverage notes |
 | Customer or partner | Expiring secure share containing only selected findings |
 
 Read next: [Exports and disclosures](/reports/exports-and-disclosures).

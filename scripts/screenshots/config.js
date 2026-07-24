@@ -8,6 +8,39 @@ const DEFAULT_OUTPUT_DIR = path.join(ROOT_DIR, "static", "img", "screenshots");
 const DEFAULT_BASE_URL = "https://console.zeroquarry.com";
 const SESSION_COOKIE_NAME = "vb_session";
 
+async function showWizardStep(page, index) {
+  await page.evaluate((stepIndex) => {
+    const form = document.querySelector("[data-scan-wizard]");
+    if (!form) throw new Error("Could not find a guided setup form.");
+    const steps = Array.from(form.querySelectorAll("[data-wizard-step]"));
+    const indicators = Array.from(
+      form.querySelectorAll("[data-wizard-indicator]")
+    );
+    if (!steps[stepIndex]) {
+      throw new Error(`Wizard step ${stepIndex + 1} is not available.`);
+    }
+    steps.forEach((step, currentIndex) => {
+      const active = currentIndex === stepIndex;
+      step.hidden = !active;
+      step.classList.toggle("active", active);
+    });
+    indicators.forEach((indicator, currentIndex) => {
+      indicator.classList.toggle("active", currentIndex === stepIndex);
+      indicator.classList.toggle("complete", currentIndex < stepIndex);
+      indicator.setAttribute(
+        "aria-current",
+        currentIndex === stepIndex ? "step" : "false"
+      );
+    });
+    const back = form.querySelector("[data-wizard-back]");
+    const next = form.querySelector("[data-wizard-next]");
+    const submit = form.querySelector("[data-wizard-submit]");
+    if (back) back.hidden = stepIndex === 0;
+    if (next) next.hidden = stepIndex === steps.length - 1;
+    if (submit) submit.hidden = stepIndex !== steps.length - 1;
+  }, index);
+}
+
 const screenshotTargets = [
   {
     name: "workspace",
@@ -64,6 +97,14 @@ const screenshotTargets = [
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
   },
   {
+    name: "source-scan-review",
+    path: "/scans/new/source",
+    description: "Source scan review step with recommended and advanced settings",
+    prepare: async (page) => {
+      await showWizardStep(page, 2);
+    },
+  },
+  {
     name: "binary-scan-form",
     path: "/scans/new/binary?project_id={ZEROQUARRY_DOCS_PROJECT_ID}",
     description: "Binary scan creation form",
@@ -76,9 +117,31 @@ const screenshotTargets = [
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
   },
   {
+    name: "remote-scan-access",
+    path: "/scans/new/remote",
+    description: "Remote scan access step with identification and authentication options",
+    prepare: async (page) => {
+      await showWizardStep(page, 1);
+      await page
+        .locator('input[name="required_header_value"]')
+        .first()
+        .evaluate((input) => {
+          input.placeholder = "security-researcher";
+        });
+    },
+  },
+  {
     name: "account-git-access",
     path: "/account/integrations/git-private-repos",
     description: "Account-level Git credential management for private repositories",
+  },
+  {
+    name: "private-repo-access",
+    path: "/account/integrations/git-private-repos",
+    description: "Provider-specific least-privilege access guidance for private repositories",
+    prepare: async (page) => {
+      await showWizardStep(page, 1);
+    },
   },
   {
     name: "account-api-keys",
@@ -89,6 +152,21 @@ const screenshotTargets = [
     name: "account-private-runners",
     path: "/account/private-runners",
     description: "Enterprise private runner pools, result policies, and runner health",
+  },
+  {
+    name: "private-runner-data-policy",
+    path: "/account/private-runners",
+    description: "Private runner Standard and Minimized result-return policies",
+    prepare: async (page) => {
+      await page.locator("[data-runner-pool-name]").fill("Production VPC");
+      await showWizardStep(page, 2);
+      await page.evaluate(() => window.scrollTo(0, 0));
+    },
+  },
+  {
+    name: "workflow-mode-onboarding",
+    path: "/onboarding/usage-mode",
+    description: "Guided, AppSec, and Security Research workflow-mode selection",
   },
   {
     name: "email-triage",

@@ -111,7 +111,7 @@ assessments when the account and workflow expose them:
 | Coordinator step budget | Trade broader investigation for additional runtime and model use. |
 | Batch API | Reduce artifact-generation cost where supported; finalization can take longer. |
 | HackerOne review | Add core-ineligible context when the artifact supports a disclosure workflow. |
-| Adversarial vendor review | Have a separate reviewer challenge binary findings before finalization. |
+| Independent adversarial review | Have a separate reviewer challenge binary findings before finalization. |
 
 Guided workflows may apply account defaults without displaying every advanced
 setting. The resolved stages remain visible in the report audit history.
@@ -119,11 +119,11 @@ setting. The resolved stages remain visible in the report audit history.
 ## Report outputs
 
 Binary scan reports use the same finding model as source and remote scans:
-severity, confidence, description, evidence, PoC material where possible, and
+severity, confidence, description, evidence, exploit proof material where possible, and
 optional disclosure artifacts.
 
 Not every binary issue can produce a runnable exploit. When that happens, the
-PoC should still explain the reproduction path and the artifact evidence.
+exploit proof should still explain the reproduction path and the artifact evidence.
 
 ## Common next steps
 

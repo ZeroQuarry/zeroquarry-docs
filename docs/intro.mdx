@@ -57,7 +57,7 @@ Common use cases:
   targets into assessment work.
 - **Triage and remediation**: challenge findings, record accountable lifecycle
   decisions, generate fix patches or pull requests, and re-run after fixes.
-- **External disclosure**: prepare PoCs, disclosure drafts, HackerOne review
+- **External disclosure**: prepare exploit proofs, disclosure drafts, HackerOne review
   context, and a disclosure timeline.
 - **Customer and audit evidence**: package the latest evidence for selected
   assets, or share only the findings a recipient should see.
@@ -91,7 +91,7 @@ concept material, generated patches, and, when enabled, a draft disclosure
 email.
 
 **Reports** are the durable review surface for a scan. Reports include findings,
-non-issues, target metadata, logs, discussions, exports, re-run controls, and an
+coverage notes, target metadata, logs, discussions, exports, re-run controls, and an
 audit log of analysis and finding-state changes.
 
 **Finding states** record the human decision around a vulnerability, from
@@ -114,8 +114,8 @@ ZeroQuarry uses a coordinator and worker model.
 1. The coordinator maps the target surface and builds a checklist.
 2. Worker agents investigate focused areas, files, endpoints, or binary outputs.
 3. Triage reviews recorded findings and filters weak or duplicate issues.
-4. Artifact generation creates PoCs and disclosure drafts when the plan allows it.
-5. Optional review passes can add HackerOne eligibility labels, vendor-style
+4. Artifact generation creates exploit proofs and disclosure drafts when the plan allows it.
+5. Optional review passes can add HackerOne eligibility labels, independent
    challenge results, rebuttals, and confidence scores.
 
 The result is a report that is intended to be actionable: evidence first,

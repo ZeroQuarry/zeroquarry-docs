@@ -11,10 +11,10 @@ Remote scans are for vulnerabilities that require runtime behavior: routing,
 sessions, deployed configuration, API gateway behavior, redirects, server-side
 fetching, CORS, role state, and real HTTP responses.
 
-![ZeroQuarry remote scan form with entry URL, scope hosts, and authentication controls.](/img/screenshots/remote-scan-form.png)
+![ZeroQuarry remote scan scope step with entry URL, scope hosts, and authorization confirmation.](/img/screenshots/remote-scan-form.png)
 
-_The remote scan form is where you define entry URL, scope, required headers,
-and any authenticated context before sending live traffic._
+_The first wizard step defines the authorized target boundary before any access
+details or advanced scan settings are reviewed._
 
 :::caution Authorization required
 
@@ -26,7 +26,7 @@ violate computer-misuse laws and program rules.
 
 ## Inputs
 
-Remote scans require:
+The **Scope** step requires:
 
 - an entry URL
 - scope hosts
@@ -37,6 +37,10 @@ limit where agents should send probes.
 
 Treat scope hosts as a safety control, not documentation. Add every approved
 host explicitly when a workflow crosses subdomains, APIs, or CDN-backed routes.
+
+The **Access** step is optional for public targets. It collects required
+identification headers, cookies or API authentication, HTTP Basic credentials,
+and form-login details in separate controls.
 
 ZeroQuarry Cloud rejects loopback, link-local, RFC1918, and internal-DNS targets.
 Enterprise accounts can test authorized internal applications from a
@@ -67,7 +71,7 @@ Use **Required headers** for these values. ZeroQuarry attaches them to every
 probe, including form-login setup. Required header names and values are shown in
 scan logs so you can verify compliance.
 
-## Authentication
+## Authentication and access
 
 Remote scans can attach authentication context to probes:
 
@@ -77,6 +81,11 @@ Remote scans can attach authentication context to probes:
 | Custom headers | Bearer tokens, API keys, or app-specific headers. |
 | HTTP Basic auth | Targets protected by Basic auth. |
 | Form login | A one-time login request that obtains session cookies before probing. |
+
+![ZeroQuarry remote scan access step with identification headers and authentication methods.](/img/screenshots/remote-scan-access.png)
+
+_Public targets can skip access details. Authenticated assessments can add only
+the mechanism required by the approved test account._
 
 Sensitive authentication values are redacted from scan logs. They are still
 sent to the LLM agent as scan context and to the target as HTTP headers or
@@ -111,10 +120,10 @@ Before queueing a remote scan:
 
 ## Scan settings
 
-Remote assessments can expose the same model, coordinator-budget, Batch API,
-HackerOne, and adversarial-review controls as other scan modes. Availability
-depends on the account tier and workflow. In guided modes, entitled review
-defaults may be applied without showing each advanced control.
+The **Review** step exposes focus, model, coordinator-budget, Batch API,
+HackerOne, independent-review, notification, and execution controls when the
+account tier and workflow mode permit them. Guided modes may apply entitled
+review defaults without showing each advanced control.
 
 For internal targets, the scan form also shows **Execution environment** when
 the project allows a compatible private runner pool. Private jobs remain pinned

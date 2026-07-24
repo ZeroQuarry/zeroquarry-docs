@@ -4,7 +4,7 @@ title: Source code scans
 sidebar_position: 1
 ---
 
-Source scans inspect uploaded source files, archives, and Git repositories.
+Source scans inspect uploaded source files, archives, or Git repositories.
 They are designed for application code, infrastructure code, services, plugins,
 and libraries.
 
@@ -14,8 +14,8 @@ review context.
 
 ![ZeroQuarry source scan form for repositories and uploaded archives.](/img/screenshots/source-scan-form.png)
 
-_Source scans begin with repository, archive, and note selection so the worker
-plan starts from the code paths and review context you care about._
+_The first wizard step chooses exactly one source path: connected GitHub,
+manual Git URLs, or a browser upload._
 
 ## When source scans are the right tool
 
@@ -34,18 +34,22 @@ a binary or remote scan when those surfaces matter.
 
 ## Inputs
 
-You can provide:
+Choose one input path for each scan:
 
-- individual source files
-- archives such as `.zip`, `.tar`, and `.tar.gz`
-- public Git repositories over HTTPS
-- private Git repositories using saved account credentials
+- **Connected GitHub repo** for repositories granted to the ZeroQuarry GitHub
+  App
+- **Add Git URLs** for public repositories or private repositories using a
+  saved account credential
+- **Upload source code** for individual files or archives such as `.zip`,
+  `.tar`, and `.tar.gz`
 
 Archives are expanded automatically. Git repositories are cloned into an
 isolated scan workspace for the duration of the assessment.
 
-For repeatable work, prefer Git URLs over one-off uploads. Git-backed scans can
-support lineages, rescans, and CI delta scans more naturally.
+The paths are alternatives; a browser upload and Git repositories are not
+combined in the same scan. For repeatable work, prefer Git over one-off
+uploads. Git-backed scans support lineages, rescans, and CI delta scans more
+naturally.
 
 ## Deterministic analysis plus agent investigation
 
@@ -113,18 +117,23 @@ most sensitive.
 | Coordinator step budget | Raises or lowers the maximum coordinator turns. Higher budgets can improve coverage and increase cost. |
 | Batch API | Uses batch artifact generation where available. It is cheaper but finalization can take longer. |
 | HackerOne review | Labels findings against HackerOne core-ineligible categories when disclosure tracking is enabled. |
-| Adversarial vendor review | Runs a skeptical vendor-style challenge and researcher rebuttal pass to improve confidence scoring. |
+| Independent adversarial review | Runs a skeptical challenge and researcher rebuttal pass to improve confidence scoring. |
 
 Some guided workflows apply entitled review defaults without showing every
 advanced control. Review the queued scan configuration or report audit log when
 you need to confirm the resolved settings.
 
+![ZeroQuarry source scan review step with recommended defaults and expandable advanced settings.](/img/screenshots/source-scan-review.png)
+
+_Execution environment and other advanced choices are reviewed immediately
+before the scan is queued._
+
 ## Private repositories
 
-Add credentials under **Account > Integrations > Git Private Repositories**
-before starting the scan. See
-[Private repositories](/workflows/private-repositories) for credential behavior
-and CI usage.
+For GitHub, prefer the connected GitHub App and select a repository directly
+from the first wizard step. For other hosts or deployments, add a saved
+credential under **Account > Integrations > Git Private Repositories**. See
+[Connect private repositories](/workflows/private-repositories).
 
 Enterprise accounts can instead clone Git source and run the assessment from a
 customer-controlled Docker host. Private-runner source scans accept Git targets
