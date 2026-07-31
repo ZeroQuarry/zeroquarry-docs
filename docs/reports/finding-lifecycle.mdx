@@ -62,6 +62,23 @@ Not every finding follows the happy path:
 Changing state does not rewrite the finding's technical content and does not
 delete previous state events.
 
+## Restore an automated retraction
+
+An adversarial rebuttal can retract a finding when the researcher agent
+concedes that the claim should not remain active. Retracted findings move out
+of the active findings table into **Retracted by rebuttal**, where their
+evidence and rebuttal reasoning remain available for review.
+
+If a human reviewer has evidence that the finding is valid after all, expand
+that section and select **Promote**. Enter a validation rationale and submit
+**Promote to active**. ZeroQuarry restores the finding to the active table with
+a **Human restored** label, while preserving both the original retraction and
+the human validation in its history.
+
+Use promotion for an explicit human decision supported by evidence; do not use
+it merely to re-open an unanswered question. For that case, keep the retracted
+record as audit context and investigate a new or revised claim.
+
 ## What the audit log records
 
 The report and finding audit views combine:
@@ -92,6 +109,10 @@ changed-code focus, available context, or completed analysis stages.
 - **Severity** estimates impact if the vulnerability is real.
 - **Confidence** estimates how likely the claim is to survive review.
 - **Lifecycle state** records the team's current decision and operating status.
+
+An automated retraction is independent-review evidence, not a lifecycle state.
+A later human validation can restore the finding without deleting the
+retraction or changing the severity assessment.
 
 A high-severity, low-confidence candidate should usually move to **Needs
 Validation**, not disappear. A validated low-severity issue may still require

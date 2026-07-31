@@ -81,6 +81,13 @@ If a runner does not appear online:
    command.
 4. Generate a new command rather than reusing a rejected enrollment token.
 
+If a previously healthy runner begins returning `404` errors after a console or
+gateway change, update it to the current worker image and retain its existing
+state volume. Current workers retry the supported control-plane base URLs and
+refresh their saved endpoint when one succeeds. Do not delete the volume as a
+first troubleshooting step: that discards the enrolled identity and requires a
+new enrollment command.
+
 If a runner is online but cannot claim a scan:
 
 1. Confirm the scan type is enabled on the pool.
