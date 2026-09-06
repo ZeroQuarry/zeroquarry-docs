@@ -11,14 +11,16 @@ and software assets into a repeatable operating loop:
 
 1. **Receive work** from engineering, scheduled reviews, or forwarded security
    reports.
-2. **Assess the right surface**: source, a shipped binary, or an authorized live
-   target.
+2. **Assess the right surface**: source code, a shipped binary, or an
+   authorized live target.
 3. **Decide what is real** using evidence, adversarial review, finding states,
    and a recorded audit trail.
 4. **Move remediation into engineering** through patches, auto-fix pull
    requests, Jira, ServiceNow, or GitHub Issues.
-5. **Prove the work happened** with reports, controlled shares, disclosures,
-   and an account-wide Evidence Room.
+5. **Verify the fixes** with recheck scans, verification tests, and third-party
+   attestation.
+6. **Prove the work happened** with issued evidence snapshots, reports,
+   controlled shares, disclosures, and an account-wide Evidence Room.
 
 The assessment layer covers the assets teams actually ship and operate:
 
@@ -30,10 +32,10 @@ The primary UI is the ZeroQuarry console at
 [console.zeroquarry.com](https://console.zeroquarry.com). Programmatic access is
 available through the public API gateway at `https://api.zeroquarry.com`.
 
-![ZeroQuarry workspace landing page in the cloud console.](/img/screenshots/workspace.png)
+![ZeroQuarry projects view listing assessment projects with their profiles.](/img/screenshots/workspace.png)
 
-_The console opens into a project workspace where scan history, findings, and
-new assessment flows stay grouped by product or service._
+_The console opens into your projects. Each project carries a profile that
+declares what kind of assessment it is and which scans it can run._
 
 New accounts start with a short workflow-mode setup step. This lets ZeroQuarry
 tailor the scan UI for a guided owner/operator experience, a security-research
@@ -57,10 +59,14 @@ Common use cases:
   targets into assessment work.
 - **Triage and remediation**: challenge findings, record accountable lifecycle
   decisions, generate fix patches or pull requests, and re-run after fixes.
+- **Verification and attestation**: check fixes with automated re-checks and
+  verification tests, or hand the baseline to an external attestor for
+  third-party sign-off.
 - **External disclosure**: prepare exploit proofs, disclosure drafts, HackerOne review
   context, and a disclosure timeline.
-- **Customer and audit evidence**: package the latest evidence for selected
-  assets, or share only the findings a recipient should see.
+- **Customer and audit evidence**: issue immutable evidence snapshots, package
+  the latest evidence for selected assets, or share only the findings a
+  recipient should see.
 - **Multi-surface assessment**: combine source, binary, and remote scans when a
   vulnerability crosses build, packaging, and runtime boundaries.
 
@@ -71,24 +77,28 @@ clear and you are deciding what to scan first.
 
 ## Core concepts
 
-**Projects** group scans for one product, service, repository, or target set.
-Every scan belongs to a project. Use projects to preserve history across source,
+**Projects** group work for one product, service, repository, or target set.
+Every project carries a **profile** — source code, black-box, grey-box,
+white-box, or custom — that declares what kind of assessment it is and which
+scan modes it can launch. Use projects to preserve history across source,
 binary, and remote reviews of the same product.
+
+**Assets** are the durable record of a project's targets: URLs, repositories,
+hosts, API specs, and documentation. Scans pre-fill from assets, discoveries
+flow back into the library as pending candidates, and an approval gate decides
+what future scans may touch.
 
 **Scans** are asynchronous security assessments. A scan has one mode: source,
 binary, or remote. Scans move through states such as queued, running,
 awaiting batch artifacts, completed, failed, or cancelled.
 
-**Targets** are the concrete inputs for a scan: uploaded files, Git
-repositories, or URLs.
-
 **Findings** are confirmed or candidate vulnerabilities recorded by the agents.
-Each finding includes severity, CVSS-style scoring, evidence, and source
+Each finding includes severity, CVSS-style scoring, confidence, evidence, and source
 context where available.
 
-**Artifacts** are generated outputs attached to findings, including proof of
-concept material, generated patches, and, when enabled, a draft disclosure
-email.
+**Artifacts** are generated outputs attached to findings, including downloadable
+proof-of-concept code, generated patches, deployment packages, and, when
+enabled, a draft disclosure email.
 
 **Reports** are the durable review surface for a scan. Reports include findings,
 coverage notes, target metadata, logs, discussions, exports, re-run controls, and an
@@ -98,11 +108,24 @@ audit log of analysis and finding-state changes.
 candidate and validation through mitigation, retest, accepted risk, or archive.
 They are append-only decisions, not just mutable labels.
 
+**Evidence snapshots** are immutable, integrity-hashed designations of a
+completed report — the point-in-time baseline that verifications and
+attestations are anchored to.
+
+**Verification tests** pair a baseline snapshot with automated recheck results
+and human outcomes (fixed, partially fixed, not fixed, unable to verify,
+accepted risk) and publish an immutable verification report.
+
+**Attestation engagements** hand a baseline to an external attestor — a user of
+another ZeroQuarry account — whose per-finding verdicts and sign-off seal an
+independently attested report.
+
 **Shares** expose only selected findings to a named recipient through an
 expiring, password-protected, read-only link.
 
-**The Evidence Room** groups completed work by actual scan target and can build
-a combined PDF from the latest report for each selected asset.
+**The Evidence Room** is the account-wide home for issued evidence snapshots,
+engagements, verification tests, and per-target report history. It can combine
+the latest report for selected assets into one PDF.
 
 **Disclosures** track externally reported issues across acknowledgement, fix,
 public advisory, bounty, credit, and closure.
@@ -114,7 +137,7 @@ ZeroQuarry uses a coordinator and worker model.
 1. The coordinator maps the target surface and builds a checklist.
 2. Worker agents investigate focused areas, files, endpoints, or binary outputs.
 3. Triage reviews recorded findings and filters weak or duplicate issues.
-4. Artifact generation creates exploit proofs and disclosure drafts when the plan allows it.
+4. Artifact generation creates exploit proofs, patches, and disclosure drafts when the plan allows it.
 5. Optional review passes can add HackerOne eligibility labels, independent
    challenge results, rebuttals, and confidence scores.
 
@@ -137,17 +160,14 @@ If you are planning a security program, start with a playbook:
 If you already know what asset you want to scan, go straight to the scan mode:
 
 - [Source code scans](/scans/source-code)
-- [Binary artifact scans](/scans/binary-artifacts)
+- [Compiled artifact scans](/scans/binary-artifacts)
 - [Remote target scans](/scans/remote-targets)
 
-If you are new to the console, run a small scan first:
-
-Start with [Run your first scan](/getting-started/first-scan), then read the
-mode-specific page for the target you want to assess:
-
-- [Source code scans](/scans/source-code)
-- [Binary artifact scans](/scans/binary-artifacts)
-- [Remote target scans](/scans/remote-targets)
+If you are new to the console, start with
+[Run your first scan](/getting-started/first-scan), then read
+[Projects and scans](/getting-started/projects-and-scans) and
+[Project assets](/getting-started/project-assets) to understand how work stays
+organized.
 
 For automation, choose [GitHub Actions](/workflows/github-actions),
 [scheduled rescans](/workflows/scheduled-rescans), or

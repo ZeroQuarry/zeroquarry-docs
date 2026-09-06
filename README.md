@@ -29,12 +29,35 @@ npm run build
 
 ## Screenshots
 
-Docs screenshots are generated from the production console with Playwright and
-written to `static/img/screenshots/`.
+Docs screenshots are captured from a running ZeroQuarry console with Playwright
+and written to `static/img/screenshots/`. Two supported sources:
 
-Use a dedicated production docs account with public-safe demo data. The scripts
-never store credentials; they use either a saved browser auth state or a session
-cookie supplied by the environment. During capture, the helper removes the
+**Local seeded demo (recommended).** The product repo ships
+`scripts/seed_docs_demo.py`, which builds a complete demo dataset — profiled
+projects, assets of every kind, completed scans with findings/PoC/patch/chat, an
+issued evidence snapshot, a verification test, an attestation engagement, email
+triage inbox, schedule, disclosures, share, invoices, and a runner pool — in a
+fresh local DB:
+
+```bash
+cd ../ZeroQuarry
+DB_PATH=storage/docs-seed.db .venv/bin/python scripts/seed_docs_demo.py
+DB_PATH=$PWD/storage/docs-seed.db PORT=8899 .venv/bin/python app.py &
+```
+
+Then capture against it (the engagement id is minted per seed run — copy it
+from the seed output):
+
+```bash
+ZEROQUARRY_BASE_URL=http://127.0.0.1:8899 \
+ZEROQUARRY_SESSION_COOKIE=ZQdocsDemoSession0000000000000001 \
+ZEROQUARRY_DOCS_ENGAGEMENT_ID=en_... \
+./update-screenshots.sh
+```
+
+**Production console.** Use a dedicated production docs account with
+public-safe demo data. The scripts never store credentials; they use either a
+saved browser auth state or a session cookie supplied by the environment. During capture, the helper removes the
 sidebar tier label and replaces visible email addresses with
 `example@example.com` by default.
 
@@ -72,13 +95,16 @@ Optional overrides:
 - `ZEROQUARRY_SCREENSHOT_ONLY`: comma-separated target names when refreshing a
   subset, such as `evidence-room,scheduled-rescan,share-create`
 
-Seeded screenshot targets that need stable production IDs can be supplied with:
+Seeded screenshot targets that need stable instance IDs can be supplied with:
 
 - `ZEROQUARRY_DOCS_PROJECT_ID`
 - `ZEROQUARRY_DOCS_SCAN_ID`
 - `ZEROQUARRY_DOCS_FINDING_ID`
 - `ZEROQUARRY_DOCS_RECHECK_SCAN_ID` (a scan with explicit previous-finding
   recheck outcomes)
+- `ZEROQUARRY_DOCS_ASSET_ID` (a URL asset with auth for the asset-detail view)
+- `ZEROQUARRY_DOCS_VERIFICATION_ID` (a verification test with recorded outcomes)
+- `ZEROQUARRY_DOCS_ENGAGEMENT_ID` (an attestation engagement)
 - `ZEROQUARRY_DOCS_DISCLOSURE_ID` (optional; otherwise the first disclosure in
   the public-safe docs account is used)
 

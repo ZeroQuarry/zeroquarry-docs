@@ -20,6 +20,8 @@ Evidence is strongest when it is a by-product of the operating process:
 - finding states record validation, dispute, mitigation, regression, accepted
   risk, and archive decisions
 - the audit log records analysis runs, models, actors, outcomes, and reasons
+- issued evidence snapshots freeze important reports into integrity-hashed
+  baselines
 - reports preserve targets, findings, coverage notes, and review context
 
 Do not wait for an audit request to reconstruct this history from tickets and
@@ -31,9 +33,10 @@ chat messages.
 | --- | --- |
 | “Show recent testing for these systems” | Evidence Room combined PDF for selected targets |
 | “Explain this vulnerability and its status” | Secure share containing only the relevant findings |
-| “Provide the full assessment record” | Filtered report export |
+| “Provide the full assessment record” | Filtered report export, or an issued evidence snapshot with its integrity manifest |
 | “Show how an external issue was handled” | Disclosure record and timeline |
-| “Show that a fix was verified” | Original report, later scan version, and retest lifecycle event |
+| “Show that a fix was verified” | Published verification test anchored to the original baseline |
+| “Show an independent third party reviewed this” | Signed attestation engagement report |
 
 Start narrow and expand only when the recipient has a legitimate need.
 
@@ -48,6 +51,11 @@ Start narrow and expand only when the recipient has a legitimate need.
    disclaimer settings.
 6. Review the PDF before delivery, especially high and critical findings and
    any content that exposes sensitive implementation detail.
+
+For requests that demand tamper-evidence — anything a counterparty could later
+dispute — designate the underlying report as issued evidence first and build
+the pack from snapshots. The snapshot freezes the findings and carries a
+verifiable manifest.
 
 Read [Evidence Room](/reports/evidence-room) for selection and freshness
 details.

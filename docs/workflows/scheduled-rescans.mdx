@@ -12,10 +12,10 @@ ZeroQuarry checks the latest Git target for changes. If the commit has not
 moved, it records a no-change skip instead of spending a scan on identical
 source.
 
-![ZeroQuarry report re-run workflow with changed-code coverage and weekly schedule controls.](/img/screenshots/scheduled-rescan.png)
+![ZeroQuarry report reruns tab with re-run approach, coverage choice, and weekly schedule controls.](/img/screenshots/scheduled-rescan.png)
 
-_The schedule is configured from the report lineage after choosing to update
-the source and run repeated scans._
+_The schedule is configured from the report's Reruns tab, alongside one-off
+re-runs and per-stage re-runs._
 
 ## When to use a schedule
 
@@ -34,23 +34,23 @@ with a specific pull request or CI decision.
 
 1. Complete a Git-backed source scan. The baseline provides the lineage,
    repository checkout, and prior commit.
-2. Open its report and find the scheduled-scan settings.
-3. Enable the schedule.
-4. Choose daily, weekly, or monthly cadence.
-5. Choose the local time and IANA timezone. ZeroQuarry calculates runs in that
-   timezone so daylight-saving changes preserve the intended wall-clock time.
-6. For weekly schedules choose a weekday. For monthly schedules choose a day
-   from 1 through 28.
-7. Choose the rescan mode:
-   - **Update and rescan** pulls the latest repository and reviews it broadly.
-   - **Update and focus on changes** uses the Git diff to focus the next scan
-     while still allowing the agents to follow nearby data flow.
-8. Enable **Re-check previous findings** when the run should explicitly test
+2. Open its report and select the **Reruns** tab.
+3. Under **Choose a re-run approach**, pick **Update source code + scan**.
+4. Under **Scan options**, pick **Schedule repeated scans**.
+5. Under **What should the scan cover**, choose:
+   - **Scan only what changed** — uses the Git diff to focus the next scan
+     while still allowing the agents to follow nearby data flow. Recommended
+     for frequent schedules.
+   - **Full rescan** — re-examines the entire codebase each time. More
+     thorough; uses more tokens.
+6. Enable **Re-check previous findings** when the run should explicitly test
    unresolved findings from the lineage.
-9. Save the schedule.
+7. Set the cadence (daily, weekly, or monthly), day, and time of day, then
+   **Save & enable the schedule**.
 
-Schedules are available only for source/Git lineages because those targets
-provide a reliable commit-change signal.
+Schedules run on a fixed clock, so a weekly schedule lands on the same time
+every week. Schedules are available only for source/Git lineages because those
+targets provide a reliable commit-change signal.
 
 ## Interpret schedule outcomes
 
@@ -62,7 +62,8 @@ The schedule records its last run and one of these outcomes:
 
 A no-change skip is a successful control outcome. A repeated failure needs
 investigation, usually around Git credentials, repository availability, or
-worker health.
+worker health. Upcoming runs are visible to operators in the agent inbox
+calendar view.
 
 ## Verify previous findings explicitly
 
@@ -79,8 +80,10 @@ The report records one explicit outcome for each eligible previous finding:
   either conclusion.
 
 These outcomes are shown separately from newly discovered findings and link
-back to the previous occurrence. If rechecks were requested but no outcomes
-were recorded, inspect the scan log; do not mark findings fixed from silence.
+back to the previous occurrence. They can also be imported straight into a
+[verification test](/reports/verification-tests) when the result needs to
+become shareable evidence. If rechecks were requested but no outcomes were
+recorded, inspect the scan log; do not mark findings fixed from silence.
 
 ## Set the right cadence
 

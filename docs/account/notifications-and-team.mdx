@@ -1,7 +1,7 @@
 ---
 id: notifications-and-team
 title: Notifications and team settings
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 Account settings control collaboration, notifications, and report defaults for
@@ -33,10 +33,16 @@ Slack, Jira, ServiceNow, ZeroQuarryBot, private Git credentials, automated
 scans, and email triage are configured from **Account > Integrations**. Their
 availability depends on the account tier and the user's role.
 
-## Team members
+## Team members and roles
 
-Plans that allow invitations can add teammates under **Account**. Roles are
-account-scoped.
+Plans that allow invitations can add teammates under **Account > Members**.
+Roles are account-scoped:
+
+- **Owner** and **Admin** manage settings, integrations, billing, and members.
+- **Billing** manages payment methods and receives invoices without access to
+  scan configuration. See [Billing and usage](/account/billing).
+- **Member** runs scans and works findings within the projects available to
+  them.
 
 Use the smallest role that lets a teammate complete their work. Remove members
 who no longer need access.
@@ -54,6 +60,7 @@ Useful account preferences include:
 - low-confidence cutoff for exports
 - whether to show the Disclosures shortcut
 - scan completion email defaults
+- default PoC language for new findings
 - report disclaimer overrides, when the plan allows report customization
 - organization name used for combined Evidence Room reports
 

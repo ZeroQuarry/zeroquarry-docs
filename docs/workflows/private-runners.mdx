@@ -6,17 +6,17 @@ sidebar_position: 1
 
 Private runners execute eligible ZeroQuarry scans from Docker hosts inside
 networks you control. Use them when the assessment must reach an internal
-application, clone source without moving the repository through a hosted worker,
-or return less scan detail to the ZeroQuarry control plane.
+application, or clone source without moving the repository through a hosted
+worker.
 
 Private runner pools are an Enterprise capability. They support remote scans
 and Git-backed source scans; binary uploads and source file uploads continue to
 use ZeroQuarry Cloud.
 
-![ZeroQuarry private runner pools with guided network, scan-mode, and data controls.](/img/screenshots/account-private-runners.png)
+![ZeroQuarry private runner pools with guided network and scan-mode controls.](/img/screenshots/account-private-runners.png)
 
 _Private execution starts by defining a network boundary. Setup then selects
-eligible scan modes and how much result detail may return to ZeroQuarry._
+the scan modes the pool may run._
 
 ## Choose a private runner for the right reason
 
@@ -24,7 +24,6 @@ eligible scan modes and how much result detail may return to ZeroQuarry._
 | --- | --- |
 | Test an internal application | Remote workers can reach RFC1918, loopback, link-local, and internal-DNS targets from the customer network. |
 | Keep Git cloning on your infrastructure | Git source is cloned directly by the runner. Source uploads are rejected for private execution. |
-| Reduce data returned to SaaS | A minimized pool returns allowlisted finding metadata while retaining evidence, logs, and artifacts locally. |
 | Control network ingress | Runners initiate outbound HTTPS; no inbound firewall rule is required. |
 | Separate trust zones | Create distinct pools for environments such as a production VPC, staging network, or lab. |
 
@@ -40,24 +39,17 @@ artifact model must have an account-managed API key.
 | Account, project policy, job assignment, and centralized reporting | ZeroQuarry SaaS control plane |
 | Git clone or active target testing | Customer-controlled runner host |
 | LLM calls | Directly from the runner to the selected provider, using account-managed keys |
-| Detailed results | Returned to SaaS for Standard pools; retained locally where the Minimized policy excludes them |
+| Findings, logs, and artifacts | Returned to SaaS so the normal report and evidence workflows work |
 
 The runner initiates outbound HTTPS connections. ZeroQuarry does not require an
 inbound firewall rule into the customer network.
 
-## Standard and minimized results
-
-New pools use **Standard results** by default. Standard returns detailed
-findings, relevant excerpts, logs, and generated artifacts to the control plane,
-which supports the normal report and evidence workflows.
-
-Choose **Minimized results** when the approved boundary allows only normalized
-finding metadata, severity, score, identifiers, and safe source locations to
-leave the network. Evidence, remediation text, logs, errors, and
-runner-generated artifacts then remain on the runner.
-
-Result minimization is not local-LLM execution and does not remove the outbound
-control-plane or provider connections.
+Scan results return in full: findings, descriptions, exploit proofs, review
+history, logs, and generated artifacts reach the control plane so reports,
+verification tests, and the Evidence Room work the same as for cloud scans.
+The source code the runner cloned stays local — cloned repositories do not
+transit the control plane, which is why source views are not available for
+private-runner source scans.
 
 ## Supported scans
 

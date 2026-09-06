@@ -1,0 +1,81 @@
+---
+id: verification-tests
+title: Verification tests
+sidebar_position: 5
+---
+
+A re-scan tells you what a scanner sees today. A **verification test** records
+what your team concluded: which baseline findings were actually fixed, which
+remain, and which risks were formally accepted. The output is a publishable,
+immutable verification report that auditors and customers can read without
+access to the workspace.
+
+Verification tests are anchored to an [issued evidence](/reports/evidence-room)
+snapshot, so the baseline can never drift under you.
+
+
+## How a verification test works
+
+1. **Baseline.** Start from a snapshot issued in the Evidence Room. The test
+   copies the exact finding set that existed when the evidence was designated.
+2. **Automated verification.** Point the test at a later scan of the same
+   target — a scheduled re-run or a manual re-scan with
+   **Re-check previous findings** enabled — and import its recheck outcomes.
+   The scan's explicit recheck results map onto the test: *fixed* stays
+   **Fixed**, *still present* becomes **Not fixed**, and *inconclusive*
+   becomes **Unable to verify**. You can also run a dedicated automated
+   verification pass from the test itself when your tier includes it.
+3. **Human outcomes.** For each baseline finding, record one outcome and a
+   verification note:
+
+   | Outcome | Use it when |
+   | --- | --- |
+   | Fixed | The evidence shows the issue is gone. |
+   | Partially fixed | The exposure shrank but the issue persists in a narrower form. |
+   | Not fixed | The vulnerable behavior is still reachable. |
+   | Unable to verify | The available target, access, or context could not support a conclusion. |
+   | Accepted risk | An authorized owner chose to tolerate the issue — name the reason and review point. |
+
+4. **Publish.** When every finding has an outcome, publish the test. Publish
+   seals the results and renders a signed verification report PDF; the
+   published report and its manifest are immutable.
+
+## Import is evidence, not a decision
+
+Automated outcomes are a starting point. Import fills each finding with what
+the re-check scan recorded, but the verification note — the reasoning a future
+reviewer will read — is yours. A finding the scanner can no longer reach may
+still be **Not fixed** if you know the changed-code focus simply missed it;
+conversely, an automated **Not fixed** may deserve **Partially fixed** after
+you read the new evidence.
+
+Do not mark a finding **Fixed** from silence. If a recheck was requested but
+no outcome was recorded for a finding, treat it as unverified and inspect the
+scan log.
+
+## Publish and share
+
+Publishing requires an outcome for every baseline finding. The published
+report contains the baseline context, each finding with its outcome and
+verification note, who verified it and when, and the manifest binding it to
+the baseline snapshot's integrity hash.
+
+Use verification reports when someone asks "how do you know that fix landed?"
+- an auditor sampling remediation evidence
+- a customer following up on findings you shared with them
+- an internal change-freeze board that needs a per-release fix record
+- quarterly re-verification of accepted risks
+
+For the broader assurance workflow, read
+[Customer assurance and audit evidence](/use-cases/customer-assurance). To
+have a third party verify the findings instead of your own team, use an
+[attestation engagement](/reports/attestations).
+
+## Relationship to finding states
+
+Verification tests and [finding lifecycle](/reports/finding-lifecycle) states
+answer different questions. Lifecycle records what the team decided about a
+finding inside the workspace; a verification test produces an immutable,
+shareable record of the remediation check itself. Move the finding to
+**Retested** after a verification test (or recheck scan) confirms the fix, and
+to **Regression** when a later baseline shows the issue returned.

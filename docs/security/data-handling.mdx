@@ -48,18 +48,14 @@ customer-controlled Docker host. The runner makes outbound HTTPS connections to
 ZeroQuarry and calls the selected LLM provider directly with account-managed
 keys; no inbound firewall rule is required.
 
-Each pool controls what returns to the SaaS control plane:
+Scan results — findings, descriptions, exploit proofs, review history, logs,
+and generated artifacts — return to the SaaS control plane so the normal report
+and evidence workflows work. The source code the runner clones stays inside the
+customer network and does not transit the control plane.
 
-- **Minimized** returns allowlisted finding metadata and safe source locations.
-  Free-form evidence, remediation text, logs, errors, and runner-generated
-  artifacts remain on the runner.
-- **Standard** also returns detailed findings, relevant excerpts, logs, and
-  artifacts.
-
-Minimized results reduce what returns to ZeroQuarry, but they are not a claim
-that no data leaves the customer network: the selected LLM provider still
-receives assessment context directly from the runner. Review both the pool
-policy and provider configuration when defining the data boundary.
+Returning full results is not a claim that nothing leaves the customer network:
+the selected LLM provider still receives assessment context directly from the
+runner. Review the provider configuration as part of the data boundary.
 
 ## Reports and artifacts
 

@@ -1,0 +1,79 @@
+---
+id: attestations
+title: Attestation engagements
+sidebar_position: 2
+---
+
+An attestation engagement hands a point-in-time finding set to a **third
+party** — an external assessor, pentest firm, or security team that uses their
+own ZeroQuarry account — and captures their verdict finding by finding. When
+the attestor signs off, ZeroQuarry seals the attested report and its manifest,
+and both become immutable.
+
+The result is evidence rather than another self-issued report: every verdict
+and the sealed manifest record *who* attested and for which firm.
+
+
+## When to use an engagement
+
+- A customer requires **third-party validation** of an assessment before they
+  accept the report.
+- A pentest-style engagement needs per-finding confirmation — confirmed,
+  rejected, or severity adjusted — against your internal scan results.
+- A regulator or auditor wants **quarterly re-attestation** that previously
+  reported findings remain fixed.
+- You are the attestor: a consulting firm reviewing a client's baseline inside
+  your own ZeroQuarry account.
+
+## How an engagement works
+
+1. **Issue the baseline.** Open the completed report and designate it as
+   evidence in the [Evidence Room](/reports/evidence-room). The snapshot
+   freezes the finding set, targets, and report context.
+2. **Create the engagement.** In the Evidence Room, start an engagement from
+   the baseline and choose the kind:
+   - **Finding confirmation** — pen-test-style first-pass verification. The
+     attestor records *Confirmed*, *Rejected*, *Severity adjusted*, or
+     *Unable to verify* per finding.
+   - **Remediation verification** — re-verification that previously reported
+     findings are fixed, using the same outcome vocabulary as
+     [verification tests](/reports/verification-tests). Quarterly
+     re-attestation is the expected cadence.
+3. **Invite the attestor.** Enter the attestor's email address. If they
+   already belong to an attestor-enabled account, they are attached to the
+   engagement directly; otherwise they receive a one-time invitation link to
+   accept while signed in to their own account.
+4. **The attestor reviews.** From their **Attestations** page, the attestor
+   opens the engagement, reads each baseline finding with its evidence, and
+   records a verdict and note. They see only the engagement — not the rest of
+   your workspace.
+5. **Sign-off seals the record.** When the attestor signs the report,
+   ZeroQuarry seals the canonical manifest and the exact PDF bytes. Neither
+   side can edit the attested artifact afterwards.
+
+## Both sides keep their boundaries
+
+The customer sees the engagement's progress and the sealed result. The
+attestor's identity — their name, email, and home account (firm) — is recorded
+on every verdict and in the sealed manifest. Engagement ids, verdicts, and
+artifacts are scoped so that neither side can reach the other's workspace
+data; a cross-account request resolves as not found.
+
+The attestor's role inside their *own* account is irrelevant to the
+engagement; what matters is that their account is enabled for attestation.
+
+## Work with the results
+
+- A **Confirmed** baseline supports the original severity in customer and
+  audit conversations; a **Rejected** or **Severity adjusted** verdict carries
+  the attestor's reasoning with it.
+- Remediation-verification engagements complement
+  [verification tests](/reports/verification-tests): your team records the
+  internal fix check, and the external attestor confirms it independently.
+- Download the sealed attestation PDF and manifest from the engagement for
+  delivery to auditors or customers; the manifest binds the report to the
+  baseline snapshot's integrity hash.
+
+Engagements require the attestation capability on the customer account and
+the attestation side-capability on the attestor's account. If you do not see
+the Attestations area, ask ZeroQuarry support to enable it on your plan.

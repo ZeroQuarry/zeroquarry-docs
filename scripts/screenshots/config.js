@@ -46,6 +46,8 @@ const screenshotTargets = [
     name: "workspace",
     path: "/",
     description: "Default project workspace after sign-in",
+    // "/" intentionally redirects to the current project's workspace.
+    allowRedirect: true,
   },
   {
     name: "account-overview",
@@ -72,6 +74,40 @@ const screenshotTargets = [
     path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}",
     description: "Project detail with scan history, tags, and stats",
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
+  },
+  {
+    name: "new-project-profiles",
+    path: "/projects/new",
+    description: "New-project wizard with Source, Black-box, Grey-box, White-box, and Custom profiles",
+  },
+  {
+    name: "project-assets",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}",
+    description: "Project Assets tab with the discovery map and asset inventory",
+    // Needs a project whose profile exposes the asset library
+    // (black/grey/white-box or custom). Set ZEROQUARRY_DOCS_ASSET_LIBRARY=1
+    // and point ZEROQUARRY_DOCS_PROJECT_ID at such a project to recapture.
+    requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID", "ZEROQUARRY_DOCS_ASSET_LIBRARY"],
+    prepare: async (page) => {
+      await page.locator('button.project-tab[data-tab="assets"]').click();
+      await page
+        .locator('[data-panel="assets"]')
+        .waitFor({ state: "visible" });
+      // Let the force-directed discovery map settle before capturing.
+      await page.waitForTimeout(6000);
+    },
+  },
+  {
+    name: "asset-detail",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}/assets/{ZEROQUARRY_DOCS_ASSET_ID}",
+    description: "Asset detail with connection details, auth shape, and scan coverage",
+    requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID", "ZEROQUARRY_DOCS_ASSET_ID", "ZEROQUARRY_DOCS_ASSET_LIBRARY"],
+  },
+  {
+    name: "add-asset-form",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}/assets",
+    description: "Add-asset wizard with URL, Repo, Host, Spec, and Docs kinds",
+    requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID", "ZEROQUARRY_DOCS_ASSET_LIBRARY"],
   },
   {
     name: "project-execution-environments",
@@ -156,7 +192,11 @@ const screenshotTargets = [
   {
     name: "private-runner-data-policy",
     path: "/account/private-runners",
-    description: "Private runner Standard and Minimized result-return policies",
+    description: "Private runner Data step with the Full results return policy",
+    // The docs account's private-runner evaluation has lapsed, so the
+    // setup wizard is hidden. Set ZEROQUARRY_DOCS_RUNNER_WIZARD=1 once
+    // the evaluation is active again to recapture this surface.
+    requiredEnv: ["ZEROQUARRY_DOCS_RUNNER_WIZARD"],
     prepare: async (page) => {
       await page.locator("[data-runner-pool-name]").fill("Production VPC");
       await showWizardStep(page, 2);
@@ -179,10 +219,27 @@ const screenshotTargets = [
     description: "ZeroQuarryBot installation, kill switches, and repository controls",
   },
   {
+    name: "billing-usage",
+    path: "/account/billing",
+    description: "Billing and Usage with plans, payment method, and invoice history",
+  },
+  {
     name: "report-overview",
     path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/",
     description: "Report overview with findings, lineage, and review controls",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
+  },
+  {
+    name: "verification-test",
+    path: "/verification-tests/{ZEROQUARRY_DOCS_VERIFICATION_ID}",
+    description: "Remediation verification test with baseline, automated results, and outcomes",
+    requiredEnv: ["ZEROQUARRY_DOCS_VERIFICATION_ID"],
+  },
+  {
+    name: "attestation-engagement",
+    path: "/engagements/{ZEROQUARRY_DOCS_ENGAGEMENT_ID}",
+    description: "Attestation engagement with baseline findings and attestor verdicts",
+    requiredEnv: ["ZEROQUARRY_DOCS_ENGAGEMENT_ID"],
   },
   {
     name: "finding-rechecks",

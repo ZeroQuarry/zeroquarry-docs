@@ -43,6 +43,10 @@ Choose one input path for each scan:
 - **Upload source code** for individual files or archives such as `.zip`,
   `.tar`, and `.tar.gz`
 
+If the project already has a [repo asset](/getting-started/project-assets),
+the form pre-fills from it — URL, ref, and saved credential — and the scan is
+linked back to that asset so its coverage history stays in one place.
+
 Archives are expanded automatically. Git repositories are cloned into an
 isolated scan workspace for the duration of the assessment.
 
@@ -81,6 +85,11 @@ source-focused workers. Workers look for issues such as:
 - tenant isolation failures
 - unsafe file, path, and archive handling
 - dependency or framework use with known CVEs
+
+In white-box and grey-box projects, source workers also record the runtime
+surface they can infer from the code — hosts, ports, and endpoints — into the
+project's asset library as discovery candidates, alongside any URLs seeded as
+[assets](/getting-started/project-assets).
 
 Findings should include concrete source locations when the evidence comes from
 code.
@@ -135,6 +144,11 @@ from the first wizard step. For other hosts or deployments, add a saved
 credential under **Account > Integrations > Git Private Repositories**. See
 [Connect private repositories](/workflows/private-repositories).
 
+Scans created through the API — CI triggers in particular — do not need to
+name a credential: when exactly one saved HTTPS credential covers every target
+host, ZeroQuarry attaches it automatically. Ambiguous setups still require an
+explicit `git_credential_id`.
+
 Enterprise accounts can instead clone Git source and run the assessment from a
 customer-controlled Docker host. Private-runner source scans accept Git targets
 only; browser uploads would first transit the ZeroQuarry control plane. See
@@ -161,8 +175,9 @@ proposal and open a reviewable pull request through ZeroQuarryBot. Read
 
 ## Common next steps
 
-- For release reviews, pair source evidence with [Binary artifact scans](/scans/binary-artifacts).
+- For release reviews, pair source evidence with [Compiled artifact scans](/scans/binary-artifacts).
 - For deployed authorization or SSRF behavior, add a [Remote target scan](/scans/remote-targets).
 - For recurring scans, choose [Continuous CI scanning](/use-cases/continuous-ci-scanning)
   or [Scheduled rescans](/workflows/scheduled-rescans).
 - After a finding lands, use [Triage to remediation](/use-cases/triage-to-remediation).
+- To prove a fix landed, use [Verification tests](/reports/verification-tests).

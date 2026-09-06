@@ -75,7 +75,7 @@ Look for:
 - bundled vulnerable dependencies
 - configuration differences from the source scan
 
-Read next: [Binary artifact scans](/scans/binary-artifacts).
+Read next: [Compiled artifact scans](/scans/binary-artifacts).
 
 ## Step 3: Probe staging if runtime behavior matters
 
@@ -131,3 +131,8 @@ Export the reviewed report after you make the release decision. Include:
 
 The export becomes the durable record of what was reviewed, what was accepted,
 and what remained as follow-up risk.
+
+For releases with a formal approval gate, designate the report as issued
+evidence before archiving the milestone. The snapshot freezes the reviewed
+finding set, and any post-release fix check can be published as a
+[verification test](/reports/verification-tests) against that baseline.

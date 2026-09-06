@@ -186,8 +186,43 @@ components:
         id:         { type: string }
         name:       { type: string }
         account_id: { type: string }
+        profile:    { type: string, enum: [source_review, black_box, grey_box, white_box, custom] }
+        profile_label: { type: string }
         is_default: { type: boolean }
         created_at: { type: [string, "null"], format: date-time }
+
+    ProjectAsset:
+      type: object
+      description: >
+        A project-scoped asset (URL / host / repo). v1.x
+        kinds are ``url``, ``host``, ``repo``; the v1.1
+        discovery feed adds ``discovered``-source rows
+        and a future ``spec`` kind. The ``properties`` blob
+        is kind-specific (auth for url/host, git ref for
+        repo). ``tech_fingerprint_json`` is an opaque
+        JSON object the discovery feed fills in; the
+        asset detail page renders a "Tech" section
+        from it.
+      properties:
+        id:              { type: string }
+        project_id:      { type: string }
+        kind:            { type: string, enum: [url, host, repo] }
+        name:            { type: [string, "null"] }
+        url_or_path:     { type: string }
+        properties:      { type: object, additionalProperties: true }
+        source:
+          type: string
+          enum: [manual, imported, discovered]
+        discovered_at:           { type: [string, "null"], format: date-time }
+        discovery_method:        { type: [string, "null"] }
+        discovery_confidence:    { type: [string, "null"] }
+        last_seen_at:            { type: [string, "null"], format: date-time }
+        tech_fingerprint_json:  { type: [string, "null"] }
+        ignored_at:              { type: [string, "null"], format: date-time }
+        promoted_at:             { type: [string, "null"], format: date-time }
+        archived_at:             { type: [string, "null"], format: date-time }
+        created_at:    { type: string, format: date-time }
+        updated_at:    { type: string, format: date-time }
 
     ScanTarget:
       type: object
@@ -520,6 +555,73 @@ paths:
                     additionalProperties: true
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /v1/workers/chat/claim:
+    post:
+      tags: [workers]
+      summary: Claim the next queued chat turn for this worker.
+      security:
+        - workerAuth: []
+        - workerTokenAuth: []
+      responses:
+        "200":
+          description: Chat turn manifest (conversation history, finding/scan context, LLM runtime), or null if no eligible turn is queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  turn:
+                    type: [object, "null"]
+                    additionalProperties: true
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/chat/turns/{turn_id}/events:
+    parameters:
+      - name: turn_id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [workers]
+      summary: Stream events (and the final result) for a claimed chat turn.
+      security:
+        - workerAuth: []
+        - workerTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                events:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                artifacts:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                final:
+                  type: [object, "null"]
+                  description: Terminal status + durable tables; applied exactly once.
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Batch accepted. Events are deduped by (turn_id, seq); the final payload is applied once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stored: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /v1/workers/lease:
     post:
       tags: [workers]
@@ -549,6 +651,62 @@ paths:
                   attempt_id: { type: string }
                   lease_expires_at: { type: string, format: date-time }
                   cancelled: { type: boolean }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/workers/attempts/{attempt_id}/progress:
+    parameters:
+      - name: attempt_id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [workers]
+      summary: Stream partial progress (findings / non-issues / scan logs) for an in-flight attempt.
+      description: |
+        Called repeatedly by separate-process workers (customer private
+        runners and SaaS-shared cloud workers) while a scan is running.
+        Rows are inserted into the control-plane DB and visible in the UI
+        as soon as they arrive. The authoritative result still arrives via
+        `/v1/workers/attempts/{attempt_id}/result`, which replaces
+        streamed rows via DELETE+INSERT.
+      security:
+        - workerAuth: []
+        - workerTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scan_id, tables]
+              properties:
+                scan_id: { type: string }
+                tables:
+                  type: object
+                  properties:
+                    findings:
+                      type: array
+                      items: { type: object, additionalProperties: true }
+                    non_issues:
+                      type: array
+                      items: { type: object, additionalProperties: true }
+                    scan_logs:
+                      type: array
+                      items: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Rows inserted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  inserted:
+                    type: object
+                    additionalProperties: { type: integer }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -654,6 +812,10 @@ paths:
               required: [name]
               properties:
                 name: { type: string }
+                profile:
+                  type: string
+                  enum: [source_review, black_box, grey_box, white_box, custom]
+                  default: custom
       responses:
         "201":
           description: Project created.
@@ -684,16 +846,19 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [projects]
-      summary: Rename a project.
+      summary: Update a project's name or assessment profile.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name]
+              minProperties: 1
               properties:
                 name: { type: string }
+                profile:
+                  type: string
+                  enum: [source_review, black_box, grey_box, white_box, custom]
       responses:
         "200":
           description: Updated project.
@@ -765,6 +930,10 @@ paths:
                   description: Backward-compatible alias for `git_urls`.
                 project_id:         { type: string }
                 project_name:       { type: string }
+                project_profile:
+                  type: string
+                  enum: [source_review, black_box, grey_box, white_box, custom]
+                  description: Profile used only when `project_name` creates a project.
                 auto_delta:         { type: boolean, default: true }
                 model:              { type: string }
                 model_review:       { type: string, description: Optional review-stage model override. }
@@ -794,6 +963,10 @@ paths:
                   items: { type: string, format: binary }
                 project_id:         { type: string }
                 project_name:       { type: string }
+                project_profile:
+                  type: string
+                  enum: [source_review, black_box, grey_box, white_box, custom]
+                  description: Profile used only when `project_name` creates a project.
                 auto_delta:         { type: boolean }
                 model:              { type: string }
                 model_review:       { type: string, description: Optional review-stage model override. }
@@ -893,6 +1066,25 @@ paths:
               schema: { $ref: "#/components/schemas/Scan" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/scans/{scan_id}/wrap-up:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Finish a running scan's research phase now
+      description: >-
+        Ask a running scan's research phase to finish now ("Finish stage
+        now"). The coordinator and any in-flight researcher worker stop at
+        their next agent step boundary and the scan continues to
+        deduplication / review / artifact generation. Idempotent; no-op
+        once the scan is no longer running.
+      responses:
+        "200":
+          description: Scan record, with an extra wrap_up_requested boolean.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Scan" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/scans/{scan_id}/rescan:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]
     post:
@@ -967,6 +1159,94 @@ paths:
                   scan_id:        { type: string }
                   deleted_paths:  { type: array, items: { type: string } }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/discoveries:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Record a discovery the worker observed during this scan.
+      description: >
+        Worker-facing endpoint. The scan's worker calls this whenever it
+        observes a new URL during a scan. The endpoint resolves the scan
+        to its project, applies the project's blacklist, then dedups the
+        observation by canonical URL. ``source_scan_id`` is set server-side
+        from the path. Worker auth is required (the public Bearer-token
+        flow does not work here).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, url]
+              properties:
+                kind:
+                  type: string
+                  enum: [url, host, repo]
+                url: { type: string }
+                method:
+                  type: string
+                  enum: [active_scan, code_analysis, spec_import, doc_crawl, external_report]
+                  default: active_scan
+                confidence:
+                  type: string
+                  enum: [confirmed, heuristic, speculative]
+                  default: confirmed
+                fingerprint:
+                  type: object
+                  additionalProperties: true
+                  description: >
+                    Free-form tech fingerprint (server, framework, content
+                    type, TLS version, etc.) the worker captured. Unknown
+                    keys are preserved verbatim on the asset.
+      responses:
+        "200":
+          description: >
+            Discovery recorded (or merged into an existing row). The
+            response body is the asset row; ``deduped`` is true when
+            an existing row was matched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectAsset"
+        "204":
+          description: >
+            Discovery was dropped — the URL matched a blacklist pattern,
+            or the scan is in a source_review project, or the scan
+            isn't bound to a project. The worker should not retry.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/scans/{scan_id}/discoveries/extract:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Walk the scan's log messages and record every URL/host match as a discovery.
+      description: >
+        Worker-facing backfill for the discovery feed. Parses every
+        ``scan_logs.message`` for URL and ``host:port`` patterns, runs
+        each match through the same dedup + blacklist path as
+        ``/discoveries``, and returns the resulting rows.
+
+        Idempotent — re-running returns the same set (with refreshed
+        ``last_seen_at``), never duplicates. Safe to invoke from the
+        worker's "scan completed" hook or from an operator-triggered
+        re-extraction.
+      responses:
+        "200":
+          description: Extraction ran; the body reports the number of rows and includes the full asset list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added: { type: integer }
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProjectAsset" }
+        "204":
+          description: No URLs to extract — the scan's logs had no recognisable matches (or the scan doesn't accept discoveries).
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/scans/{scan_id}/findings:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]

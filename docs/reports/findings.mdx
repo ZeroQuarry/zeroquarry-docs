@@ -11,7 +11,7 @@ The report sorts findings by severity score so the highest-impact claims are
 visible first. Your triage process should then consider confidence, evidence,
 business context, and remediation cost.
 
-![ZeroQuarry finding detail view with evidence, exploit proof, and follow-up actions.](/img/screenshots/finding-detail.png)
+![ZeroQuarry finding detail view with severity, confidence, decision history, and description.](/img/screenshots/finding-detail.png)
 
 _Finding detail is where severity, confidence, evidence, exploit proofs, exports, and
 downstream actions come together for one security claim._
@@ -50,6 +50,13 @@ When artifact generation is enabled, each finding can include an exploit proof
 - binary scans may include artifact evidence and reproduction guidance
 - remote scans may include HTTP requests or payload sequences
 
+The proof's code is downloadable directly from the finding page, and when a
+finding supports a full deployment reproduction, ZeroQuarry can generate a
+**deployment package** — a `.zip` with a containerized stack and seed scripts
+that reproduces the issue end to end. Account owners can also state a preferred
+PoC language under **Account**, which the artifact agent uses as a default when
+the vulnerability does not dictate one.
+
 Treat exploit proofs as starting points for validation. Review them before running them
 against sensitive systems.
 
@@ -69,13 +76,18 @@ workflow.
 
 ## Finding chat
 
-Each finding has its own chat thread. Use it to:
+Each finding has its own chat thread, rendered like a conversation. Use it to:
 
 - ask why the issue is exploitable
 - request a more concise remediation summary
 - ask for a exploit proof in a different language or format
 - challenge the finding as a false positive
 - ask the model to revise the title, severity, or description
+
+The assistant can revise findings and reports mid-conversation: when a chat
+answer changes the finding, the update appears in place, and the tool activity
+for each step stays visible so you can see what the agent did. Pick a different
+model for the conversation from the chat model picker when you need one.
 
 Finding discussions can continue for multiple review rounds. If the model
 revises the finding, confirm the updated title, severity, description, exploit proof, and
@@ -108,5 +120,7 @@ free of vulnerabilities.
   an engineer-reviewable code change.
 - Use [Jira, ServiceNow, and GitHub Issues](/workflows/issue-trackers) to hand
   work into the owning team's system.
+- Use [Verification tests](/reports/verification-tests) to record — and prove —
+  what happened after the fix.
 - Use [Secure sharing](/reports/secure-sharing) when an external recipient
   should see only selected findings.

@@ -31,20 +31,13 @@ Open **Account > Private Runners** and complete the three-step setup:
 1. **Network** — name the network or trust boundary, such as `Production VPC`,
    `Melbourne Lab`, or `Customer staging`.
 2. **Scans** — allow remote targets, Git source scans, or both.
-3. **Data** — choose the result-return policy:
-   - **Standard**, the recommended default, returns detailed findings, relevant
-     excerpts, logs, and generated artifacts to ZeroQuarry.
-   - **Minimized** returns allowlisted finding metadata while retaining detailed
-     evidence, remediation text, logs, errors, and runner-generated artifacts on
-     the private runner.
+3. **Data** — confirms the result-return policy. Pools return full results:
+   findings, descriptions, exploit proofs, review history, logs, and generated
+   artifacts reach ZeroQuarry so the normal report and evidence workflows work.
+   The source code the runner clones stays inside your network.
 
 Create separate pools anywhere you would use different firewall rules, access
-controls, or data-return policies.
-
-![ZeroQuarry private runner data step with Standard and Minimized result policies.](/img/screenshots/private-runner-data-policy.png)
-
-_Standard is the recommended default. Minimized keeps detailed evidence, logs,
-errors, and runner-generated artifacts inside the private network._
+controls, or trust boundaries.
 
 ## 2. Enroll the Docker host
 

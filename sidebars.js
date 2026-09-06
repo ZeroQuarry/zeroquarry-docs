@@ -10,6 +10,7 @@ module.exports = {
         "getting-started/first-scan",
         "getting-started/workflow-modes",
         "getting-started/projects-and-scans",
+        "getting-started/project-assets",
       ],
     },
     {
@@ -68,6 +69,7 @@ module.exports = {
         "reports/confidence-and-review",
         "workflows/autofix",
         "workflows/issue-trackers",
+        "reports/verification-tests",
       ],
     },
     {
@@ -76,6 +78,7 @@ module.exports = {
       link: {type: "generated-index", title: "Share and prove security work"},
       items: [
         "reports/evidence-room",
+        "reports/attestations",
         "reports/secure-sharing",
         "reports/exports-and-disclosures",
       ],
@@ -85,6 +88,7 @@ module.exports = {
       label: "Account",
       link: {type: "generated-index", title: "Account"},
       items: [
+        "account/billing",
         "account/llm-providers",
         "account/notifications-and-team",
       ],

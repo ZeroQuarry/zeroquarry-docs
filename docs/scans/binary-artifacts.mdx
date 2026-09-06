@@ -1,28 +1,28 @@
 ---
 id: binary-artifacts
-title: Binary artifact scans
+title: Compiled artifact scans
 sidebar_position: 2
 ---
 
-Binary scans inspect shipped artifacts rather than source repositories. Use them
-for mobile apps, firmware, Java packages, installers, release archives, and
+Compiled artifact scans (binary scans) inspect shipped artifacts rather than
+source repositories. Use them for mobile apps, firmware, Java packages, installers, release archives, and
 other packaged software.
 
 Binary scans answer a different question than source scans: what did we
 actually ship?
 
-![ZeroQuarry binary scan form for uploading release artifacts.](/img/screenshots/binary-scan-form.png)
+![ZeroQuarry compiled artifact scan form for uploading release binaries.](/img/screenshots/binary-scan-form.png)
 
-_Binary scans start from the shipped artifact itself so the review matches what
-customers, attackers, or downstream operators actually receive._
+_Compiled artifact scans start from the shipped artifact itself so the review
+matches what customers, attackers, or downstream operators actually receive._
 
 They are useful when build steps, packaging, signing, dependency bundling,
 minification, generated code, or vendor components can change the security
 profile between repository and release artifact.
 
-## When binary scans are the right tool
+## When artifact scans are the right tool
 
-Use binary scans for:
+Use artifact scans for:
 
 - mobile app release candidates
 - firmware images and update packages
@@ -31,10 +31,15 @@ Use binary scans for:
 - third-party packages you are allowed to inspect
 - source-unavailable artifacts from suppliers or acquired products
 
-Pair binary scans with source scans when you need to connect artifact evidence
+Pair artifact scans with source scans when you need to connect artifact evidence
 back to code ownership.
 
-## Inputs
+## Projects and inputs
+
+Binary scans belong in projects with the **Custom or mixed**
+[profile](/getting-started/projects-and-scans#project-profiles) — it is the only
+profile that includes the binary scan mode. The scan picker only offers the
+artifact path on such projects.
 
 Upload one or more binary files or archives. Typical inputs include:
 
@@ -46,7 +51,9 @@ Upload one or more binary files or archives. Typical inputs include:
 
 ZeroQuarry prepares an analysis workspace from the upload. Where possible, it
 extracts archives, records metadata, collects strings, and uses available
-decompilation or inspection outputs for the agents.
+decompilation or inspection outputs for the agents. Workers can also use
+binary-inspection helpers such as `openssl` to examine key material and
+certificates embedded in the artifact.
 
 Upload the artifact that matches the release or environment you care about. A
 debug APK, unsigned firmware image, or locally rebuilt archive may produce a
@@ -64,6 +71,10 @@ Binary-focused workers review the prepared workspace for:
 - embedded endpoints and service URLs
 - bundled dependencies with known CVEs
 - risky permissions or entitlement choices
+
+Embedded endpoints and deep links are recorded into the project's asset
+library as discovery candidates, so a remote scan can follow up on what the
+artifact contacts.
 
 The evidence for a binary finding may be a manifest entry, string hit,
 decompiled source location, extracted filesystem path, or disassembly reference.
@@ -85,7 +96,7 @@ repository, build step, or deployed service.
 
 ## Notes and focus
 
-Binary scans benefit from precise context. Useful notes include:
+Artifact scans benefit from precise context. Useful notes include:
 
 ```text
 This is the Android release candidate. Focus on exported activities, deep links,
@@ -118,7 +129,7 @@ setting. The resolved stages remain visible in the report audit history.
 
 ## Report outputs
 
-Binary scan reports use the same finding model as source and remote scans:
+Artifact scan reports use the same finding model as source and remote scans:
 severity, confidence, description, evidence, exploit proof material where possible, and
 optional disclosure artifacts.
 
@@ -127,6 +138,6 @@ exploit proof should still explain the reproduction path and the artifact eviden
 
 ## Common next steps
 
-- Use [Release security review](/use-cases/release-security-review) when the binary is a release candidate.
+- Use [Release security review](/use-cases/release-security-review) when the artifact is a release candidate.
 - Use [Remote target scans](/scans/remote-targets) when the artifact exposes endpoints or deep links.
 - Use [Triage to remediation](/use-cases/triage-to-remediation) to turn artifact evidence into engineering work.

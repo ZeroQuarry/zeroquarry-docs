@@ -1,0 +1,113 @@
+---
+id: project-assets
+title: Project assets
+sidebar_position: 3
+---
+
+Assets are ZeroQuarry's durable record of the targets an assessment can touch.
+A scan points at one or more assets; the results of every scan flow back into
+the same asset library, so a project accumulates a single, growing picture of
+its attack surface instead of a pile of one-off scan inputs.
+
+Think of an asset as the answer to "what are we protecting?", while a scan is
+the answer to "what did we ask about it this time?".
+
+## Asset kinds
+
+Every asset has one kind, and the kind fixes the connection details and
+authentication shape it can carry:
+
+| Kind | Use it for | Carries |
+| --- | --- | --- |
+| URL | Web apps, REST APIs, GraphQL endpoints | Entry URL, scope hosts, auth (none, basic, bearer, cookie, or form login) plus arbitrary identification headers |
+| Repo | Git repositories, connected GitHub repos, uploaded source | Git URL or upload, ref, optional saved Git credential |
+| Host | Hostname:port services such as SMTP, databases, internal services | Service type, optional username/password |
+| Spec | OpenAPI/Swagger documents, GraphQL schemas, MCP server definitions | The spec file or URL; every declared endpoint fans out as a candidate URL asset |
+| Docs | PDFs, Word files, or a documentation repository | The document or repo; extraction pulls out URLs and hosts as candidates |
+
+Authentication lives on the asset, not the scan. When a scan targets the
+asset, it reuses the stored auth — configure the staging login once and every
+future scan of that asset authenticates the same way. Sensitive values are
+stored encrypted and redacted from scan logs.
+
+The kind is locked after creation. To change a URL asset into a Host asset,
+remove it and add a new one.
+
+## Add an asset
+
+1. Open the project and select the **Assets** tab.
+2. Choose **New asset**.
+3. Pick the kind that matches the target.
+4. Fill in the connection details. Auth is optional — add it when scans should
+   authenticate.
+5. Review and save.
+
+For URL assets, **scope hosts** limit where remote probes may land. Add every
+approved host explicitly when a target crosses subdomains or API hosts — the
+scanner enforces the boundary at launch and on every probe, including
+redirects.
+
+## Assets and project profiles
+
+A project's [profile](/getting-started/projects-and-scans#project-profiles)
+decides how the asset library behaves:
+
+- **Source code** projects show only the discovery feed (hosts and ports
+  extracted from code) — there is no URL/host seeding surface.
+- **Black-box**, **Grey-box**, **White-box**, and **Custom** projects expose
+  the full library: manual assets, discovery, and per-asset scan actions.
+
+## Discovery
+
+Scans feed the library. As agents work, they record the surfaces they
+encounter — URLs observed during remote probing, hosts and ports extracted
+from source, endpoints declared in a spec, and leads pulled out of product
+documentation. Each discovered asset keeps its provenance: which asset or
+scan led to it, how it was found, and when it was last observed.
+
+Discovered assets start as **pending**. Pending assets are visible and
+reviewable but are not scan targets until an owner approves them. Approval is
+the gate that turns "something the scanner saw" into "somewhere the scanner
+may go"; the gate is enforced again at scan launch and during live probing.
+
+## The discovery map
+
+The Assets tab opens with a force-directed map of the project's assets.
+Nodes are grouped by kind, arrows show discovery provenance ("discovered
+from"), and rings distinguish approved from pending assets. The map updates
+live while scans run, and clicking a node opens the asset's detail page. The
+same data is in the table below the map — the map is a viewer, the table is
+the working surface.
+
+## Specs and documentation as seeds
+
+Two asset kinds turn paperwork into candidates:
+
+- **Spec assets** accept OpenAPI/Swagger documents, GraphQL schemas or
+  introspection responses, and MCP server definitions. Everything declared in
+  the spec is treated as operator-approved surface: each endpoint becomes a
+  pending URL asset with a link back to the spec.
+- **Docs assets** accept PDFs, Word files, and documentation repositories. A
+  regex pass and an LLM pass extract URLs and hosts; every candidate is
+  recorded with provenance so you can see which document produced it. You can
+  choose the extraction model when your plan allows model selection.
+
+Both flows respect the project's scan policy and blacklist at record time, so
+a document that names an out-of-scope host cannot widen the boundary.
+
+## Bulk operations
+
+Select rows in the asset table to replace host:port values in bulk, approve,
+change tags, ignore, or delete. Ignored assets are hidden from the feed but
+kept for audit; deleting an asset does not delete the scans or findings that
+covered it.
+
+## Common next steps
+
+- Run a scan against an asset from the asset detail page, or start one from
+  [Source code scans](/scans/source-code) or
+  [Remote target scans](/scans/remote-targets).
+- Record boundaries that must never be probed in the project's scan policy
+  and blacklist.
+- For targets that must stay inside your network, pair assets with
+  [private execution](/workflows/private-runners).

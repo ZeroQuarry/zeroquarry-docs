@@ -12,10 +12,10 @@ follow-up.
 Source scans are the safest starting point because they do not send traffic to a
 live target.
 
-![ZeroQuarry workspace showing the default project landing page.](/img/screenshots/workspace.png)
+![ZeroQuarry project workspace showing the scan history landing page.](/img/screenshots/workspace.png)
 
-_The default workspace landing page routes you into your current project so you
-can start from recent scan history instead of a blank home screen._
+_The console opens into your projects. Open a project to start from its scan
+history instead of a blank home screen._
 
 ## Before you start
 
@@ -50,19 +50,25 @@ Good first targets:
 
 Avoid starting with a huge monorepo unless you can provide focused notes.
 
-## Create the scan
+## Create the project and scan
 
-1. Open **New scan** in the console.
-2. Choose **Source code**.
+1. Open **New project** and pick the profile that matches the assessment —
+   **Source code** for a repository review. Profiles are explained in
+   [Projects and scans](/getting-started/projects-and-scans#project-profiles).
+2. Choose **New scan**, then **Source code**.
 3. Under **Source**, choose one input path:
    - **Connected GitHub repo**
    - **Add Git URLs**
    - **Upload source code**
-4. Under **Details**, name the scan, choose its project, and add useful tags.
+4. Under **Details**, name the scan, confirm its project, and add useful tags.
 5. Under **Review**, queue the recommended defaults or open advanced options to
    add focus notes and review execution, model, notification, and artifact
    settings exposed by your workflow mode.
 6. Queue the scan.
+
+![ZeroQuarry scan type picker with Source code, Remote target, and Compiled artifact cards.](/img/screenshots/scan-new-picker.png)
+
+_The picker only offers scan types the project's profile and your plan allow._
 
 The source input paths are alternatives. A single scan does not combine a
 browser upload with Git repositories.
@@ -73,7 +79,8 @@ _The final step keeps the recommended path short while preserving access to
 focus, execution, model, review, artifact, and notification settings._
 
 The scan detail page shows live log output while workers claim and process the
-job.
+job, and discovered assets appear in the project's asset library as the scan
+works.
 
 ## Understand what happens next
 
@@ -141,11 +148,13 @@ Your next step depends on why you ran the scan:
 | Fix a finding | Use [Triage to remediation](/use-cases/triage-to-remediation). |
 | Prepare a release decision | Use [Release security review](/use-cases/release-security-review). |
 | Run the scan repeatedly | Use [Continuous CI scanning](/use-cases/continuous-ci-scanning). |
+| Prove the fix landed later | Use [Verification tests](/reports/verification-tests). |
 | Report externally | Use [External disclosure workflow](/use-cases/external-disclosure). |
 | Compare another asset shape | Run a binary or remote scan in the same project. |
 
 ## Next steps
 
 - Use [Projects and scans](/getting-started/projects-and-scans) to keep scans organized.
+- Use [Project assets](/getting-started/project-assets) to record targets once and reuse them across scans.
 - Use [Private repositories](/workflows/private-repositories) for non-public Git inputs.
 - Use [GitHub Actions](/workflows/github-actions) to trigger scans from CI.

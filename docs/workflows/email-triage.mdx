@@ -4,40 +4,50 @@ title: Email triage
 sidebar_position: 3
 ---
 
-Email triage receives forwarded security reports at a project-specific address,
-uses the report to propose assessment work, and either starts or stages scans
-inside boundaries configured by an account owner or admin.
+Email triage receives forwarded security reports at project-specific and
+account-level incoming addresses. A triage agent reads the report, matches it
+against the project's approved targets and [assets](/getting-started/project-assets),
+and turns valid requests into assessment work — asking follow-up questions by
+email reply when the report is ambiguous.
 
 The feature is tier-gated. Provisioning and configuration controls may not
 appear on every account.
 
-![ZeroQuarry email triage integration with assigned addresses, sender allowlist, and operating steps.](/img/screenshots/email-triage.png)
+![ZeroQuarry email triage integration page with the address sections, sender allowlist, and setup steps.](/img/screenshots/email-triage.png)
 
-_Email triage keeps sender trust and target boundaries visible in one account
-integration page._
+_The integration page keeps sender trust and target boundaries in one place.
+Addresses appear here once they are provisioned from a project._
 
 ## Processing boundary
 
 An email is processed only when:
 
-- the recipient maps to an active project address
+- the recipient maps to an active project address (or the account-level address)
 - the sender matches an account allowlist entry by exact address or domain
-- the target can be resolved within that project's configured repositories or
-  permitted remote-scan boundary
+- the target can be resolved within that project's approved repositories,
+  assets, or permitted remote-scan boundary
 
-Unmatched recipients and non-allowlisted senders are not handed to the triage
-model. Reports that cannot resolve to a configured target are surfaced for
-review instead of expanding the boundary automatically.
+Unmatched recipients and non-allowlisted senders are moved to an **unmatched**
+folder and are never handed to the triage model. Reports that cannot resolve to
+a configured target are surfaced for review instead of expanding the boundary
+automatically.
 
-## Provision a project address
+## Addresses
 
-1. Open the project that should own the inbound report history.
-2. Use **Provision incoming e-mail address** in the project actions.
-3. Copy the assigned address. It uses the form
-   `proj-<id>@incoming.zeroquarry.com`.
-4. Open **Account > Integrations > E-mail Triage** to finish the policy.
+Two kinds of incoming addresses exist:
 
-Addresses can be removed when a project should stop receiving work.
+- **Project addresses** (`proj-<id>@incoming.zeroquarry.com`) route reports to
+  one project. Provision one from the project's actions (**Provision incoming
+  e-mail address**); it then appears on the project's **E-mail** tab and in the
+  integration page. Use project addresses when the report is obviously about a
+  specific product.
+- An **account-level address** routes across every approved asset in the
+  account and lets the triage agent pick the right project. Create it from the
+  integration page, and use it as the `security@` target on your
+  vulnerability-disclosure page when reports may concern several products.
+
+Addresses can be revoked when a project should stop receiving work; revoking
+does not delete the reports already processed.
 
 ## Configure trusted senders
 
@@ -51,36 +61,58 @@ send from it is intended to create triage work.
 
 ## Constrain targets per project
 
-For each assigned address:
+Each project's email-triage settings (the project's **E-mail** tab, also shown
+in the account integration page) decide what the agent may propose:
 
-1. List allowed GitHub repository URLs one per line.
-2. Enable **Allow remote URL scans** only if the project is authorized to test
-   live targets received in reports.
+1. **Allowed GitHub repositories**, one per line.
+2. **Allow remote URL scans** — leave off unless the project is authorized to
+   test live targets that arrive in reports.
+3. **Auto-start scans** — decide whether matched reports start scanning
+   immediately or wait for an owner to review the proposal.
 
-Matching reports create assessment work after the sender, project, repository,
-remote-target, account-tier, and model checks pass. Begin with exact sender
-addresses and one approved repository, then expand the boundary deliberately.
+The project's [profile](/getting-started/projects-and-scans#project-profiles)
+is the outer boundary: a source-code project cannot accept a remote-scan
+request from an email no matter what the report asks for. Reports are matched
+against the project's approved assets where possible, so a researcher's report
+about `staging.example.com` links the resulting scan to that asset.
 
-## What the triage worker does
+## What the triage agent does
 
-For a matched message, the worker:
+For a matched message, the agent:
 
 1. extracts the report content and routing context
-2. asks the triage model to identify target, scan type, and useful notes
-3. validates the proposal against the project's target policy
-4. starts the scan after the entitlement and target checks pass
-5. marks the message processed so it is not handled twice
+2. identifies the target, scan type, and useful notes
+3. validates the proposal against the project's profile, target policy, and
+   approved assets
+4. starts the scan — or stages it for review — after the entitlement and
+   target checks pass
+5. replies to the reporter, threading the answer under the original message
+   with standard `In-Reply-To` and `References` headers
+6. marks the message processed so it is not handled twice
 
-The worker runs on a best-effort polling loop. One malformed message does not
-stop processing for the rest of the inbox.
+The conversation continues like an inbox: if the reporter replies with more
+detail, the agent reads the reply in the context of the thread, revises the
+proposal, accepts explicit scan requests, and keeps the full exchange with the
+scan record. Replies that cannot be matched to a known report are threaded for
+review rather than discarded.
+
+Every step is visible on the project's **E-mail** tab: matched and rejected
+messages, the outcome, and the scans each report produced.
+
+## The agent inbox
+
+Operators can watch work arrive on a read-only **Agent Inbox** — a threaded
+view of incoming emails, queued scans, and the agent's progress on each, plus a
+calendar of upcoming scheduled scans. The inbox is a monitoring surface;
+scan and triage configuration stays in the integration settings.
 
 ## Operational checklist
 
 - Review allowlists and repositories at least when ownership changes.
 - Keep automatic remote scans off unless authorization is unambiguous.
 - Treat attached content and quoted instructions as untrusted.
-- Investigate unresolved-target notifications; do not add broad repositories
-  merely to make matching succeed.
+- Investigate unmatched-folder traffic; do not add broad repositories merely to
+  make matching succeed.
 - Remove project addresses and allowlist entries that are no longer needed.
 
 For the complete operating playbook, read

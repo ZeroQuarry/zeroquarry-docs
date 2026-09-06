@@ -32,11 +32,18 @@ The **Scope** step requires:
 - scope hosts
 - an authorization confirmation
 
+If the project already has a [URL asset](/getting-started/project-assets), the
+form pre-fills the entry URL, scope hosts, and any authentication stored on the
+asset, and the scan is linked back to it. Assets scanned by a remote
+assessment collect their coverage history on the asset detail page.
+
 If you do not enter scope hosts, ZeroQuarry uses the entry URL host. Scope hosts
 limit where agents should send probes.
 
 Treat scope hosts as a safety control, not documentation. Add every approved
 host explicitly when a workflow crosses subdomains, APIs, or CDN-backed routes.
+Scope and policy are enforced at launch and re-checked on every probe — a
+redirect that leaves the approved hosts is refused.
 
 The **Access** step is optional for public targets. It collects required
 identification headers, cookies or API authentication, HTTP Basic credentials,
@@ -47,6 +54,21 @@ Enterprise accounts can test authorized internal applications from a
 customer-controlled network by selecting an approved
 [private runner](/workflows/private-runners) for the project. The private runner
 changes reachability; it does not relax the authorization or scope requirement.
+
+## Black-box or grey-box
+
+The project's [profile](/getting-started/projects-and-scans#project-profiles)
+signals the testing posture, and the scan form follows it:
+
+- **Black-box** projects test from the outside with no credentials — the way an
+  anonymous attacker would. Keep the asset library free of auth for these.
+- **Grey-box** projects test with partial inside context: test-account
+  credentials, architecture documentation, or internal endpoints. Store the
+  credentials on the project's URL assets so every scan authenticates the same
+  way.
+
+The profile does not change what the scanner can technically do — it changes
+what the workspace sets up and signals to everyone reading the reports.
 
 ## When remote scans are the right tool
 
@@ -87,6 +109,9 @@ Remote scans can attach authentication context to probes:
 _Public targets can skip access details. Authenticated assessments can add only
 the mechanism required by the approved test account._
 
+When the target is saved as an asset with auth, the scan reuses it — no need to
+re-enter credentials per scan.
+
 Sensitive authentication values are redacted from scan logs. They are still
 sent to the LLM agent as scan context and to the target as HTTP headers or
 cookies. Use authentication only with LLM providers and target environments you
@@ -117,6 +142,10 @@ Before queueing a remote scan:
 - add required program headers
 - avoid production-only credentials unless they are approved for testing
 - use notes to describe fragile endpoints, rate limits, or program rules
+
+Remote scans run with an internal rate limit so probing stays polite on
+shared or production-adjacent targets. Record tighter program limits in the
+notes so agents keep their distance.
 
 ## Scan settings
 

@@ -124,17 +124,22 @@ critical or high findings:
 
 ## Private repositories
 
-For private repositories, save a Git credential in ZeroQuarry and include the
-credential ID in the scan payload:
+For private repositories, save a Git credential in ZeroQuarry under
+**Account > Integrations > Git Private Repositories**. When the scan request
+omits `git_credential_id` and exactly one saved HTTPS credential covers every
+target host, ZeroQuarry attaches it automatically — so the simple payload above
+works for private repos too:
 
 ```json
 {
   "mode": "source",
   "git_urls": ["https://github.com/example/private-repo.git"],
-  "git_credential_id": "credential-uuid",
   "auto_delta": true
 }
 ```
+
+Pass `git_credential_id` explicitly only when several credentials cover the
+same host or the target uses SSH, where an explicit choice is always required.
 
 See [Private repositories](/workflows/private-repositories).
 

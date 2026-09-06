@@ -1,17 +1,17 @@
 ---
 id: llm-providers
 title: LLM providers and keys
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 ZeroQuarry runs agent loops through configured LLM providers. Depending on your
 plan and workspace configuration, those providers may be ZeroQuarry-managed or
 bring-your-own keys.
 
-![ZeroQuarry account overview showing where workspace-wide LLM configuration lives.](/img/screenshots/account-overview.png)
+![ZeroQuarry account LLM configuration with per-stage model columns.](/img/screenshots/account-overview.png)
 
-_If your plan requires bring-your-own keys, this is the account area where you
-configure them before scans can run._
+_The account LLM config maps each platform model to the three pipeline stages;
+platform-funded models show a key badge per provider._
 
 ## Model selection
 
@@ -22,14 +22,19 @@ instead.
 
 If no model is available, scans cannot be queued.
 
+New accounts start with **Platform recommended** models — ZeroQuarry's
+preferred model per stage, funded by the platform and billed as hosted model
+usage. Owners can change the defaults at any time.
+
 ## Bring-your-own keys
 
-Some plans require account-wide LLM API keys. Add keys under **Account** before
-running scans.
+Some plans require account-wide LLM API keys. Add keys under **Account > LLM
+Config** before running scans.
 
-Keys are provider-wide: saving a key for one model makes it available to the
-active models configured for the same provider. This avoids storing duplicate
-keys for several OpenAI, Anthropic, or compatible model entries.
+Keys are provider-wide: saving a key for one model makes it available to every
+model configured for the same provider, and you can copy a key between models
+of the same provider without re-entering or exposing it. This avoids storing
+duplicate keys for several OpenAI, Anthropic, or compatible model entries.
 
 Account-level keys apply to every user in the account. Treat them like
 production secrets:
@@ -38,6 +43,29 @@ production secrets:
 - rotate keys on schedule
 - remove keys that are no longer needed
 - use provider-side usage limits where available
+
+## Stage defaults
+
+Account model settings resolve defaults for three pipeline stages, configurable
+per model in the LLM config table:
+
+- **Coordinator / Researcher** — the scan-stage investigation loop
+- **Triage / Vendor / HackerOne reviewer** — the review-stage passes, including
+  adversarial review and rebuttal
+- **Artifact generator** — exploit proofs, disclosure drafts, patches, and
+  deployment packages
+
+Chat on findings and reports can pick its own model per conversation, defaulting
+to the artifact stage.
+
+Some auxiliary stages use their own model selection when configured: asset
+extraction from **Docs** assets can name a model, and private-runner setups
+require an account-managed key for every selected scan, review, and artifact
+model.
+
+Security Research mode can expose per-scan overrides. Guided and AppSec modes
+use more of the account defaults to keep scan creation focused on the target and
+outcome.
 
 ## Data sent to providers
 
@@ -60,19 +88,6 @@ account-managed key are billed by that provider and are not included in
 ZeroQuarry model-usage invoices or blocked by platform-funded token caps. The
 ZeroQuarry subscription and normal plan limits such as security-run capacity
 and concurrency still apply.
-
-## Stage defaults
-
-Account model settings can resolve different defaults for:
-
-- **Scan**: coordinator and worker investigation
-- **Review**: triage, HackerOne eligibility, independent adversarial review, and
-  rebuttal
-- **Artifact**: exploit proofs, disclosure drafts, patches, and deployment packages
-
-Security Research mode can expose per-scan overrides. Guided and AppSec modes
-use more of the account defaults to keep scan creation focused on the target and
-outcome.
 
 ## Batch API mode
 

@@ -16,6 +16,13 @@ much of the scan form is shown by default. It does not change what scan modes
 exist. `Guided scan` keeps the form minimal, `Security research` exposes the
 full control surface, and `AppSec triage` emphasizes review-oriented options.
 
+The project's [profile](/getting-started/projects-and-scans#project-profiles)
+narrower still: it declares what the project is — source review, black-box,
+grey-box, white-box, or mixed — and the scan picker offers only the modes that
+profile allows. Targets you assess repeatedly should live in the project as
+[assets](/getting-started/project-assets), so scans pre-fill and evidence
+accumulates on the asset.
+
 ![ZeroQuarry scan mode picker for source, binary, and remote assessments.](/img/screenshots/scan-new-picker.png)
 
 _The scan picker is the branching point where you decide which target shape and
@@ -30,6 +37,7 @@ workflow depth matches the question you need answered._
 | Validate a shipped artifact | Binary scan | Source scan of the matching tag, patch generation | Artifact evidence, embedded endpoint review, secrets review |
 | Test a staging service like an attacker | Remote scan | Required headers, authenticated context, source scan of the service | HTTP evidence, reproduction steps, affected routes |
 | Prepare a bug-bounty or disclosure submission | Source, binary, or remote scan | HackerOne review, disclosure tracker, finding export | Validated finding, exploit proof, disclosure timeline |
+| Prove a fix landed | Re-run with re-checks | Verification test or attestation engagement anchored to issued evidence | Published verification or attestation report |
 
 ## Pick a scan mode
 
@@ -56,7 +64,7 @@ repository alone.
 Binary scans are strong release gates because they inspect what customers or
 attackers actually receive.
 
-Read next: [Binary artifact scans](/scans/binary-artifacts).
+Read next: [Compiled artifact scans](/scans/binary-artifacts).
 
 ### Remote targets
 

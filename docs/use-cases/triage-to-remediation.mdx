@@ -24,8 +24,8 @@ Triage should produce four decisions for each important finding:
 3. Who should fix or accept the risk?
 4. What evidence belongs in the ticket, export, or disclosure?
 
-ZeroQuarry provides severity, confidence, exploit proofs, independent review, chat, exports,
-finding lifecycle states, patch generation, auto-fix proposals, and issue
+ZeroQuarry provides severity, confidence, downloadable exploit proofs, independent review, chat, exports,
+finding lifecycle states, patch generation, auto-fix proposals, verification tests, and issue
 tracker handoff to support those decisions.
 
 ## Step 1: Start from severity, then check confidence
@@ -145,3 +145,10 @@ Move the original finding to **Mitigated** when a fix is expected to address the
 risk. Move it to **Retested** only after the later assessment provides evidence.
 Use **Regression** if the issue returns. These state changes become part of the
 report audit trail.
+
+When the recheck needs to become evidence — for an auditor, customer, or change
+board — import the recheck outcomes into a
+[verification test](/reports/verification-tests) anchored to an issued evidence
+snapshot, record the final outcome per finding, and publish. For third-party
+validation instead of self-verification, use an
+[attestation engagement](/reports/attestations).

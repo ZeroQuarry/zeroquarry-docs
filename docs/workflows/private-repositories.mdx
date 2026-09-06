@@ -69,7 +69,10 @@ On a new source scan:
 
 1. Choose **Add Git URLs**.
 2. Enter repositories whose host exactly matches the saved credential.
-3. Select the credential under **Private repository credential**.
+3. Select the credential under **Private repository credential**. When exactly
+   one saved HTTPS credential covers every target host, ZeroQuarry selects it
+   automatically — including for API-created scans that omit
+   `git_credential_id`.
 
 In the API, include `git_credential_id`:
 
