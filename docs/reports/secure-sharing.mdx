@@ -38,8 +38,24 @@ your organization's secret-sharing policy.
 The recipient opens the tokenized link and enters the password. The page shows
 only the findings included in the share and is read-only.
 
+If the recipient signs in to a ZeroQuarry account that uses the same email
+address the share was sent to, the password gate is skipped — sign-in itself
+proves they are the intended recipient. Those shares also collect under
+**Shares received** in their sidebar (see below).
+
 Share tokens are stored as hashes. Password checks are rate-limited, and access
 events are recorded. A share can be active, expired, or revoked.
+
+## Shares received
+
+Recipients with a ZeroQuarry account get a **Shares received** inbox in the
+sidebar once someone shares findings with their email address. It lists every
+share addressed to that email — sender, finding count, sent date, and expiry —
+separated into active and closed. Opening a share there skips the password gate
+and shows the same read-only view as the tokenized link.
+
+This is convenience, not an extra permission: it only surfaces shares that were
+already sent to the account's email address.
 
 ## Manage shares
 

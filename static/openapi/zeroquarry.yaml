@@ -190,6 +190,8 @@ components:
         profile_label: { type: string }
         is_default: { type: boolean }
         created_at: { type: [string, "null"], format: date-time }
+        archived_at: { type: [string, "null"], format: date-time }
+        raw_files_purged_at: { type: [string, "null"], format: date-time }
 
     ProjectAsset:
       type: object
@@ -876,6 +878,38 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/projects/{project_id}/archive:
+    parameters: [ { $ref: "#/components/parameters/ProjectId" } ]
+    post:
+      tags: [projects]
+      summary: >
+        Archive a project — soft-hide it from the UI, project pickers, and
+        this API's project list (freeing a `max_projects` slot) without
+        deleting anything. The default project cannot be archived.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purge_raw_files:
+                  type: boolean
+                  default: false
+                  description: >
+                    Also delete every scan's raw files (repo clones, uploads,
+                    scratch, logs). Findings, POCs, and reports are kept, but
+                    finding source links stop working and unarchiving does not
+                    restore the files. Refused with 400 while any scan in the
+                    project is queued, running, or awaiting_batch.
+      responses:
+        "200":
+          description: Archived project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # ===========================================================
   # scans
   # ===========================================================
@@ -1160,6 +1194,127 @@ paths:
                   deleted_paths:  { type: array, items: { type: string } }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/scans/{scan_id}/surface-coverage:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Exhaustiveness check — known routes this scan never probed.
+      description: >
+        Worker-facing query. Diffs the project's KNOWN url corpus
+        (code/doc/scan discoveries, grouped per host and first path
+        segment) against the routes this scan actually probed
+        (successful active_scan responses). Returns per-area gap
+        lists so the agent can close exhaustiveness gaps before
+        wrapping up. Worker auth is required.
+      parameters:
+        - name: area
+          in: query
+          schema: { type: string }
+          description: Optional first-path-segment filter (e.g. "admin").
+      responses:
+        "200":
+          description: >
+            Coverage report — totals plus per-area unprobed route
+            samples.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan.
+
+  /v1/scans/{scan_id}/asset-knowledge:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Prior knowledge about this scan's target assets.
+      description: >
+        Worker-facing query. Returns what earlier scans of the project
+        learned about THIS scan's target assets — discovery notes
+        (schemas, endpoint semantics, auth quirks), the tech
+        fingerprint, and discovered_from provenance. A split worker's
+        local database has no project_assets rows, so this is how its
+        coordinator sees the asset library. Worker auth is required.
+      responses:
+        "200":
+          description: >
+            Prior-knowledge brief — one entry per library-linked target
+            asset, each with notes, tech, and provenance.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan, or a scan not bound to a project.
+
+  /v1/scans/{scan_id}/probes:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Record one completed HTTP response (any status) as a probe observation.
+      description: >
+        Worker-facing endpoint. Every completed http_request response —
+        including 401/404/5xx — lands here as a response-class probe
+        record, the substrate behind surface coverage's tested /
+        blocked / missing / error distinction. Deliberately separate
+        from the discoveries endpoint: probes never mint asset rows,
+        but an auth-walled route stops masquerading as "never touched"
+        and becomes blocked-route signal. Re-probes of the same URL in
+        the same scan upsert (latest status wins, count accumulates).
+        Worker auth is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, status_code]
+              properties:
+                url: { type: string }
+                status_code: { type: integer, minimum: 100, maximum: 599 }
+      responses:
+        "200":
+          description: Probe recorded or refreshed; returns the probe row.
+        "204":
+          description: Dropped — source_review project, scan not bound to a project, or no structural route key.
+        "400":
+          description: Malformed payload.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/scans/{scan_id}/reachability:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Record a proven reachability path between two known assets.
+      description: >
+        Worker-facing endpoint. Records a directed ``can_reach`` edge —
+        evidence that one asset in the scan's project can reach another
+        (gateway fronts an internal admin port, SSRF reveals an internal
+        endpoint). The edge is temporal: re-observation refreshes its
+        verification stamp and resurrects a stale edge; at scan
+        completion, edges the scan did NOT re-verify decay to ``stale``
+        (they are never deleted — a closed path is itself a finding).
+        Both assets must already exist in the scan's project. Worker
+        auth is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from_asset_id, to_asset_id]
+              properties:
+                from_asset_id: { type: string }
+                to_asset_id: { type: string }
+                evidence: { type: object }
+                notes: { type: string }
+      responses:
+        "200":
+          description: Edge recorded or refreshed; returns the edge row.
+        "400":
+          description: Malformed payload.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan, or an asset id not found in the scan's project.
+
   /v1/scans/{scan_id}/discoveries:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]
     post:
@@ -1295,6 +1450,45 @@ paths:
                   non_issues:
                     type: array
                     items: { $ref: "#/components/schemas/NonIssue" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reports/{scan_id}/usage:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [reports]
+      summary: LLM usage for one scan (per-model/per-agent rows + totals) and its security-run-unit entitlement.
+      responses:
+        "200":
+          description: Usage aggregation; zeroed for scans that predate tracking.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:            { type: string }
+                  security_run_units: { type: integer }
+                  usage:
+                    type: object
+                    properties:
+                      by_model:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            model: { type: string }
+                            i:     { type: integer, description: "input tokens" }
+                            o:     { type: integer, description: "output tokens" }
+                            cost:  { type: number }
+                            calls: { type: integer }
+                      by_agent: { type: object }
+                      by_agent_raw: { type: array, items: { type: object } }
+                      totals:
+                        type: object
+                        properties:
+                          input:  { type: integer }
+                          output: { type: integer }
+                          cost:   { type: number }
+                          calls:  { type: integer }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/reports/{scan_id}/findings/{finding_id}:
@@ -1927,6 +2121,13 @@ paths:
         If the agent declined to produce a patch (forbidden file, model
         refusal, …), the response is still `201` with a `failed`-status
         proposal whose `error` carries the reason.
+
+        On split control-plane/data-plane deployments the agent runs on
+        a scan worker instead of the control plane: the request returns
+        `202` with `status: "queued"` and a `proposals_url` to poll (the
+        new proposal appears in the scan's proposal list when the worker
+        ships its result). A `409` means the scan is still running or
+        another rerun is queued for it — retry once it finishes.
       responses:
         "200":
           description: Existing open proposal returned (idempotent).
@@ -1938,9 +2139,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AutofixProposal" }
+        "202":
+          description: |
+            Split deployment: generation was dispatched to a scan worker.
+            Poll `proposals_url` for the resulting proposal.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: queued }
+                  scan_id: { type: string }
+                  finding_id: { type: string }
+                  proposals_url: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/autofix-proposals/{proposal_id}/approve:
     parameters: [ { $ref: "#/components/parameters/ProposalId" } ]

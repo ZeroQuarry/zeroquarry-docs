@@ -71,7 +71,7 @@ const screenshotTargets = [
   },
   {
     name: "project-detail",
-    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}/scans",
     description: "Project detail with scan history, tags, and stats",
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
   },
@@ -82,7 +82,7 @@ const screenshotTargets = [
   },
   {
     name: "project-assets",
-    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}/assets",
     description: "Project Assets tab with the discovery map and asset inventory",
     // Needs a project whose profile exposes the asset library
     // (black/grey/white-box or custom). Set ZEROQUARRY_DOCS_ASSET_LIBRARY=1
@@ -111,15 +111,9 @@ const screenshotTargets = [
   },
   {
     name: "project-execution-environments",
-    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}",
+    path: "/projects/{ZEROQUARRY_DOCS_PROJECT_ID}/settings",
     description: "Project allowlist and default for cloud and private execution environments",
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID"],
-    prepare: async (page) => {
-      await page.locator('button.project-tab[data-tab="settings"]').click();
-      await page
-        .locator('[data-panel="settings"]')
-        .waitFor({ state: "visible" });
-    },
   },
   {
     name: "scan-new-picker",
@@ -225,7 +219,7 @@ const screenshotTargets = [
   },
   {
     name: "report-overview",
-    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/summary",
     description: "Report overview with findings, lineage, and review controls",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
   },
@@ -243,23 +237,16 @@ const screenshotTargets = [
   },
   {
     name: "finding-rechecks",
-    path: "/reports/{ZEROQUARRY_DOCS_RECHECK_SCAN_ID}/",
+    path: "/reports/{ZEROQUARRY_DOCS_RECHECK_SCAN_ID}/findings",
     description: "Explicit fixed, still-present, and inconclusive finding recheck outcomes",
     requiredEnv: ["ZEROQUARRY_DOCS_RECHECK_SCAN_ID"],
-    prepare: async (page) => {
-      await page.locator('button.report-tab[data-tab="findings"]').click();
-      await page
-        .locator('[data-panel="findings"]')
-        .waitFor({ state: "visible" });
-    },
   },
   {
     name: "scheduled-rescan",
-    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/rerun",
     description: "Scheduled rescan cadence and changed-code coverage controls",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
     prepare: async (page) => {
-      await page.locator('button.report-tab[data-tab="rerun"]').click();
       await page
         .locator('input[name="rescan_approach"][value="workflow2"]')
         .evaluate((input) => {
@@ -279,7 +266,7 @@ const screenshotTargets = [
   },
   {
     name: "finding-detail",
-    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/findings/{ZEROQUARRY_DOCS_FINDING_ID}",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/findings/{ZEROQUARRY_DOCS_FINDING_ID}/summary",
     description: "Finding detail with evidence, PoC, review state, and follow-up actions",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID", "ZEROQUARRY_DOCS_FINDING_ID"],
   },
