@@ -99,6 +99,7 @@ module.exports = {
       link: {type: "generated-index", title: "Security"},
       items: [
         "security/authorization",
+        "security/scan-infrastructure",
         "security/data-handling",
       ],
     },

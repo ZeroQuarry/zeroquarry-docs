@@ -1,0 +1,57 @@
+---
+id: scan-infrastructure
+title: Scan infrastructure domains
+sidebar_position: 2
+---
+
+Remote scans can confirm vulnerabilities that give no visible response —
+blind SSRF, XXE, out-of-band SQL injection, webhook abuse. Confirmation works
+by having **your server make a request to ZeroQuarry-operated callback
+infrastructure** and recording what arrives.
+
+If you operate the network that a scanned target runs in, you will see this
+traffic in egress and DNS logs. This page explains what it is, so it can be
+correlated with an authorized scan instead of investigated as an incident.
+
+## The domains
+
+| Domain | What your systems do | What it looks like |
+|---|---|---|
+| `bin.zeroquarry.com` | Your server makes an HTTPS request (port 443) to a random-looking path, such as `/Kp9QvSQS…/abc123def456789a`. | Outbound TLS to a CloudFront-fronted endpoint. The path segments are random per scan and per probe. |
+| `oob.zeroquarry.com` | Your resolvers issue DNS lookups for random-looking names under this zone, such as `abc123def456789a.<token>.oob.zeroquarry.com`. | DNS queries that traverse your resolvers and reach ZeroQuarry's authoritative nameserver. |
+
+Both domains are operated by ZeroQuarry and used only during scans of targets
+you have authorized.
+
+## What the callback infrastructure does
+
+The collector behind these domains does exactly one thing: it records the
+requests that arrive (method, path, source address, timestamp) and answers
+with an empty response. It never returns active content, never follows
+redirects, never makes further requests, and holds no customer data beyond
+the recorded callbacks for the scan that is running.
+
+The recorded callback is attached to your scan as evidence — it is what turns
+"possible blind SSRF" into "confirmed blind SSRF, here is the request your
+server sent."
+
+## For defenders
+
+- Correlate the traffic with an authorized scan window. Callback paths are
+  unique per scan, so each scan's traffic is distinguishable.
+- The domains are safe to allowlist for the duration of a scan. Blocking them
+  does not make the scan unsafe — it only removes ZeroQuarry's ability to
+  confirm blind findings, which will then be reported as unconfirmed.
+- The absence of this traffic is meaningful too: scans are instructed to
+  report blind findings as unconfirmed unless a callback is observed.
+
+If you see traffic to these domains when no scan is authorized or running,
+contact ZeroQuarry support.
+
+## For scan operators
+
+No configuration is needed — remote scans use the callback infrastructure
+automatically. When writing scan notes or coordinating with a target's
+security team, mention that the scan may cause the target to contact
+`bin.zeroquarry.com` and `oob.zeroquarry.com`. See
+[Authorization and acceptable use](/security/authorization).

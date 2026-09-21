@@ -147,6 +147,18 @@ Remote scans run with an internal rate limit so probing stays polite on
 shared or production-adjacent targets. Record tighter program limits in the
 notes so agents keep their distance.
 
+## Blind finding confirmation
+
+To confirm vulnerabilities that give no visible response (blind SSRF, XXE,
+out-of-band exfiltration), remote scans use ZeroQuarry-operated callback
+infrastructure: your target is guided into fetching a unique
+`bin.zeroquarry.com` URL or resolving a unique name under
+`oob.zeroquarry.com`, and the observed callback becomes attached evidence.
+When a callback is observed, the finding is reported as confirmed; when it is
+not, the finding reports the best callback-free observation instead. Tell
+your target's security team to expect traffic to these domains — see
+[Scan infrastructure domains](/security/scan-infrastructure).
+
 ## Scan settings
 
 The **Review** step exposes focus, model, coordinator-budget, Batch API,
