@@ -1,0 +1,107 @@
+---
+id: coverage
+title: Coverage and gaps
+sidebar_position: 5
+---
+
+Every scan improvises a slightly different walk through a target. Left alone,
+that means a critical endpoint can sit one directory away from everything the
+scan touched and never see a single request — not because the model misjudged
+what to probe, but because nothing made it come back and check.
+
+Coverage is the mechanism that fixes that. It comes from the project's asset
+library, which knows which routes exist, and the probe ledger, which knows which
+ones any scan has actually hit. Comparing the two turns an advisory into a
+contract.
+
+![ZeroQuarry Coverage notes tab with the surface coverage card and coverage notes.](/img/screenshots/report-coverage-notes.png)
+
+_The Coverage notes tab carries the coverage card, the notes grouped by
+methodology, and the standard areas with no note from this scan._
+
+## The wrap-up gate
+
+Near the end of a scan, a note lands in the coordinator's guidance channel telling
+it that known routes remain. When the coordinator returns, a bounded close-out
+agent runs: it probes the remaining known in-scope routes, or records an explicit
+reason for skipping each one.
+
+Whatever is still unprobed *and* unjustified is logged as **coverage debt** and
+surfaced on the report. It does not pass silently.
+
+The close-out pass is budgeted, and that budget is why the ordering matters.
+
+## Two gap classes
+
+**Never probed** — a known in-scope route that no scan of this project has ever
+probed.
+
+**Auth differential** — a route this scan answered *with* its session but never
+probed *without* one. An authenticated vantage cannot observe a
+no-authentication-required vulnerability, because every request it sends carries
+the cookie. The close-out agent re-probes these routes cookieless.
+
+The class is empty for scans with no configured credentials. There is no
+differential to close if you never authenticated.
+
+This one is not hypothetical. A known-high unauthenticated bridge was probed
+repeatedly on a live target, every probe carrying the session cookie, and the
+miss still looked well-covered.
+
+## The gap list is ranked by history
+
+Routes are worked in order of prior-scan evidence:
+
+1. Routes that other scans of the same project cited in a finding, weighted by
+   severity and count and annotated with why — "prior scans found SSRF here".
+2. Auth-differential overlaps.
+3. Everything else.
+
+An unordered list spends a bounded budget on whichever route happens to sort
+first. On one target the single route with a rich cross-scan finding history sat
+at the bottom of an unranked list while the budget went to routes no scan had ever
+flagged.
+
+## How a route answered matters
+
+Coverage distinguishes how a route responded, not merely whether it was contacted.
+
+| Class | Response | Treatment |
+| --- | --- | --- |
+| Tested | 2xx, 3xx | Counts as probed |
+| Blocked | 401, 403 | Exists; leaves the gap list and becomes a "needs credentials" signal |
+| Missing | 404, 410 | Probed and absent |
+| Error | 5xx, other 4xx | Attempted; the server misbehaved |
+
+Without this distinction a route behind a login looks identical to a route nobody
+has ever touched. The machinery behind it is described in
+[The asset graph](/assets/graph#exhaustiveness).
+
+## Coverage notes
+
+Below the card, the report carries the assessment's own notes — areas examined
+without recording a vulnerability — grouped by methodology area rather than dumped
+in one list: authentication, authorization and access control, injection and
+input validation, file handling, API and web services, supply chain and
+dependencies, and general observations.
+
+### Potentially missed
+
+The tab closes with the standard methodology areas that produced **no** note from
+this scan. Absence of a note is not proof of a gap — a researcher may have
+assessed an area without recording it — but these are the areas worth asking
+about.
+
+## What coverage is not
+
+Read this as evidence about the scan's reach, not as a guarantee that an unprobed
+area is free of vulnerabilities. A route that was never probed is an unknown, and
+the honest response to an unknown is to narrow the claim rather than widen it.
+
+## Next
+
+- [The asset graph](/assets/graph) — where the known surface comes from.
+- [Remote target scans](/scans/remote-targets) — the auth-differential class needs
+  a per-role scan setup to exist.
+- [Finding lifecycle](/reports/finding-lifecycle) — for turning what a scan did
+  into a record you can point at later.

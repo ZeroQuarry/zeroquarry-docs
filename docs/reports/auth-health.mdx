@@ -1,0 +1,96 @@
+---
+id: auth-health
+title: Auth health
+sidebar_position: 4
+---
+
+A remote scan runs for a long time against a target it authenticated with once,
+at the start. Sessions expire. Cookies get rotated. Accounts get logged out. And
+when that happens, the scan does not look broken.
+
+It keeps sending requests. The target keeps answering `401`. The scan records
+those as blocked probe rows, finishes on schedule, and produces a report that
+looks exactly like a healthy one. Nothing on the scan row says the assessment
+spent most of its budget talking to a login page.
+
+Auth health tracking exists to make that failure loud.
+
+## What counts as degradation
+
+The tracker treats a route as newly failing when it answers `401` or `403` now
+and either:
+
+- answered `2xx` **earlier in this same scan**, or
+- was successfully probed by an **earlier scan of the same project**
+
+Either signal alone is enough, provided the route was recently working. The
+second one matters because it catches the common case: a fresh scan inheriting
+a cookie the previous scan already knew was stale.
+
+It also refuses to speak up too early. A burst of at least five blocked probes
+inside a five-minute window is required, and at least one of them must sit on a
+route known to have worked earlier in the scan.
+
+That last condition is not fussiness. Eight never-before-seen routes answering
+`401` on a target turned out to be correct behaviour, and a target that
+legitimately rejects a handful of mis-guessed URLs early on should not condemn
+the whole scan. Older observations roll off the window for the same reason.
+
+## What happens when it degrades
+
+Three things, immediately:
+
+1. A warning banner appears on the report.
+2. The scan records a `degraded` state with the reason, so it survives the run
+   and is visible on the scan afterwards.
+3. The operator is notified that the scan needs a session.
+
+Only `degraded` is persisted. A scan that never degraded does not need a row
+saying it was fine.
+
+## What happens next is your policy
+
+| Policy | Behavior |
+| --- | --- |
+| Continue | The scan keeps going. You are told, and you decide. |
+| Hold then wrap | The coordinator is steered off unauthenticated work, and if the session stays dead the scan wraps up early rather than spending the rest of its budget pointlessly |
+| Wrap immediately | The scan stops as soon as degradation is confirmed |
+
+Continue is the default, and it is a defensible default: a `401` on some routes
+does not mean the whole target has stopped authenticating, and ending a scan
+early loses real work.
+
+## Refreshing the session mid-scan
+
+You can update the session without restarting the scan. A verified re-login
+clears the degraded verdict and the scan carries on from where it was.
+
+This is usually the cheapest outcome. The work completed before the session
+expired is not thrown away, and the report still covers the whole period rather
+than only the part after you noticed.
+
+The scan timeline keeps every transition — when it degraded, when someone
+refreshed the session, when it wrapped — so the record reads in order rather than
+as a single final verdict.
+
+## Reading it on the report
+
+When a scan degraded, the banner is the first thing to read before trusting a
+clean result. A report with no findings from an authenticated scan that degraded
+two minutes in is a report about a login page, not about the application.
+
+For that reason the remote-scan review checklist includes whether the session
+held. See [Remote target scans](/scans/remote-targets).
+
+## How it stays safe
+
+The tracker never raises. A detection failure must not break a probe, which is
+the same rule the discovery auto-record follows — the health signal is important,
+but it is not worth failing a scan over.
+
+## Next
+
+- [Remote target scans](/scans/remote-targets) — where this matters most.
+- [Coverage and gaps](/reports/coverage) — including the auth-differential class,
+  which exists because an authenticated vantage cannot see unauthenticated
+  problems.

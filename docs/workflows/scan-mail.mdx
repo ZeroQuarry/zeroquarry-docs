@@ -1,0 +1,80 @@
+---
+id: scan-mail
+title: Scan mail
+sidebar_position: 5
+---
+
+Many targets gate registration behind a confirmation e-mail, and a magic-link
+login puts the working session behind a link in that inbox. An operator watching
+a scan would have to notice the prompt, click the link, and hand the session over.
+
+Scan mail removes that step. A scan allocates its own disposable mailbox, uses
+the address to register on the target, follows the magic link, and collects the
+session — without anyone watching.
+
+## How it works
+
+1. The agent allocates a mailbox for the scan.
+2. It submits that address in the target's registration flow.
+3. The target sends mail to it.
+4. The agent polls for the message and follows the link.
+5. The click lands the session cookie in the scan's shared cookie jar
+   automatically.
+
+That last step is why this works without an operator. The agent is not
+hand-parsing cookies out of a URL; the link click goes through the same request
+path as any other, and the resulting cookie lands where the rest of the scan's
+authentication already lives.
+
+## Two things to understand before you use it
+
+**The address is a credential.** Anyone who has it can read the target's mail
+sent to that address, and for the life of the scan that includes whatever the
+target chooses to send: verification codes, password resets, notifications. It
+exists for one scan and is disposed of when the scan reaches a terminal state.
+
+**The mail body is target-controlled input.** A target that can send mail to an
+address the agent reads has a channel for putting text in front of the agent. The
+tools say so in their output, explicitly, because this is the kind of thing that
+is easy to forget and expensive to get wrong. Mail content is data to be
+examined, never instructions to be followed.
+
+## Requirements
+
+Mailbox allocation needs both:
+
+- the platform mail poller configured
+- the account tier to carry incoming e-mail triage
+
+Without them the tools refuse rather than half-working. There is no partial
+state where a mailbox silently receives nothing.
+
+## Where the mail lives
+
+Stored mail is per scan and belongs to that scan. It follows the account's
+retention policy, and the mailbox is disposed of at every terminal scan state
+rather than only on success — a cancelled or failed scan does not leave a
+readable mailbox behind.
+
+On split-plane workers, allocation and reads go through the control plane. A
+mailbox minted only in a worker's local database would never receive routed
+mail, and the stored mail lives in the control-plane database anyway.
+
+## Retention and your data-handling posture
+
+Per-scan inboxes generate target-visible e-mail traffic, and their contents are
+data your account is holding. That is worth weighing before enabling it:
+
+- what the target will send to a throwaway address
+- how long stored mail is kept before the retention sweep
+- whether your own policy already restricts inbound e-mail triage
+
+See [Data handling](/security/data-handling) for how this sits with the rest of
+what ZeroQuarry stores.
+
+## Next
+
+- [Remote target scans](/scans/remote-targets) — where mailboxes are used.
+- [Email triage](/workflows/email-triage) — inbound reports from outside, which
+  is a different flow in the same area.
+- [Data handling](/security/data-handling).

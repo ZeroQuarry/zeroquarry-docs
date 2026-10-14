@@ -1,0 +1,86 @@
+---
+id: introduction
+title: What an asset is
+sidebar_position: 1
+---
+
+An asset is ZeroQuarry's durable record of a target an assessment can touch. A
+scan points at one or more assets, and the results of every scan flow back into
+the same library, so a project accumulates a single growing picture of its
+attack surface instead of a pile of one-off scan inputs.
+
+Think of an asset as the answer to *what are we protecting?*, while a scan is the
+answer to *what did we ask about it this time?*.
+
+That distinction is what makes the library worth maintaining. You configure a
+staging login once; every later scan of that asset authenticates the same way. A
+spec asset fans its endpoints out into candidates. An asset that one scan
+discovered becomes a scan target for the next one, with its provenance intact.
+
+## The five kinds
+
+Every asset has exactly one kind, and the kind fixes the connection details and
+authentication shape it can carry.
+
+| Kind | Use it for | Carries |
+| --- | --- | --- |
+| URL | Web apps, REST APIs, GraphQL endpoints | Entry URL, scope hosts, auth (none, basic, bearer, cookie, or form login) plus arbitrary identification headers |
+| Repo | Git repositories, connected GitHub repos, uploaded source | Git URL or upload, ref, optional saved Git credential |
+| Host | Hostname:port services such as SMTP, databases, internal services | Service type, optional username/password |
+| Spec | OpenAPI/Swagger documents, GraphQL schemas, MCP server definitions | The spec file or URL; every declared endpoint fans out as a candidate URL asset |
+| Docs | PDFs, Word files, or a documentation repository | The document or repo; extraction pulls out URLs and hosts as candidates |
+
+Discovery only ever mints **URL**, **Host** and **Repo** assets, and that is
+deliberate. A scan that fetches `/openapi.json` does not get to decide that what
+it found is now a spec asset — that hop is yours to take. See
+[Discovery](/assets/discovery).
+
+## Authentication lives on the asset
+
+Auth belongs to the asset, not to the scan. When a scan targets the asset it
+reuses the stored auth, which means configure the test account once and every
+future scan of that asset authenticates identically.
+
+Sensitive values are stored encrypted and redacted from scan logs.
+
+One thing the library deliberately does not do is inline your credentials into
+the agent's prompt. Auth is carried on the operator-confirmed scan form path;
+what the scan receives is *knowledge* about the asset — notes, tech fingerprint,
+provenance — rather than its secrets. That is a separate decision we have not
+made.
+
+## Which projects get a library
+
+A project's [profile](/getting-started/projects-and-scans#project-profiles)
+decides how much of the library exists:
+
+| Profile | Manual assets | Discovery feed |
+| --- | --- | --- |
+| Source code | No | Yes |
+| Black-box | Yes | Yes |
+| Grey-box | Yes | Yes |
+| White-box | Yes | Yes |
+| Custom | Yes | Yes |
+
+A Source code project is reviewing code, not enumerating a runtime surface, so
+it gets the discovery feed — the hosts and ports the static analysis pulled out —
+but not the URL/host seeding surface. Every other profile exposes the full
+library, including per-asset scan actions.
+
+Unknown profiles are treated permissively rather than hidden, so a stale profile
+string cannot silently remove a management surface you were using.
+
+## Kind is fixed at creation
+
+An asset's kind is locked once it exists. To turn a URL asset into a Host asset,
+remove it and add a new one. This is what keeps the validation honest: a URL
+asset always validates as a URL asset, and nothing downstream has to cope with a
+record whose kind no longer matches its fields.
+
+## Next
+
+- [The asset library](/assets/library) — the working surface: map, table, bulk
+  operations, policy, and the blacklist.
+- [Discovery](/assets/discovery) — how assets are found, labelled, and approved.
+- [The asset graph](/assets/graph) — reachability, lineage, and what was never
+  probed.

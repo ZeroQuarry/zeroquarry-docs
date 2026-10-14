@@ -1,0 +1,124 @@
+---
+id: discovery
+title: Discovery and approval
+sidebar_position: 3
+---
+
+Scans feed the library. As agents work they record the surfaces they encounter:
+URLs observed during remote probing, hosts and ports extracted from source,
+endpoints declared in a spec, and leads pulled out of product documentation.
+
+Each discovered asset keeps its provenance — which asset or scan led to it, how
+it was found, and when it was last observed. That is what turns a growing list
+into something you can reason about.
+
+![ZeroQuarry report Assets tab listing the assets a scan discovered.](/img/screenshots/report-assets.png)
+
+_A scan's own Assets tab shows what that scan found. The project's Assets tab is
+where you decide what to do with it._
+
+## The approval gate
+
+Discovered assets start as **pending**. Pending assets are visible and reviewable
+but are not scan targets until an owner approves them.
+
+Approval is the gate that turns "something the scanner saw" into "somewhere the
+scanner may go". It is enforced again at scan launch and during live probing, so
+an unapproved asset cannot be reached by a running scan either.
+
+Only URL, Host and Repo assets are minted by discovery. A scan that fetches
+`/openapi.json` produces a plain URL asset, and promoting it to a spec source is
+a deliberate hop you take yourself — see below.
+
+## Identity and deduplication
+
+Two observations of the same thing should not become two rows. The library's
+dedup key is the canonical form of the asset's target: lowercase host, default
+port stripped, query dropped.
+
+That key is correct as long as the URL never changes. It does change, though —
+the bulk host swap, the find-and-replace, the single-asset edit. So the library
+also tracks **aliases and host rewrites**, which is what keeps a retargeted asset
+deduplicated against URLs that scans independently discovered afterwards.
+
+## The label chain
+
+Discovered assets mostly come back unnamed, and "Unnamed asset" makes an asset
+page feel empty even when the library knows a lot about the thing. Labels close
+that gap, and they resolve in a fixed order:
+
+1. **Your name.** The `name` column, never auto-filled.
+2. **A generated label.** Cached against a content digest of the asset's kind,
+   URL and tech fingerprint, so it regenerates itself when the asset changes.
+3. **A deterministic label.** Derived from what the row already knows: template
+   shape, tech fingerprint, document or repo kind.
+
+Labels are display sugar only. Nothing about them feeds gating, scan policy, scan
+targets, or group membership — a wrong label cannot make something scannable.
+
+Generation is capped per pass, so a scan that discovers four hundred assets
+labels its newest batch and lets the rest fall back to the deterministic tier.
+
+## Grouping into surfaces
+
+Grouping turns hundreds of URL rows into the handful of surfaces an operator
+actually thinks about. The core primitive is the **route template**: any URL
+normalizes to scheme, host, and a template path where opaque segments become
+parameters.
+
+Two independent mechanisms decide a segment is a parameter:
+
+- **Shape.** A segment that is a UUID, a long hex string, digits, or a
+  base64-ish blob parameterizes even from a single observation.
+- **Corpus differential.** Sibling segments at the same tree position with two or
+  more distinct literal values across the project are one variable —
+  `/projects/a`, `/projects/b`, `/projects/c` become `/projects/<var>`. The
+  observed values ride along on the template, which is how "try other ids" gets
+  into the coordinator's brief as context rather than as a guess.
+
+Guards keep structure structural. Version segments like `v1` and `v2` never
+differential-merge, because they mark real boundaries. Date-like segments are
+left alone. And the differential rule never fires at depth one: `/api` and
+`/admin` are different surfaces, not two instances of one.
+
+Grouping is deterministic. The same corpus in produces the same clusters out,
+with byte-stable ids. A model may label a cluster afterwards; it never decides
+what belongs in one.
+
+## Specs and documentation as seeds
+
+Two asset kinds turn paperwork into candidates:
+
+- **Spec assets** accept OpenAPI/Swagger documents, GraphQL schemas or
+  introspection responses, and MCP server definitions. Everything declared in
+  the spec becomes a candidate URL asset linked back to the spec.
+- **Docs assets** accept PDFs, Word files, and documentation repositories. A
+  regex pass and a model pass extract URLs and hosts, and every candidate keeps
+  the provenance of the document that produced it.
+
+Both respect the project's scan policy and blacklist at record time, so an
+out-of-scope host named in a document cannot widen your boundary.
+
+### Promotion
+
+When a scan finds something that looks like a spec or a documentation source, it
+lands as a plain URL asset. **Promotion** is the one-click hop to use it as a
+spec source or docs source instead — the same asset, re-pointed, without
+re-ingesting the document.
+
+## Environment tagging
+
+The same service usually appears several times in a project — console, origin,
+api, staging, prod — and as peer rows with no way to tell them apart, coverage
+gaps and briefings all read staging noise as production surface.
+
+Each asset can be tagged prod, staging, dev, or test. ZeroQuarry infers a tag
+where it can and you can override it, and the source of the tag is recorded so
+you know which is which.
+
+## Next
+
+- [The asset graph](/assets/graph) — what the library learned about how these
+  assets connect.
+- [Project assets](/getting-started/project-assets) — the short version, if you
+  are still orienting.

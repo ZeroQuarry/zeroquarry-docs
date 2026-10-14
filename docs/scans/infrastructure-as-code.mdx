@@ -1,0 +1,81 @@
+---
+id: infrastructure-as-code
+title: Infrastructure-as-code detection
+sidebar_position: 5
+---
+
+Source repositories increasingly contain the infrastructure as well as the
+application. A Terraform module, a Kubernetes manifest, a Dockerfile, or a
+compose file describes what gets deployed and how it is exposed — and the
+misconfiguration lives in those files, not in the code that reads them.
+
+The infrastructure stage rides the existing source pipeline. It walks the scan
+roots, classifies deterministic IaC artifacts, and writes an inventory that is
+the same durable artifact shape as the static-analysis and dependency stages.
+
+## What it recognises
+
+| Framework | Files |
+| --- | --- |
+| Terraform | `.tf`, `.tfvars` |
+| Kubernetes | manifests, detected by `apiVersion` and `kind` |
+| Helm | charts and templates |
+| Dockerfile | `Dockerfile` and variants |
+| Docker Compose | compose files |
+| Serverless | serverless configs |
+
+Content sniffing reads a bounded header from each candidate — Kubernetes markers,
+HCL terraform markers — which is enough to identify real manifests without reading
+large generated files whole.
+
+The walk prunes directories that are never IaC and routinely enormous when
+present: terraform state and cache directories, vendored dependencies, build
+output, virtual environments. That keeps the stage cheap on a large repository.
+
+## What it does with them
+
+Two things.
+
+**A rubric for the coordinator.** When IaC is present, the coordinator's task
+gains an infrastructure-shaped block naming the frameworks found and what to
+validate for each — IAM wildcards against their trust policies, world-open
+security-group ingress, privileged or host-network containers, missing network
+policies and resource limits, secrets in manifests, hardcoded provider
+credentials, missing encryption.
+
+Without that block the agent applies code-review idioms to a security group and
+gets nowhere useful. With it, it applies infrastructure idioms instead.
+
+Scans with no IaC files are untouched: no inventory, no rubric block.
+
+**Finding-kind stamping.** A finding cited at an IaC path is stamped with the
+kind `infra`, which is what lets the report surface an **Infrastructure**
+section alongside the code findings.
+
+## The Infrastructure section
+
+That section is where Terraform, Kubernetes and container findings are read,
+separated from application-code findings. It is worth checking on any scan that
+turned out to contain infrastructure, because the two kinds of finding have
+different owners and different timelines.
+
+An exposed bucket is not waiting on the application team.
+
+## It is still a lead
+
+Classification is deterministic and cheap, and a classified file is a **lead,
+never a finding** — the same contract the static-analysis rule pack uses. The
+agent loop establishes exposure, reachability and impact before anything is
+recorded.
+
+This is the part worth holding onto. Detecting that a repository contains
+Terraform is not the same as knowing anything is wrong with it. Plenty of
+repositories have excellent infrastructure code, and a scan that reports every
+manifest it classified would bury the findings that matter.
+
+## Next
+
+- [Source code scans](/scans/source-code) — where this stage sits among the
+  others.
+- [Finding lifecycle](/reports/finding-lifecycle) — for what happens after a
+  finding is recorded.

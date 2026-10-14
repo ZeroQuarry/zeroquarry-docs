@@ -1,0 +1,103 @@
+---
+id: graph
+title: The asset graph
+sidebar_position: 4
+---
+
+Over time the asset library stops being a list and becomes a graph. Specs fan out
+endpoints, one scan discovers assets from another, and completed scans leave
+findings against specific assets. This page covers what the library does with
+that graph, and what it deliberately refuses to do with it.
+
+## Reachability
+
+"I've discovered this gateway can reach the admin port" is a trace between two
+assets, and the thing that makes it worth recording is also what makes it
+fragile: it is only true *as of a verification*.
+
+So every `can_reach` edge carries its own clock.
+
+- First observation inserts the edge with the scan that found it.
+- Re-observation refreshes the verifying scan, and brings a previously stale edge
+  back to observed.
+- At scan completion, edges touching that scan's asset set which **this** scan did
+  not re-verify decay to **stale**.
+
+Stale edges are never deleted. "The customer closed a path that used to exist" is
+itself a finding, and deleting the edge would erase the only record that it was
+ever there.
+
+A stale edge is shown to the next scan as a change note rather than as truth. The
+next scan treats a changed topology as new information, not as inherited fact.
+
+## Lineage: what earlier scans learned
+
+A new scan — especially a remote one probing a live target that was previously
+only scanned as code — should not start from zero. Before it starts, ZeroQuarry
+exports the connected, approved part of the graph around its target assets, plus
+what earlier scans recorded against them: findings with their confidence,
+vendor and rebuttal arguments, HackerOne review state, proofs of concept,
+recheck outcomes, dates, and scan lineage versions.
+
+Two properties of that export matter as much as the data.
+
+**It is partial, and it says so.** The export is a bounded snapshot taken at scan
+start. Earlier scans may have been narrower, older, or simply incomplete, and
+none of it has been verified against the target as it stands right now. Every
+surface carrying the data repeats that framing — the coordinator block, the worker
+task preamble, and a notice field in the JSON itself. The export is meant to
+inform a scan, never to license a narrower one.
+
+**It is approval-bounded.** Traversal expands only through assets you have
+approved. Scan targets are always included, because you explicitly aimed the scan
+at them, but an unapproved neighbour of an included asset is counted and never
+expanded, named, or valued. That is the runaway-scope guard: discovery finding
+something new does not silently widen what a scan may touch.
+
+Remote scans carry this export into the scan workdir. Where the graph is only
+partially available — a split-plane worker that cannot read the control-plane
+database — the scan says so in a framed block rather than proceeding as though it
+had no prior context.
+
+## Prior knowledge per asset
+
+The same accumulation shows up per asset rather than per graph. Scanning
+`portal.foo.com` might discover `api.foo.com`, record a narrative note, capture a
+tech fingerprint, and leave a `discovered_from` edge. When a later scan targets
+`api.foo.com`, that knowledge goes to its coordinator directly, instead of the
+scan re-deriving what the platform already knew.
+
+Credentials are not part of this. Auth rides the operator-confirmed scan form
+path instead; inlining secret material into a prompt is a decision we have not
+made.
+
+## Exhaustiveness
+
+The other direction of the graph is what the library knows has **never** been
+probed. The asset library is the known surface — from code extraction, document
+extraction, imports — and the probe ledger is the probed surface. Comparing them
+tells you which known routes no scan has ever touched.
+
+That comparison is deliberately more careful than it first looks. A probe record
+exists for any completed HTTP response, and the record carries the response
+class, so coverage distinguishes:
+
+| Class | Response | What it means |
+| --- | --- | --- |
+| Tested | 2xx, 3xx | The route answered with content |
+| Blocked | 401, 403 | The route exists; auth never happened |
+| Missing | 404, 410 | Probed, not there |
+| Error | 5xx, other 4xx | Attempted; the server misbehaved |
+
+Without that split, a route behind an auth wall looks exactly like a route nobody
+has ever touched — a 401 counts as "never probed", which turns a missing
+credential into fake novelty. With it, the route leaves the gap list and becomes
+an actionable "needs credentials" signal instead.
+
+This is the engine behind the coverage gate. See
+[Coverage and gaps](/reports/coverage).
+
+## Next
+
+- [Coverage and gaps](/reports/coverage) — what the gate does with this.
+- [Discovery and approval](/assets/discovery) — how the graph gets built.

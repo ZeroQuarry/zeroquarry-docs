@@ -1,0 +1,102 @@
+---
+id: dependency-scanning
+title: Dependency scanning
+sidebar_position: 4
+---
+
+The dependency stage reads a project's manifests and lockfiles, resolves the
+pinned versions, and asks osv.dev whether any of them carry a known advisory.
+
+It runs by default on source scans and can be turned off per scan.
+
+## The disposition rule
+
+A version match is a **lead**, not a finding. For each one the agent has to
+decide:
+
+- **Used and reachable** — the project imports the package, ideally through the
+  vulnerable symbols. This becomes a finding typed **Vulnerable Components**,
+  citing the manifest path, the CVE references, the CVSS vector when osv.dev
+  supplies one, and the usage evidence as a file and line. The remediation is
+  written as a concrete upgrade rather than advice.
+- **Present but unused** — the package is pinned but never imported. This becomes
+  a non-issue labelled with the dependency and version, recording the advisory
+  and why it is not reachable.
+
+An unused dependency is never a finding. Recording one is the most common way a
+dependency scan produces noise, and the stage is built specifically to prevent
+it.
+
+A package pinned in several manifests is still recorded once.
+
+## When the advisory service is down
+
+The stage **fails open** and the scan continues, unless the account requires it
+to succeed.
+
+Either way the skip is recorded in both the scan log and the durable artifact, so
+a report never silently lacks dependency coverage. If your programme depends on
+dependency results, check for the skip rather than assuming the stage ran.
+
+## SBOM export
+
+The scan's inventory exports as an SBOM on demand, in **CycloneDX 1.5** or
+**SPDX 2.3**. Both render from the same artifact, so they always agree.
+
+Exports are deterministic: the document serial number and namespace are derived
+from the scan id, so the same scan produces byte-identical output and a download
+can be cached by content.
+
+### CycloneDX as VEX
+
+The CycloneDX export doubles as a **VEX** document. Each advisory hit is joined
+against what the agent actually concluded:
+
+- hits that became findings are emitted with the agent's reasoning
+- hits the agent reviewed and judged unreachable are emitted as reviewed
+  non-issues
+- hits the agent never dispositioned stay plain leads
+
+That distinction is the whole difference between a list of vulnerable packages
+and a statement about which ones you are exposed to. An SBOM that lists 400
+advisories tells a customer nothing; an SBOM that marks the 3 that are reachable
+and explains the rest does.
+
+SPDX 2.3 has no vulnerability model, so the SPDX export carries inventory only.
+Choose CycloneDX when the audience needs the exposure statement.
+
+## Dependency fixes regenerate lockfiles
+
+When an auto-fix bumps a dependency, the edit lands in the manifest that owns the
+lockfile, and then the lockfile is regenerated with the project's own toolchain
+before the commit. The diff you review shows the real resolved tree rather than a
+version string in isolation.
+
+Six toolchains are wired for regeneration: Go, npm, Cargo, Poetry, Bundler and
+Composer. Where a project's manifest has no regen toolchain available, the bump
+still applies and the limitation shows in the pull request rather than being
+papered over.
+
+## Binary scans
+
+The same advisory core runs against a binary's extraction workspace using version
+carriers rather than manifests — Maven identity records, firmware package
+databases. The disposition rule is stricter in one respect: bundled is not
+reachable. The agent confirms the component's code is actually present in the
+decompiled output *and* invoked by the application's own code. A library that
+ships but is never called is not a finding.
+
+## Turning it off
+
+The toggle is in the scan's advanced settings, and the same setting is available
+to API-triggered scans. An explicit per-scan value wins over the platform
+default; the default is on.
+
+## Next
+
+- [Source code scans](/scans/source-code) — where this stage sits among the
+  others.
+- [Auto-fix pull requests](/workflows/autofix) — how a dependency bump becomes a
+  reviewable change.
+- [Exports and disclosures](/reports/exports-and-disclosures) — the export
+  surface.

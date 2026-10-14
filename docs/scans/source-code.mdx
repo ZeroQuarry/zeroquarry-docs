@@ -85,67 +85,38 @@ pattern matches into a list of things to argue with.
 
 ## Dependency scanning
 
-The dependency stage reads manifests and lockfiles, resolves the pinned
-versions, and asks osv.dev whether any of them carry a known advisory. It is
-enabled by default and can be turned off per scan.
+The dependency stage reads manifests and lockfiles, resolves the pinned versions,
+and asks osv.dev whether any carry a known advisory. It is enabled by default and
+can be turned off per scan.
 
-A version match is a lead. For each one the agent has to decide:
+A version match is a lead. The agent decides whether the project actually imports
+the package — a used, reachable dependency becomes a finding typed **Vulnerable
+Components** with the usage evidence attached, and an unused one becomes a
+non-issue rather than a finding. If the advisory service is unreachable the stage
+fails open, and records the skip in both the scan log and the artifact so a
+report never silently lacks dependency coverage.
 
-- **Used and reachable** — the project imports the package, ideally using the
-  vulnerable symbols. This becomes a finding with the type
-  **Vulnerable Components**, citing the manifest path, the CVE references, the
-  CVSS vector when osv.dev supplies one, and the usage evidence as a file and
-  line.
-- **Present but unused** — the package is pinned but never imported. This
-  becomes a non-issue labelled with the dependency and version, recording the
-  advisory and why it is not reachable.
+The inventory exports as an SBOM in CycloneDX 1.5 or SPDX 2.3. The CycloneDX
+variant also carries the agent's dispositions, which is what turns a list of
+vulnerable packages into a statement about which ones you are exposed to.
 
-An unused dependency is never a finding. Recording one is the most common way a
-dependency scan produces noise, and the stage is built to prevent it. A package
-pinned in several manifests is still recorded once.
-
-If the advisory service cannot be reached, the stage **fails open** and the scan
-continues, unless the account requires it. Either way the skip is recorded in
-both the scan log and the durable artifact, so a report never silently lacks
-dependency coverage.
-
-### SBOM export
-
-The scan's dependency inventory exports as an SBOM on demand, in **CycloneDX 1.5**
-or **SPDX 2.3**. Both are rendered from the same artifact, so they always agree.
-
-The CycloneDX export doubles as a **VEX** document. Each advisory hit is joined
-against what the agent actually concluded: hits that became findings are emitted
-with the agent's reasoning, hits the agent reviewed and judged unreachable are
-emitted as reviewed non-issues, and hits the agent never dispositioned stay plain
-leads. That distinction is the difference between a list of vulnerable packages
-and a statement about which ones you are exposed to.
-
-SPDX 2.3 has no vulnerability model, so the SPDX export carries inventory only.
-
-Exports are deterministic: the document serial number and namespace are derived
-from the scan id, so the same scan produces byte-identical output and a download
-can be cached by content.
+Read [Dependency scanning](/scans/dependency-scanning) for the disposition rules,
+the SBOM and VEX behaviour, and how dependency fixes regenerate lockfiles.
 
 ## Infrastructure-as-code detection
 
-The infrastructure stage walks the source tree and classifies IaC files across
-six frameworks: Terraform, Helm charts, Kubernetes, Dockerfile, Docker Compose,
-and Serverless. It prunes the directories that are never IaC and routinely huge
-— vendored dependencies, build output, terraform state — so it stays cheap on a
-large repository.
+The infrastructure stage classifies Terraform, Helm charts, Kubernetes
+manifests, Dockerfiles, Compose files and Serverless configs, and writes the same
+kind of durable inventory as the other two stages.
 
-When IaC is present, the coordinator's task gains an infrastructure-shaped
-rubric naming what to validate for each framework found: IAM wildcards against
-their trust policies, world-open security groups, privileged containers, missing
-network policies, secrets in manifests, and the rest. Scans with no IaC files
-are untouched.
+When IaC is present the coordinator's task gains an infrastructure-shaped rubric
+— IAM wildcards, world-open ingress, privileged containers, secrets in manifests
+— because code-review idioms do not apply to a security group. A finding cited at
+an IaC path is stamped `infra`, which is what surfaces the report's
+**Infrastructure** section.
 
-A finding cited at an IaC path is stamped with the kind `infra`, which is what
-lets the report surface an **Infrastructure** section alongside the code
-findings. That section is where Terraform, Kubernetes and container findings are
-read, and it is worth checking on any scan that turned out to contain
-infrastructure.
+A classified file is still a lead, never a finding. Read
+[Infrastructure-as-code detection](/scans/infrastructure-as-code).
 
 ## What agents inspect
 

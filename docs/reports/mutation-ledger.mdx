@@ -1,0 +1,66 @@
+---
+id: mutation-ledger
+title: Target changes
+sidebar_position: 6
+---
+
+A remote assessment changes things. An agent investigating a target creates an
+account, opens an investigation, adds a webhook, or registers a record — and an
+assessment that leaves those behind has done something the report does not
+mention.
+
+The mutation ledger records what the agent changed **on the target**, and whether
+it was cleaned up.
+
+## Why it exists
+
+This is not theoretical. A verification chat created and deleted connections and
+investigations on a live target, and nothing recorded it. The report could make
+no promise either way, which made it unusable for the person whose job is to
+answer "did this assessment leave anything behind?".
+
+## What gets recorded
+
+One row per create, modify or delete the agent reports against the target:
+
+| Field | Meaning |
+| --- | --- |
+| Action | `created`, `modified` or `deleted` |
+| Target summary | A short description of the object changed |
+| Detail | Optional elaboration |
+| Finding | The finding this was done in service of, when there is one |
+| Recorded by | Which agent made the change |
+| Cleanup | A note recording what was done to undo it |
+
+Cleanup state is one of three: **pending** (still in place), **cleaned** (with a
+receipt), or **left in place** (deliberately kept, and the report says so).
+
+That third state is the point. "We cleaned it up" and "we chose not to" are both
+answers. What is not an answer is silence.
+
+## Two rules that keep it safe
+
+**The ledger never touches the target.** It records what the agent already did,
+through whatever channel it used. It is a receipt, not a remote-control. That
+distinction matters: a tool that could both change and record would be a second
+way to modify a target.
+
+**It never records credentials.** Values describe target-side *objects* — an
+account, a connection, a webhook — not the secrets used to make them. A ledger
+that captured a password would be a new place for one to leak from.
+
+## Reading it on the report
+
+The report carries a **Target changes** card listing every row. Its count is the
+number of changes, and each row states whether it was cleaned.
+
+When you review a remote assessment, this card is how you answer the question
+that severity and coverage cannot: *what did this scan do to my environment?*
+
+## Next
+
+- [Remote target scans](/scans/remote-targets) — where target changes happen.
+- [Verification tests](/reports/verification-tests) — confirming a fix without
+  adding to the mess.
+- [Attestation engagements](/reports/attestations) — for when a third party is
+  the one who needs the cleanup promise.
