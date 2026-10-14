@@ -95,10 +95,22 @@ and whether a later retest actually occurred.
 
 ## Recheck evidence is not inferred from absence
 
-When an update scan enables **Re-check previous findings**, ZeroQuarry records
-each prior unresolved finding as fixed, still present, or inconclusive, with
-reasoning and supporting evidence. The report keeps those results distinct from
-the new finding list and links current recurrences to the earlier finding.
+When a scan rechecks prior findings, ZeroQuarry records each prior unresolved
+finding as fixed, still present, partially fixed, or inconclusive, with reasoning
+and supporting evidence. A partial-fix result carries the residual severity that
+survived the fix, which is what separates it from an inconclusive result: an
+inconclusive result means the retest could not decide, while a partial fix means it
+decided that something is still exposed. ZeroQuarry only keeps a partial call when
+there is a residual severity to attach. Without a parseable CVSS vector or a
+severity label to carry, the result degrades to inconclusive rather than being
+recorded on the claim alone.
+
+The report keeps recheck results distinct from the new finding list and links
+current recurrences to the earlier finding.
+
+Rechecking is offered whenever the target already carries unresolved findings in the
+same project. On a new scan the notice appears unchecked, so the scan starts fresh
+unless you opt in.
 
 Only an explicit recheck outcome should support a **Retested** or **Regression**
 decision. A finding that simply does not reappear may have fallen outside the

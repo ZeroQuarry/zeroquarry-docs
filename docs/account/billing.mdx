@@ -29,6 +29,30 @@ Available plans are listed with their monthly and annual prices. Changing
 plans goes through Stripe Checkout; the change applies to the account as a
 whole, not to individual members.
 
+### The Open Source plan
+
+The Open Source plan is free and permanent, and its contract is narrow: scan an
+open source repository. That boundary is enforced rather than advisory. Only public
+Git URLs are accepted, and ZeroQuarry confirms each one with the hosting forge's own
+unauthenticated API before cloning. Uploaded archives and local paths are refused,
+so private source cannot slip through the public-repository check. Binary and remote
+scans are not available, generated patches and the auto-fix bot are off, and
+reports carry a watermark.
+
+What stays on is the work a maintainer does with the result: findings, exploit
+proofs, evidence and deployment packages, HackerOne and adversarial review, incoming
+email triage, disclosure tracking, and filing issues into your own Linear.
+
+The surfaces that only make sense when you are running a security program are off:
+the triage centre, the Evidence Room, secure shares, attestation engagements, and
+inviting team members. Linear filing stays available because an issue in the
+maintainer's own tracker is the deliverable, while reading labeled issues back for
+verification intake is gated separately.
+
+An Open Source account starts with a **Source code** project, which is also why
+those two are separate: the default profile shows the discovery feed but no manual
+asset library.
+
 ## Payment method
 
 Payment methods are managed in the Stripe customer portal. Use **Manage

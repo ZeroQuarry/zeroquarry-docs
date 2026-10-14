@@ -19,12 +19,13 @@ snapshot, so the baseline can never drift under you.
 1. **Baseline.** Start from a snapshot issued in the Evidence Room. The test
    copies the exact finding set that existed when the evidence was designated.
 2. **Automated verification.** Point the test at a later scan of the same
-   target — a scheduled re-run or a manual re-scan with
-   **Re-check previous findings** enabled — and import its recheck outcomes.
-   The scan's explicit recheck results map onto the test: *fixed* stays
-   **Fixed**, *still present* becomes **Not fixed**, and *inconclusive*
-   becomes **Unable to verify**. You can also run a dedicated automated
-   verification pass from the test itself when your tier includes it.
+   target — a scheduled re-run, or a re-scan where you opted into retesting prior
+   findings — and import its recheck outcomes. The scan's explicit recheck results
+   map onto the test: *fixed* stays **Fixed**, *still present* becomes **Not
+   fixed**, *partially fixed* becomes **Partially fixed** and carries its residual
+   severity across, and *inconclusive* becomes **Unable to verify**. You can also
+   run a dedicated automated verification pass from the test itself when your tier
+   includes it.
 3. **Human outcomes.** For each baseline finding, record one outcome and a
    verification note:
 

@@ -60,6 +60,16 @@ const screenshotTargets = [
     description: "Integration hub for notifications, tickets, automation, and intake",
   },
   {
+    name: "linear-integration",
+    path: "/account/integrations/linear",
+    description: "Linear integration settings for outbound filing and labeled-issue intake",
+  },
+  {
+    name: "triage-center",
+    path: "/triage",
+    description: "Triage center queue with agent proposals and approve/override controls",
+  },
+  {
     name: "evidence-room",
     path: "/account/evidence",
     description: "Account-wide evidence inventory grouped by scan target",
@@ -89,10 +99,12 @@ const screenshotTargets = [
     // and point ZEROQUARRY_DOCS_PROJECT_ID at such a project to recapture.
     requiredEnv: ["ZEROQUARRY_DOCS_PROJECT_ID", "ZEROQUARRY_DOCS_ASSET_LIBRARY"],
     prepare: async (page) => {
-      await page.locator('button.project-tab[data-tab="assets"]').click();
-      await page
-        .locator('[data-panel="assets"]')
-        .waitFor({ state: "visible" });
+      // Assets is its own route (/assets), and the tab strip is a set of
+      // <a class="zq-tab"> href links rather than buttons — so the tab is
+      // already active on arrival. Wait for the panel and the polled
+      // force-directed graph instead of clicking a tab that no longer exists.
+      await page.locator('[data-panel="assets"]').waitFor({ state: "visible" });
+      await page.locator("[data-graph-url]").waitFor({ state: "visible" });
       // Let the force-directed discovery map settle before capturing.
       await page.waitForTimeout(6000);
     },
@@ -221,6 +233,18 @@ const screenshotTargets = [
     name: "report-overview",
     path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/summary",
     description: "Report overview with findings, lineage, and review controls",
+    requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
+  },
+  {
+    name: "report-assets",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/assets",
+    description: "Report Assets tab listing the assets discovered by this scan",
+    requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
+  },
+  {
+    name: "report-coverage-notes",
+    path: "/reports/{ZEROQUARRY_DOCS_SCAN_ID}/non-issues",
+    description: "Coverage notes tab with the coverage card, gap classes, and coverage debt",
     requiredEnv: ["ZEROQUARRY_DOCS_SCAN_ID"],
   },
   {

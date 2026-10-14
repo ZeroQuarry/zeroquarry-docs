@@ -27,6 +27,8 @@ Source scans are strongest when you need to answer questions like:
 - Are secrets, tokens, or signing keys handled safely?
 - Did a recent pull request change a security boundary?
 - Does the code implement the policy that the product assumes?
+- Which pinned dependency versions have a known advisory, and is the vulnerable
+  code actually called?
 
 They are weaker when the relevant behavior only appears after deployment,
 packaging, gateway configuration, or runtime authentication. Pair the scan with
@@ -38,10 +40,14 @@ Choose one input path for each scan:
 
 - **Connected GitHub repo** for repositories granted to the ZeroQuarry GitHub
   App
-- **Add Git URLs** for public repositories or private repositories using a
-  saved account credential
+- **Add Git URLs** for public repositories on any supported forge, or private
+  repositories using a saved account credential
 - **Upload source code** for individual files or archives such as `.zip`,
   `.tar`, and `.tar.gz`
+
+A public repository needs no credential on any supported forge: GitHub, GitLab,
+Bitbucket, or a Gitea or Forgejo instance. ZeroQuarry confirms each one with the
+hosting forge's own unauthenticated API rather than inferring it from the URL.
 
 If the project already has a [repo asset](/getting-started/project-assets),
 the form pre-fills from it — URL, ref, and saved credential — and the scan is
@@ -55,22 +61,91 @@ combined in the same scan. For repeatable work, prefer Git over one-off
 uploads. Git-backed scans support lineages, rescans, and CI delta scans more
 naturally.
 
-## Deterministic analysis plus agent investigation
+## Three deterministic stages, then agent investigation
 
-Before the coordinator starts, ZeroQuarry runs a bounded deterministic static
-analysis pass over source targets. The current worker uses a frozen local
-Opengrep rule pack; it does not fetch registry rules during the scan.
+Before the coordinator starts, ZeroQuarry runs bounded deterministic analysis
+over the target. All three stages do the same thing: they produce **leads**,
+never findings. The coordinator and specialist agents then test each lead
+against control flow, reachability, product context, and the rest of the
+repository before anything is recorded.
 
-Rule matches are retained as **candidates**, not promoted directly to findings.
-The coordinator and specialist agents use a bounded subset as investigation
-leads, then test them against control flow, reachability, product context, and
-other repository evidence. This combines fast coverage of recognizable unsafe
-patterns with the contextual reasoning needed for authorization, tenant
-isolation, business logic, and multi-file attack paths.
+| Stage | Looks at | Artifact |
+| --- | --- | --- |
+| Static analysis | Recognizable unsafe code patterns | `sast-candidates.json` |
+| Dependency analysis | Pinned versions with known advisories | `sca-results.json` |
+| Infrastructure code | Terraform, Kubernetes, Helm, Dockerfiles, Compose, Serverless | `infra-inventory.json` |
 
-Treat `sast-candidates.json` as analysis provenance rather than an alert list. A
-candidate becomes actionable only if the assessment records it as a finding
-with supporting evidence.
+The static-analysis worker uses a frozen local Opengrep rule pack; it does not
+fetch registry rules during the scan. Treat `sast-candidates.json` as analysis
+provenance rather than an alert list.
+
+That "leads, never findings" rule is the contract for all three. It is what
+lets ZeroQuarry cover a lot of recognizable shapes quickly without turning
+pattern matches into a list of things to argue with.
+
+## Dependency scanning
+
+The dependency stage reads manifests and lockfiles, resolves the pinned
+versions, and asks osv.dev whether any of them carry a known advisory. It is
+enabled by default and can be turned off per scan.
+
+A version match is a lead. For each one the agent has to decide:
+
+- **Used and reachable** — the project imports the package, ideally using the
+  vulnerable symbols. This becomes a finding with the type
+  **Vulnerable Components**, citing the manifest path, the CVE references, the
+  CVSS vector when osv.dev supplies one, and the usage evidence as a file and
+  line.
+- **Present but unused** — the package is pinned but never imported. This
+  becomes a non-issue labelled with the dependency and version, recording the
+  advisory and why it is not reachable.
+
+An unused dependency is never a finding. Recording one is the most common way a
+dependency scan produces noise, and the stage is built to prevent it. A package
+pinned in several manifests is still recorded once.
+
+If the advisory service cannot be reached, the stage **fails open** and the scan
+continues, unless the account requires it. Either way the skip is recorded in
+both the scan log and the durable artifact, so a report never silently lacks
+dependency coverage.
+
+### SBOM export
+
+The scan's dependency inventory exports as an SBOM on demand, in **CycloneDX 1.5**
+or **SPDX 2.3**. Both are rendered from the same artifact, so they always agree.
+
+The CycloneDX export doubles as a **VEX** document. Each advisory hit is joined
+against what the agent actually concluded: hits that became findings are emitted
+with the agent's reasoning, hits the agent reviewed and judged unreachable are
+emitted as reviewed non-issues, and hits the agent never dispositioned stay plain
+leads. That distinction is the difference between a list of vulnerable packages
+and a statement about which ones you are exposed to.
+
+SPDX 2.3 has no vulnerability model, so the SPDX export carries inventory only.
+
+Exports are deterministic: the document serial number and namespace are derived
+from the scan id, so the same scan produces byte-identical output and a download
+can be cached by content.
+
+## Infrastructure-as-code detection
+
+The infrastructure stage walks the source tree and classifies IaC files across
+six frameworks: Terraform, Helm charts, Kubernetes, Dockerfile, Docker Compose,
+and Serverless. It prunes the directories that are never IaC and routinely huge
+— vendored dependencies, build output, terraform state — so it stays cheap on a
+large repository.
+
+When IaC is present, the coordinator's task gains an infrastructure-shaped
+rubric naming what to validate for each framework found: IAM wildcards against
+their trust policies, world-open security groups, privileged containers, missing
+network policies, secrets in manifests, and the rest. Scans with no IaC files
+are untouched.
+
+A finding cited at an IaC path is stamped with the kind `infra`, which is what
+lets the report surface an **Infrastructure** section alongside the code
+findings. That section is where Terraform, Kubernetes and container findings are
+read, and it is worth checking on any scan that turned out to contain
+infrastructure.
 
 ## What agents inspect
 
@@ -84,7 +159,11 @@ source-focused workers. Workers look for issues such as:
 - secret handling and token exposure
 - tenant isolation failures
 - unsafe file, path, and archive handling
-- dependency or framework use with known CVEs
+- infrastructure misconfiguration, when the target contains IaC
+
+Dependency findings are not on this list because agents do not go looking for
+them. The dependency stage hands over the candidates, and the agent's job is to
+decide reachability and record the result.
 
 In white-box and grey-box projects, source workers also record the runtime
 surface they can infer from the code — hosts, ports, and endpoints — into the
@@ -123,6 +202,7 @@ most sensitive.
 | --- | --- |
 | Model | Selects the LLM runtime for coordinator, worker, triage, and artifact steps. |
 | Notes / focus | Adds operator guidance to the coordinator prompt. |
+| Dependency stage | Turns the dependency scan on or off for this scan. On by default; the same toggle is available to API-triggered scans. |
 | Coordinator step budget | Raises or lowers the maximum coordinator turns. Higher budgets can improve coverage and increase cost. |
 | Batch API | Uses batch artifact generation where available. It is cheaper but finalization can take longer. |
 | HackerOne review | Labels findings against HackerOne core-ineligible categories when disclosure tracking is enabled. |
@@ -136,6 +216,18 @@ you need to confirm the resolved settings.
 
 _Execution environment and other advanced choices are reviewed immediately
 before the scan is queued._
+
+## Retesting prior findings
+
+When the target already has unresolved findings in the same project, the wizard
+shows how many and offers to retest them in this scan. The box starts unchecked:
+a new scan runs fresh unless you opt in, because the changed-code focus and the
+available context differ from a rescan and a silent retest can imply more than it
+should.
+
+When you do opt in, each prior finding gets an explicit outcome, including a
+partial-fix verdict with the residual severity that survived. Read
+[Finding lifecycle](/reports/finding-lifecycle) for the full vocabulary.
 
 ## Private repositories
 
@@ -170,7 +262,10 @@ the updated repository broadly or focus on the diff. Read
 [Scheduled rescans](/workflows/scheduled-rescans).
 
 For findings in connected GitHub repositories, ZeroQuarry can generate a patch
-proposal and open a reviewable pull request through ZeroQuarryBot. Read
+proposal and open a reviewable pull request through ZeroQuarryBot. A dependency
+bump rewrites the manifest that owns the lockfile and then regenerates the
+lockfile with the project's own toolchain, so the diff shows the real resolved
+tree rather than a version string in isolation. Read
 [Auto-fix pull requests](/workflows/autofix).
 
 ## Common next steps

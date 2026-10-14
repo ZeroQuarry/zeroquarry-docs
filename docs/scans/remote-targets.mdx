@@ -5,7 +5,11 @@ sidebar_position: 3
 ---
 
 Remote scans actively probe a running web application, API, or SaaS endpoint.
-Use them only for systems you own or have explicit permission to test.
+ZeroQuarry labels this mode **DAST** — dynamic application security testing — in
+the scan picker, the report, and the API, so an assessment can be lined up with
+the rest of a program that already speaks that vocabulary.
+
+Use remote scans only for systems you own or have explicit permission to test.
 
 Remote scans are for vulnerabilities that require runtime behavior: routing,
 sessions, deployed configuration, API gateway behavior, redirects, server-side
@@ -117,6 +121,65 @@ sent to the LLM agent as scan context and to the target as HTTP headers or
 cookies. Use authentication only with LLM providers and target environments you
 are comfortable exposing to that data.
 
+## What happens when the session dies
+
+This is the failure mode remote scans have the most exposure to, and it is worth
+understanding because it is invisible unless you look for it.
+
+A scan whose session stops authenticating looks exactly like a healthy one from
+the outside. It keeps sending requests, the responses keep coming back as
+`blocked`, and the scan completes on time with a normal-looking report. Nothing
+on the scan row says the assessment spent most of its budget unauthenticated.
+
+ZeroQuarry tracks this per scan and says so. It treats a route as newly failing
+when it answers `401` or `403` now and either answered `2xx` earlier in the same
+scan, or was successfully probed by an earlier scan of the same project. It also
+requires a burst before it speaks up — a handful of blocked probes inside a
+five-minute window, with at least one of them on a route known to have worked —
+because a target that legitimately rejects a few mis-guessed URLs early on should
+not condemn the scan.
+
+When it does degrade, three things happen. A warning banner appears on the
+report. The scan records `degraded` with a reason, so the state survives the run.
+And the operator is notified that the scan needs a session.
+
+What happens next is your policy:
+
+| Policy | Behavior |
+| --- | --- |
+| Continue | The scan keeps going. You are told, and you decide what to do. |
+| Hold then wrap | The coordinator is steered off unauthenticated work and, if the session stays dead, the scan wraps up early rather than spending the rest of the budget pointlessly. |
+| Wrap immediately | The scan stops as soon as the degradation is confirmed. |
+
+The scan timeline keeps the transitions, so you can see when it degraded, when
+someone refreshed the session, and when it wrapped.
+
+You can update the session mid-scan without restarting it. A verified re-login
+clears the degraded verdict and the scan carries on from where it was, which is
+usually the cheapest outcome: the work done before the session expired is not
+thrown away.
+
+## E-mail verification without an operator
+
+Many targets gate registration behind a confirmation e-mail, and a magic-link
+login puts the session cookie behind a link the agent cannot click.
+
+A remote scan can allocate its own disposable mailbox for the duration. The
+agent registers on the target with that address, submits the magic link, and polls
+for the mail — a link click lands its session cookie in the scan's shared cookie
+jar automatically, so the login completes without anyone watching.
+
+Two things to know. The address is a **credential**: anyone with it can read the
+target's mail to that address, so it exists only for the scan and is disposed of
+when the scan reaches a terminal state. And the mail body is **target-controlled
+input** — the tools tell the agent this explicitly, because a target that can send
+mail to an address the agent reads has a channel for injecting instructions into
+the run.
+
+Mailbox allocation needs the platform mail poller configured and the account tier
+to carry incoming e-mail triage. Without them the tools refuse rather than
+half-working, and stored mail follows the account's retention policy.
+
 ## Authenticated testing strategy
 
 For authorization bugs, one credential is often not enough. Consider running
@@ -131,6 +194,13 @@ separate scans for:
 Name and tag each scan so the report makes the tested role obvious. Never use
 production administrator credentials unless that is explicitly approved for the
 test.
+
+Running them as separate scans matters more than it used to. A single
+authenticated scan cannot see a vulnerability that requires *no* authentication,
+because every request it sends carries the session. Before a remote scan wraps up,
+it closes that gap: any route it answered *with* its session but never probed
+without one is re-probed cookieless and reported separately. A scan with no
+configured credentials has no such gap, because there is no differential to close.
 
 ## Safe scoping
 
@@ -152,11 +222,29 @@ notes so agents keep their distance.
 To confirm vulnerabilities that give no visible response (blind SSRF, XXE,
 out-of-band exfiltration), remote scans use ZeroQuarry-operated callback
 infrastructure: your target is guided into fetching a unique
-`bin.zeroquarry.com` URL or resolving a unique name under
-`oob.zeroquarry.com`, and the observed callback becomes attached evidence.
-When a callback is observed, the finding is reported as confirmed; when it is
-not, the finding reports the best callback-free observation instead. Tell
-your target's security team to expect traffic to these domains — see
+`oob.zeroquarry.com` URL or resolving a unique name under the same domain, and
+the observed callback becomes attached evidence. When a callback is observed, the
+finding is reported as confirmed; when it is not, the finding reports the best
+callback-free observation instead. The collected request is shown on the finding
+page itself, so the evidence does not require a second system to fetch.
+
+Redirect-based SSRF needs something slightly different: the target follows a
+redirect to an internal address, so the response never reaches the collector
+directly. For that, the collector can also serve as a **redirector**. The scan
+registers where it wants a probe URL to point, and that URL answers with an HTTP
+redirect instead of an empty response.
+
+That does not make it an open redirector. Only a nonce whose target was
+registered at allocation time will redirect at all, only the scan holding the
+read key can register one, and random internet traffic guessing at the host still
+gets a 404. The redirect status must be a real redirect status, and the target
+location is length-capped so a redirect response can never carry meaningful
+smuggled content back.
+
+You can also open a scratch bin of your own for proof-of-concept work, which is
+separate from the per-scan allocation.
+
+Tell your target's security team to expect traffic to these domains — see
 [Scan infrastructure domains](/security/scan-infrastructure).
 
 ## Scan settings
@@ -170,6 +258,16 @@ For internal targets, the scan form also shows **Execution environment** when
 the project allows a compatible private runner pool. Private jobs remain pinned
 to that pool and never fall back to ZeroQuarry Cloud automatically.
 
+## Rescanning a remote target
+
+Remote rescans retest live targets by default, so a re-run reflects the
+application as it is now rather than what a recorded past response implied.
+
+When the target carries prior findings, the scan can pick them up and give each
+one an explicit outcome, including a partial-fix verdict carrying the residual
+severity that survived. See [Finding lifecycle](/reports/finding-lifecycle) for
+the vocabulary, and [Scheduled rescans](/workflows/scheduled-rescans) for cadence.
+
 ## Review remote findings
 
 Remote findings should be reviewed for:
@@ -179,6 +277,8 @@ Remote findings should be reviewed for:
 - whether payloads were destructive or read-only
 - response evidence and status codes
 - whether required headers were attached
+- whether the scan degraded partway through, which changes how much of the report
+  the session actually covered
 - whether a source or binary scan can explain the root cause
 
 For externally reported issues, move from the finding to

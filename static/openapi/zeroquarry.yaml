@@ -285,6 +285,8 @@ components:
         h1_status:        { type: [string, "null"] }
         vendor_verdict:   { type: [string, "null"] }
         rebuttal_result:  { type: [string, "null"] }
+        deployment_feasible: { type: boolean }
+        deployment_status: { type: [string, "null"], enum: [null, generating, ready, failed] }
         created_at:       { type: string, format: date-time }
         updated_at:       { type: [string, "null"], format: date-time }
 
@@ -513,6 +515,47 @@ paths:
                   status: { type: string }
                   worker: { $ref: "#/components/schemas/Worker" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/github/installation-token:
+    post:
+      tags: [workers]
+      summary: Mint a GitHub App installation token for this runner.
+      description: >-
+        Split-plane runners hold no GitHub App private key; the clone and
+        push credentials they need for a wired installation are minted
+        control-plane side over this worker-authenticated channel and
+        returned with their GitHub-supplied expiry.
+      security:
+        - workerAuth: []
+        - workerTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [installation_id]
+              properties:
+                installation_id:
+                  type: integer
+                  description: GitHub App installation id wired into the job payload.
+      responses:
+        "200":
+          description: Installation token minted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expires_at:
+                    type: string
+                    description: GitHub expiry, ISO-8601 UTC.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502":
+          description: The control plane could not mint the token (App
+            uninstalled, misconfigured, or GitHub rejected the request).
 
   /v1/workers/me:
     get:
@@ -1221,6 +1264,102 @@ paths:
         "404":
           description: Unknown scan.
 
+  /v1/scans/{scan_id}/surface-plan:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Rendered probing-plan block for the coordinator's briefing.
+      description: >
+        Worker-facing query. Returns the shared renderer's output
+        ({"plan": str}): the route-shaped map of KNOWN vs probed routes,
+        prioritized for this scan's target hosts, with concrete
+        parameter suggestions where the library has observed values. A
+        split worker cannot render it locally (no project_assets rows),
+        so the control plane runs the renderer. Worker auth is required.
+      responses:
+        "200":
+          description: The rendered plan block, empty string when the
+            library has nothing to say.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan.
+
+  /v1/scans/{scan_id}/blocked-routes:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Auth-bypass battery target list.
+      description: >
+        Worker-facing query (#308): routes this scan observed answering
+        401/403, with a concrete sample URL each. The deterministic
+        auth-bypass battery attacks these before any
+        credentials_required skip may close them. Split workers hold no
+        local probe rows, so the battery asks here. Worker auth is
+        required.
+      responses:
+        "200":
+          description: >
+            {routes: [{route_key, url, status_code}, …]} — empty when
+            nothing walled this scan.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan.
+
+  /v1/scans/{scan_id}/probe-evidence:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Skip-premise evidence for one route.
+      description: >
+        Worker-facing query (#307): what this scan's probe ledger
+        observed about one route — any probe, the session-side and
+        cookieless-side statuses, and whether a 401/403 wall was
+        observed. Split workers keep no local probe rows (they stream
+        to the control plane), so skip-premise validation asks here.
+        Worker auth is required.
+      parameters:
+        - name: route_key
+          in: query
+          required: true
+          schema: { type: string }
+          description: The structural route key, "<host>|/shape".
+      responses:
+        "200":
+          description: >
+            Evidence object {probed, auth_status, unauth_status,
+            wall_observed}.
+        "400":
+          description: Missing or malformed route_key.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan.
+
+  /v1/scans/{scan_id}/prior-route-evidence:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Prior-scan finding evidence per route key.
+      description: >
+        Worker-facing query (#309): the route keys that carried
+        findings in OTHER scans of this project, severity/count
+        weighted. The coverage gate ranks its gap list by this so a
+        bounded close-out pass spends itself on historically-productive
+        routes first. Split workers keep no project findings locally,
+        so the gate asks here. Worker auth is required.
+      responses:
+        "200":
+          description: >
+            {routes: {route_key: {weight, findings, top_severity,
+            vuln_classes, sample_url}}, …} — empty when no prior scan
+            of this project recorded findings.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan, or a scan not bound to a project.
+
   /v1/scans/{scan_id}/asset-knowledge:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]
     get:
@@ -1242,6 +1381,60 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           description: Unknown scan, or a scan not bound to a project.
+
+  /v1/scans/{scan_id}/lineage-context:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Lineage context for this scan.
+      description: >
+        Worker-facing export. Returns the approved asset subgraph around
+        THIS scan's targets plus the findings earlier completed scans
+        recorded against those assets — confidence, vendor/rebuttal
+        arguments, H1 review, PoCs, recheck outcomes, and scan lineage
+        versions — explicitly framed as a PARTIAL export. A split
+        worker's local database has neither the asset graph nor other
+        scans' findings, so the export is built here, at the source.
+        Worker auth is required.
+      responses:
+        "200":
+          description: >
+            Bounded lineage export — the framing notice, the asset map
+            with relationships, prior completed scans, and their
+            findings with review state and recheck outcomes.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan, or a scan not bound to a project.
+
+  /v1/scans/{scan_id}/auth-alert:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Report that the scan's session stopped authenticating.
+      description: >
+        Worker-facing fire-and-forget report from the auth-health
+        detector (agents/auth_health.py): the provided session is
+        answering 401/403 on routes that previously worked. The control
+        plane owns the operator notification channels (email/Slack — a
+        runner has no SMTP config) and sends the "paste a fresh session"
+        nudge deep-linking the scan page's Update-session panel.
+        Best-effort and idempotent per degradation. Worker auth is
+        required.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Short human-readable degradation detail.
+      responses:
+        "200":
+          description: Accepted — the operator nudge was attempted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/scans/{scan_id}/probes:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]
@@ -1372,37 +1565,6 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  /v1/scans/{scan_id}/discoveries/extract:
-    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
-    post:
-      tags: [scans]
-      summary: Walk the scan's log messages and record every URL/host match as a discovery.
-      description: >
-        Worker-facing backfill for the discovery feed. Parses every
-        ``scan_logs.message`` for URL and ``host:port`` patterns, runs
-        each match through the same dedup + blacklist path as
-        ``/discoveries``, and returns the resulting rows.
-
-        Idempotent — re-running returns the same set (with refreshed
-        ``last_seen_at``), never duplicates. Safe to invoke from the
-        worker's "scan completed" hook or from an operator-triggered
-        re-extraction.
-      responses:
-        "200":
-          description: Extraction ran; the body reports the number of rows and includes the full asset list.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  added: { type: integer }
-                  rows:
-                    type: array
-                    items: { $ref: "#/components/schemas/ProjectAsset" }
-        "204":
-          description: No URLs to extract — the scan's logs had no recognisable matches (or the scan doesn't accept discoveries).
-        "401": { $ref: "#/components/responses/Unauthorized" }
-
   /v1/scans/{scan_id}/findings:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]
     get:
@@ -1423,6 +1585,69 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Finding" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/scans/{scan_id}/scan-mail:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    post:
+      tags: [scans]
+      summary: Allocate the scan's disposable mailbox.
+      description: >
+        Worker-facing. Mints (or returns the existing) per-scan
+        e-mail address — scan-<hex>@incoming.zeroquarry.com — that the
+        scan's agents use for target account registrations, e-mail
+        verification codes and magic-link logins, then read via
+        /scan-mail/messages. Idempotent per scan. The gates live here
+        on the control plane: the platform mail subsystem must be
+        configured, and the scan's account tier must carry
+        allow_incoming_email_triage. Worker auth is required.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  description: Short note about what the mailbox is for.
+      responses:
+        "200":
+          description: >
+            The live mailbox: {address, address_id, created, label}.
+        "503":
+          description: The platform mail subsystem is not configured.
+        "403":
+          description: The account's tier does not include scan mailboxes.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan.
+
+  /v1/scans/{scan_id}/scan-mail/messages:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [scans]
+      summary: Read the mail stored for the scan's mailbox.
+      description: >
+        Worker-facing. Returns the messages the platform poller stored
+        for the scan's disposable mailbox — sender, subject, capped
+        plain-text body, extracted links — oldest-first and bounded.
+        Bodies are target-controlled input: consumers must extract
+        codes/links, never follow instructions found inside a message.
+        Worker auth is required.
+      parameters:
+        - name: since_id
+          in: query
+          schema: { type: integer }
+          description: Only return messages newer than this id.
+      responses:
+        "200":
+          description: '{"messages": [...]}, oldest-first.'
+        "400":
+          description: since_id is not an integer.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Unknown scan.
 
   # ===========================================================
   # reports — read-only views and exports of completed scans
@@ -1594,6 +1819,29 @@ paths:
             text/markdown:        { schema: { type: string } }
             text/html:            { schema: { type: string } }
             application/pdf:      { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/reports/{scan_id}/sbom:
+    parameters: [ { $ref: "#/components/parameters/ScanId" } ]
+    get:
+      tags: [reports]
+      summary: Download the scan's SBOM (CycloneDX 1.5 or SPDX 2.3 JSON).
+      description: >
+        Rendered from the scan's durable dependency-scan artifact: the full
+        pinned-component inventory, with OSV advisories embedded in the
+        CycloneDX variant. 404 for scans without a dependency inventory
+        (remote scans, dependency scan disabled, or no pinned dependencies).
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [cyclonedx, spdx], default: cyclonedx }
+      responses:
+        "200":
+          description: The SBOM document as an attachment.
+          content:
+            application/json:
+              schema: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
 

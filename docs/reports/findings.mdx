@@ -21,15 +21,27 @@ downstream actions come together for one security claim._
 | Field | Meaning |
 | --- | --- |
 | Title | Short issue name. |
-| Severity | Critical, high, medium, low, or info. |
-| Severity score | Numeric score used for sorting. |
-| CVSS vector | CVSS v3.1 base vector when the agent produced one. |
+| CVSS vector | CVSS v3.1 base vector. Where one is present it decides the severity. |
+| Severity | Critical, high, medium, low, or info. Derived from the vector. |
+| Severity score | Numeric score used for sorting, also derived from the vector. |
 | Confidence | Probability-like score from ZeroQuarry review signals. |
 | Vulnerability type | The issue class, such as SSRF or authorization bypass. |
 | Source | File, line, URL, binary artifact, or other evidence location. |
 | Description | Technical explanation and impact. |
 | CVE references | Related known-vulnerability references when applicable. |
 | Lifecycle state | The team's current decision, backed by append-only history. |
+
+Where a parseable CVSS vector exists, it is the severity authority. Reviewers are
+asked to correct the vector rather than the label, because correcting the vector
+corrects the score and the label with it. Workers routinely overstate the attack
+vector or set Scope to Changed when it should be Unchanged, and those mistakes move
+the label on their own once fixed.
+
+A label override is only applied in two cases: a finding with no usable vector, or
+a rubric exception where the base-score band is wrong for something the vector
+cannot express, such as an exploit chain. An exception keeps the vector and records
+the reason beside it, so cross-scan calibration stays queryable. A label override on
+a vectorized finding without an exception is ignored.
 
 ## Record the decision
 
@@ -109,17 +121,40 @@ Rewrite the reproduction steps for a staging environment with two test users.
 
 ## Coverage notes
 
-Reports may include coverage notes. These are areas the researcher examined
-without recording a vulnerability. They help explain where the assessment
-spent time, but they are review evidence rather than a guarantee that an area is
-free of vulnerabilities.
+Coverage notes record what the scan probed, not only what it found. Before a scan
+exits, a close-out pass takes the routes the scan's own asset library and probe
+ledger already know about, and either probes each one or records an explicit reason
+for skipping it. A known in-scope route that ends the scan unprobed and unjustified
+is logged as coverage debt and surfaced on the report rather than passing silently.
+
+Two gap classes drive that close-out:
+
+- **Never probed** — a known in-scope route no scan of the project has ever
+  probed.
+- **Auth differential** — a route the scan answered while carrying its session but
+  never probed without one. An authenticated vantage cannot see a
+  no-authentication-required vulnerability, so these are re-probed cookieless.
+  Scans with no configured credentials have no such class.
+
+Routes are worked in order of prior-scan evidence: routes that other scans of the
+same project cited in a finding come first, then auth-differential overlaps, then
+the rest. That ordering matters more than it sounds, because the close-out pass is
+budgeted and an unordered list spends that budget on whichever route happens to sort
+first.
+
+Coverage distinguishes how a route answered, so a route that exists but refused is
+not counted as untested. A 401 or 403 means the route is real and needs credentials;
+a 404 or 410 means it was probed and is not there; a 2xx or 3xx means it was tested.
+
+Read this as review evidence about the scan's reach, not as a guarantee that an
+unprobed area is free of vulnerabilities.
 
 ## Next action
 
 - Use [Auto-fix pull requests](/workflows/autofix) for source findings that need
   an engineer-reviewable code change.
-- Use [Jira, ServiceNow, and GitHub Issues](/workflows/issue-trackers) to hand
-  work into the owning team's system.
+- Use [Issue trackers](/workflows/issue-trackers) to hand work into the owning
+  team's system.
 - Use [Verification tests](/reports/verification-tests) to record — and prove —
   what happened after the fix.
 - Use [Secure sharing](/reports/secure-sharing) when an external recipient

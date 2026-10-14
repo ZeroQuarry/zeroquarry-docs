@@ -1,62 +1,120 @@
 ---
 id: issue-trackers
-title: Jira, ServiceNow, and GitHub Issues
+title: File findings into an issue tracker
 sidebar_position: 4
 ---
 
-Finding decisions should become work in the system the engineering or IT team
-already operates. ZeroQuarry can prefill GitHub Issues, deep-link into Jira, or
-create Jira and ServiceNow records through configured APIs.
+A finding does no work until engineering picks it up. ZeroQuarry can file into
+Linear, Jira, ServiceNow, or GitHub Issues from the finding itself, and it can read
+labeled issues back as the trigger for a verification scan.
 
-![ZeroQuarry integration hub showing Jira, ServiceNow, GitHub, notifications, automation, and intake options.](/img/screenshots/integrations-overview.png)
+Both directions are optional and independently gated. Filing is a handoff, not a
+sync: ZeroQuarry never treats the remote ticket's status as the source of truth for
+the finding's own lifecycle state.
 
-_The integration hub shows which handoff and automation paths are configured
-for the account._
+![ZeroQuarry integration hub showing Slack, Jira, ServiceNow, ZeroQuarryBot, Git credentials, automated scans, API keys, email triage, and Linear.](/img/screenshots/integrations-overview.png)
+
+_The integration hub shows which handoff and automation paths are configured for the
+account. Each one is opt-in and disconnected from its own page._
 
 ## Choose an integration mode
 
 | Destination | Mode | Credentials stored by ZeroQuarry | Result |
 | --- | --- | --- | --- |
-| GitHub Issues | Prefilled link | No additional issue credential | Opens the target repository's new-issue form |
+| Linear | Deep link | None | Opens a prefilled `linear.new` URL |
+| Linear | API | Personal API key | Creates the issue and records the result on the finding |
+| GitHub Issues | Prefilled link | No issue credential | Opens the target repository's new-issue form |
 | Jira | Deep link | Base URL only | Opens Jira's create form with summary and description |
-| Jira | API | Jira URL, email, API token, and default project key | Creates the issue and records the result on the finding |
-| ServiceNow | API | Instance URL, username, password/token, and default table | Creates a record and records the result on the finding |
+| Jira | API | Base URL, email, API token, default project key | Creates the issue and records the result on the finding |
+| ServiceNow | API | Instance URL, username, password or token, default table | Creates a record and records the result on the finding |
 
-Availability depends on the account tier and on whether the finding's source
-target identifies a suitable repository.
+The deep-link modes store no secret and work on every tier. Your browser session
+does the authentication, and you get to review or edit the issue before it is
+submitted. API mode creates the record directly, which removes that step and adds an
+audit entry of what was created.
+
+Those API modes are separate entitlements rather than one switch: an account can
+carry `allow_linear_api`, `allow_jira_api`, or `allow_servicenow_api` independently.
+Availability also depends on whether the finding's source target identifies a
+suitable repository.
+
+## Configure Linear
+
+1. Open **Account > Integrations > Linear**.
+2. For deep-link filing, stop here. Nothing is required and no key is stored.
+3. For API mode, paste a Linear personal API key.
+4. For labeled-issue intake, set the label ZeroQuarry should watch.
+
+![ZeroQuarry Linear integration settings.](/img/screenshots/linear-integration.png)
+
+_Saving a key upgrades filing from a deep link to a direct create. The watched label
+is a separate setting, and intake stays off until both the tier and the label are
+in place._
 
 ## Configure Jira
 
 1. Open **Account > Integrations > Jira**.
 2. Save the Jira base URL. This enables the credential-free deep-link mode.
-3. If your tier permits API creation, add the API identity, token, and default
-   project key.
+3. If your tier permits API creation, add the email, API token, and default project
+   key.
 4. Open a finding and use its action to create or open the Jira issue.
 
-The deep-link mode leaves project and issue-type selection to the operator.
-API mode creates directly in the configured project and retains an audit record
-of the created issue.
+The deep-link mode leaves project and issue-type selection to the operator. API mode
+creates directly in the configured project and retains an audit record of the created
+issue.
 
 ## Configure ServiceNow
 
 1. Open **Account > Integrations > ServiceNow**.
 2. Save the instance URL.
-3. Add the API username, secret, and default table such as `incident`.
+3. Add the username, secret, and default table such as `incident`.
 4. Open a finding and create the record.
 
-ServiceNow does not have a credential-free mode in ZeroQuarry.
+ServiceNow has no credential-free mode in ZeroQuarry, so the table row above is the
+only route to it.
 
 ## Use GitHub Issues without another credential
 
 For findings from a recognizable GitHub target, ZeroQuarry can open a prefilled
-new-issue URL. Your browser session handles GitHub authentication, and you can
-review or edit the issue before submitting it.
+new-issue URL. Your browser session handles GitHub authentication, and you can review
+or edit the issue before submitting it.
+
+## Read labeled issues back
+
+This is the other half of the integration, and it is the one that changes how a team
+works rather than only where a finding lands.
+
+The tracker stays the system of record for engineering work. ZeroQuarry watches for
+issues carrying the label the account chose, matches each one against approved assets,
+and proposes a verification scan. Approval is the default: the scan does not start
+until a human accepts the proposal, and the outcome is posted back to the issue as a
+comment so the engineering thread carries the result.
+
+Two things gate it. The account's tier must carry `allow_issue_management`, and a
+label must be configured. Turning on the integration without setting a label leaves
+filing working and intake idle.
+
+Intake starts approval-first per source rather than per account. A tracker whose
+adapter does not support unattended approval simply never auto-approves, so the
+default posture is the same everywhere.
+
+Adding another tracker is an adapter, not a new code path. Each source implements the
+same small interface — which accounts are connected, how to fetch recent labeled
+issues, and whether it may auto-approve — and the poll loop, the decision step, and
+the queue are written against that interface rather than against any one vendor.
+
+## Where these proposals land
+
+Email triage and labeled-issue intake feed the same queue. A forwarded report and a
+labeled Linear issue both arrive as an agent proposal with its reasoning attached, and
+both wait for the same approve or override decision. The queue is documented
+separately.
 
 ## What is handed off
 
 The prefilled content includes the finding title, severity, vulnerability type,
-source, description, and a link back to the full finding. Long fields are
-truncated so the destination URL or API request remains practical.
+source, description, and a link back to the full finding. Long fields are truncated so
+the destination URL or API request stays practical.
 
 Before filing:
 
@@ -66,5 +124,5 @@ Before filing:
 - define the expected remediation and retest condition
 - keep the ZeroQuarry finding lifecycle in sync with the engineering outcome
 
-The current integrations create or prefill work; they do not treat the remote
-ticket's status as the source of truth for the ZeroQuarry finding state.
+If the recheck outcome needs to become evidence in its own right, import it into a
+[verification test](/reports/verification-tests) rather than relying on the ticket.

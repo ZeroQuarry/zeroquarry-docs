@@ -24,6 +24,13 @@ instructions before saving any credential._
 For GitHub, start with the connected GitHub App. Use a saved credential when the
 app is not appropriate for the repository or deployment model.
 
+A public repository needs no credential on any supported forge: GitHub, GitLab,
+Bitbucket, or a Gitea or Forgejo instance such as codeberg.org. Public-repo tiers
+confirm this with the hosting forge's own unauthenticated API rather than inferring
+it from the URL, and a Gitea or Forgejo instance is checked on its own host, because
+those are self-hosted and share one API. A repository that turns out not to be
+public is rejected rather than cloned.
+
 ## Connect the GitHub App
 
 1. Open **Account > Integrations**.
@@ -40,7 +47,8 @@ ZeroQuarryBot remediation access is a separate integration and permission path.
 Open **Account > Integrations > Git Private Repositories** and complete the
 three-step setup:
 
-1. **Provider** — choose GitHub, GitLab, Bitbucket, or another Git host.
+1. **Provider** — choose GitHub, GitLab, Bitbucket, Gitea or Forgejo, or another
+   Git host.
 2. **Access** — choose HTTPS or SSH where available and follow the displayed
    provider-specific permission guidance.
 3. **Save** — name the credential and confirm the exact Git host.
@@ -57,6 +65,7 @@ Minimum permissions:
 | GitHub | Fine-grained token limited to selected repositories with **Contents: Read-only**. |
 | GitLab | Project access token or deploy token with `read_repository` only. |
 | Bitbucket Cloud | Repository-scoped token with repository **Read** only. |
+| Gitea or Forgejo | Repository-scoped token with read access only. |
 | Other Git hosts | Clone, pull, or source-read access only; no push, admin, webhook, issue, or pipeline permissions. |
 
 For SSH, add the public key as a read-only deploy key and leave write access

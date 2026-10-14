@@ -5,75 +5,177 @@ sidebar_position: 2
 ---
 
 An attestation engagement hands a point-in-time finding set to a **third
-party** — an external assessor, pentest firm, or security team that uses their
-own ZeroQuarry account — and captures their verdict finding by finding. When
-the attestor signs off, ZeroQuarry seals the attested report and its manifest,
-and both become immutable.
+party** — an external assessor, pentest firm, or security team using their own
+ZeroQuarry account — and captures what they conclude about it, finding by
+finding.
 
-The result is evidence rather than another self-issued report: every verdict
-and the sealed manifest record *who* attested and for which firm.
-
+The result is evidence rather than another self-issued report. Every verdict and
+the sealed manifest record *who* attested, and for which firm: the attestor's
+identity is deliberately distinct from the customer's, and that separation is
+the whole point of the artifact.
 
 ## When to use an engagement
 
-- A customer requires **third-party validation** of an assessment before they
-  accept the report.
-- A pentest-style engagement needs per-finding confirmation — confirmed,
-  rejected, or severity adjusted — against your internal scan results.
-- A regulator or auditor wants **quarterly re-attestation** that previously
-  reported findings remain fixed.
-- You are the attestor: a consulting firm reviewing a client's baseline inside
-  your own ZeroQuarry account.
+- A customer requires **third-party validation** before they accept the report.
+- A pentest-style engagement needs per-finding confirmation against your internal
+  scan results.
+- A regulator wants **periodic re-attestation** that previously reported findings
+  remain fixed.
+- You are the attestor: a firm reviewing a client's baseline inside your own
+  account.
+
+## Two kinds, one set of machinery
+
+| Kind | Verdicts | Use it for |
+| --- | --- | --- |
+| Finding confirmation | Confirmed, Rejected, Severity adjusted, Unable to verify | First-pass verification of a scan's findings |
+| Remediation verification | Fixed, Partially fixed, Not fixed, Unable to verify, Accepted risk | Re-verifying that reported findings are fixed, anchored to the same baseline |
+
+Everything else is shared. Remediation verification deliberately uses the same
+outcome vocabulary as [verification tests](/reports/verification-tests), so a
+finding that was closed internally can be confirmed independently without
+learning a second set of words.
 
 ## How an engagement works
 
-1. **Issue the baseline.** Open the completed report and designate it as
-   evidence in the [Evidence Room](/reports/evidence-room). The snapshot
-   freezes the finding set, targets, and report context.
-2. **Create the engagement.** In the Evidence Room, start an engagement from
-   the baseline and choose the kind:
-   - **Finding confirmation** — pen-test-style first-pass verification. The
-     attestor records *Confirmed*, *Rejected*, *Severity adjusted*, or
-     *Unable to verify* per finding.
-   - **Remediation verification** — re-verification that previously reported
-     findings are fixed, using the same outcome vocabulary as
-     [verification tests](/reports/verification-tests). Quarterly
-     re-attestation is the expected cadence.
-3. **Invite the attestor.** Enter the attestor's email address. If they
-   already belong to an attestor-enabled account, they are attached to the
-   engagement directly; otherwise they receive a one-time invitation link to
-   accept while signed in to their own account.
-4. **The attestor reviews.** From their **Attestations** page, the attestor
-   opens the engagement, reads each baseline finding with its evidence, and
-   records a verdict and note. They see only the engagement — not the rest of
-   your workspace.
-5. **Sign-off seals the record.** When the attestor signs the report,
-   ZeroQuarry seals the canonical manifest and the exact PDF bytes. Neither
-   side can edit the attested artifact afterwards.
+1. **Issue the baseline.** Open the completed report and designate it as evidence
+   in the [Evidence Room](/reports/evidence-room). The snapshot freezes the
+   finding set, targets, and report context, and the engagement stays anchored to
+   that snapshot's integrity hash for its whole life.
+2. **Create the engagement.** Start one from the baseline in the Evidence Room
+   and choose the kind. You can attach a note for the attestor explaining what you
+   need, and pre-authorize credentials they will need to reach their own targets.
+3. **Invite the attestor.** Enter their email address. If they already belong to
+   an attestor-enabled account they are attached directly; otherwise they receive
+   a one-time invitation to accept while signed in to their own account.
+4. **The attestor works.** From their own account, the attestor reviews each
+   baseline finding with its evidence, records a verdict and optional note, runs
+   their own retests, and may add findings of their own.
+5. **They shape the working document.** Before signing, the attestor decides what
+   the deliverable actually says.
+6. **Sign-off seals the record.** Signing seals a canonical manifest and two PDF
+   variants. Both sides can then download and cite them.
+
+Sign-off is gated on every finding having a verdict. Review notes are optional
+attestor commentary and never block it, so an attestor is not forced to write an
+essay per finding to get paid.
+
+## The attestor's side
+
+The attestor works inside their **own** ZeroQuarry account, against their own
+workspace. They see the engagement and its baseline, not the rest of your
+workspace.
+
+Because they are running real assessments, the engagement carries a **warrant**:
+the set of hosts the baseline actually covers, taken from your project's URL and
+host assets plus what the source scan pointed at. The workspace scan form shows
+the warrant and flags a target that falls outside it, so an attestor can see the
+authorization boundary rather than infer it.
+
+Only **open** engagements grant a warrant. Once an engagement is attested or
+cancelled it is history, not live authorization.
+
+## Findings the attestor adds
+
+A finding confirmation used to be a review exercise: the attestor could confirm,
+reject, or adjust what you already had. It is not only that any more. The attestor
+can add findings they discovered that were not on your baseline at all.
+
+Each added finding is a full finding with its own type, severity, CVSS vector,
+description, impact, remediation, and evidence. It also carries provenance — where
+it came from (`retest_scan`, `manual`, or `imported`), which scan or finding it
+originated in, and who added it by name and email. That provenance line travels
+with it into the working document.
+
+Added findings are not a side channel. They go through the same lifecycle as
+baseline findings: they can be retested, they can be accepted or rejected in a
+later round, and they land inside the sealed manifest.
+
+## The working document
+
+Sealing a verdict record would produce a defensible but mechanical artifact. The
+attestor can instead shape the document that goes out, on the export screen:
+
+- **Drop** a baseline finding the working document should not carry
+- **Adjust** a severity without rewriting the verdict record
+- **Add** findings of their own
+
+Findings the attestor rejected are omitted by default, so the common case needs no
+editing. A dropped finding is remembered by name so the export screen can show
+what was removed, and a malformed severity override is rejected rather than
+silently published as a mangled report.
+
+Anything included this way carries a provenance line naming the attestor who added
+it. Dropping a finding from the document does not remove it from the sealed
+record — the manifest still holds the complete verdict history, which is what
+makes the artifact provable.
+
+## Sign-off seals two documents, not one
+
+This is the part worth understanding, because it is why releasing and sealing are
+separate acts.
+
+At sign-off the attestor seals **both** the full report and its counts-only
+sibling. Sealing both up front is deliberate: a PDF rendered later would not be
+the bytes the manifest hash covers, so a later release of the full document would
+be unverifiable. Sealing both makes the whole ladder provable from the start.
+
+The sealed PDF is either **generated** from the verdict record, or the attestor's
+**own edited document** converted to PDF, with that source document's hash
+retained for provenance. When a firm signs a deliverable it has produced itself,
+the sealed bytes are the firm's document, and the record says so.
+
+The manifest is canonical — serialized with sorted keys — so its hash is stable,
+and both PDF variants are cited by name, size, hash, source and detail. A holder of
+either document can prove which sealed artifact it is.
+
+## Releasing is separate from sealing
+
+Sealing is final. Releasing controls what the **requestor** can currently fetch,
+and the attestor can change it afterwards without touching the sealed record.
+
+| Release level | What the requestor gets |
+| --- | --- |
+| Counts only | Counts and definitions, no per-finding detail |
+| Full findings | The complete report |
+| Full findings and counts | Both |
+
+An engagement sealed before release tracking existed defaults to the full report,
+and deliberately so: withholding it retroactively would break a signature the
+requestor already holds. Each release is recorded with the note explaining why it
+was made.
+
+## The manifest
+
+The manifest binds the engagement to its baseline: it records the verdict for every
+finding, the attestor's identity and firm, the request-time note, the sealed
+documents, and the release history. Both parties download it alongside the PDFs,
+and it is what an auditor checks when they want to know who attested what, and
+against which evidence.
+
+The current manifest schema is version 3. Older manifests remain readable; the
+document block always describes the full variant so a v2-era reader still parses
+it correctly.
 
 ## Both sides keep their boundaries
 
-The customer sees the engagement's progress and the sealed result. The
-attestor's identity — their name, email, and home account (firm) — is recorded
-on every verdict and in the sealed manifest. Engagement ids, verdicts, and
-artifacts are scoped so that neither side can reach the other's workspace
-data; a cross-account request resolves as not found.
+Engagement ids, verdicts, and artifacts are scoped so neither side can reach the
+other's workspace data; a cross-account request resolves as not found.
 
-The attestor's role inside their *own* account is irrelevant to the
-engagement; what matters is that their account is enabled for attestation.
+The attestor's role inside their *own* account is irrelevant to the engagement.
+What matters is that their account is enabled for attestation.
 
-## Work with the results
+An explicit membership row takes precedence over simply being in the same account.
+That matters when a firm uses a shared ZeroQuarry workspace: a colleague invited
+onto the engagement as the attestor exercises the **attestor** role on it, not the
+customer role, even though both sit in the same account.
 
-- A **Confirmed** baseline supports the original severity in customer and
-  audit conversations; a **Rejected** or **Severity adjusted** verdict carries
-  the attestor's reasoning with it.
-- Remediation-verification engagements complement
-  [verification tests](/reports/verification-tests): your team records the
-  internal fix check, and the external attestor confirms it independently.
-- Download the sealed attestation PDF and manifest from the engagement for
-  delivery to auditors or customers; the manifest binds the report to the
-  baseline snapshot's integrity hash.
+## Requirements
 
-Engagements require the attestation capability on the customer account and
-the attestation side-capability on the attestor's account. If you do not see
-the Attestations area, ask ZeroQuarry support to enable it on your plan.
+Engagements require the attestation capability on the customer account and the
+attestation side-capability on the attestor's account. If you do not see the
+Attestations area, ask ZeroQuarry support to enable it on your plan.
+
+For the delivery path once the artifact exists, see
+[Secure sharing](/reports/secure-sharing) and
+[Exports and disclosures](/reports/exports-and-disclosures).

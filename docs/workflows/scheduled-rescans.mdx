@@ -76,6 +76,8 @@ The report records one explicit outcome for each eligible previous finding:
 
 - **Fixed**: the recheck found evidence that the issue is no longer present.
 - **Still present**: the vulnerable behavior or code path remains.
+- **Partially fixed**: the exposure shrank but something is still reachable, and the
+  result carries the residual severity that survived the fix.
 - **Inconclusive**: the available target, context, or evidence could not support
   either conclusion.
 
