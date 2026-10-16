@@ -97,6 +97,18 @@ const config = {
         disableSwitch: false,
         respectPrefersColorScheme: false,
       },
+      // Presence of this key makes preset-classic mount
+      // @docusaurus/theme-search-algolia over @theme/SearchBar, so no navbar
+      // item or manual mounting is required. The search-only key is designed to
+      // be public; the env vars exist so it can be rotated without a code change.
+      algolia: {
+        appId: process.env.ALGOLIA_APP_ID || "AKB66XJY2S",
+        apiKey: process.env.ALGOLIA_SEARCH_KEY || "363b38743566e9fc97f9f1b2959da0c3",
+        // DocSearch v4 deprecates `indexName` in favour of `indices`, but
+        // Docusaurus 3.x still requires it in its config schema and drops the
+        // contextual facet filters when it is absent. Leave it until Docusaurus v4.
+        indexName: "ZeroQuarry Docs",
+      },
       navbar: {
         title: "",
         logo: {
