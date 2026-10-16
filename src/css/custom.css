@@ -131,3 +131,30 @@ body {
     flex-wrap: wrap;
   }
 }
+
+/*
+ * DocSearch (Algolia).
+ *
+ * DocSearch ships its own blue (#003dff) and a blue-purple modal (#15172a).
+ * These overrides are written against Infima variables rather than literal
+ * colours so they follow the site's own light/dark values in both modes.
+ *
+ * Selectors are deliberately more specific than DocSearch's own `html:root` /
+ * `html[data-theme=dark]` blocks: both files end up in the same stylesheet and
+ * DocSearch's are emitted last, so matching specificity would lose on order.
+ */
+html:root {
+  --docsearch-primary-color: var(--ifm-color-primary);
+  --docsearch-muted-color: var(--ifm-color-content-secondary);
+  --docsearch-hit-color: var(--ifm-color-content);
+  --docsearch-modal-background: var(--ifm-background-color-surface);
+  --docsearch-footer-background: var(--ifm-footer-background-color);
+  --docsearch-search-button-text-color: var(--ifm-color-content-secondary);
+  /* Matched terms are underlined text, so this is a text colour, not a fill. */
+  --docsearch-highlight-color: var(--ifm-color-primary);
+}
+
+html[data-theme="dark"]:root {
+  /* Lightened brand red so marks stay legible on the navy modal. */
+  --docsearch-highlight-color: #ff6b6e;
+}
