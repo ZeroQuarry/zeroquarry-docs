@@ -59,12 +59,26 @@ Payment methods are managed in the Stripe customer portal. Use **Manage
 payment methods** to update the card on file or review invoices in Stripe.
 Invoices and receipts are emailed to the account's billing contacts.
 
-## Monthly model usage
+## Plan usage: security runs
 
-Plan capacity is metered in **security runs**: a focused PR or changed-file
-review uses one run, and a full source, binary, or remote assessment uses
-five. Reports, decisions, sharing, and pipeline-stage re-runs do not consume
-additional runs.
+Plan capacity is metered in **security runs**. A scan reserves against the
+monthly allowance at launch — five for a full source, binary, or remote
+assessment, one for a focused changed-file review or a verification-only retest
+— and settles when it finishes: one run per pipeline stage that completed
+(typically four for a full assessment), one for a focused product, and zero for
+a run that failed or delivered nothing.
+
+The usage card shows the settled charge for the current month plus the full
+reservation of any scan still in flight. That is why a five-run launch can show
+the month higher than the runs it has actually cost so far. Reports, decisions,
+sharing, and pipeline-stage re-runs consume no additional runs, and deleting a
+finished scan does not return its runs.
+
+See [How security runs are counted](/account/security-runs) for the stage
+breakdown, the settlement rules for failed and cancelled scans, and the
+per-source allowance on free and trial plans.
+
+### Hosted model usage
 
 On top of the plan, the usage table shows the current month's token
 consumption per model — input, cache-hit, and output tokens — split between
@@ -72,6 +86,9 @@ ZeroQuarry-hosted models and calls funded by your own provider key. Hosted
 usage accrues to a monthly invoice per model; if a month's invoice could not
 be issued at the time (for example, before a payment method was on file), it
 is caught up automatically once billing is configured.
+
+Security runs and model usage are separate meters. A refunded run still burned
+tokens, and those tokens still appear in this table.
 
 ## The billing role
 
