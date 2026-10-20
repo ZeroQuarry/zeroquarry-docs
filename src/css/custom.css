@@ -135,26 +135,101 @@ body {
 /*
  * DocSearch (Algolia).
  *
- * DocSearch ships its own blue (#003dff) and a blue-purple modal (#15172a).
- * These overrides are written against Infima variables rather than literal
- * colours so they follow the site's own light/dark values in both modes.
+ * DocSearch v4 ships a lavender palette and a translucent blue fill for the
+ * selected row. Left at those defaults on this site the labels land as dark
+ * text on the grey page overlay, so the variables below map the whole widget
+ * onto the site's light/dark values.
+ *
+ * Three of them carry the readability, so keep them in mind when editing:
+ *
+ *   - `--docsearch-modal-background` must resolve to a real colour. An invalid
+ *     `var()` reference is silently dropped, which makes the modal transparent;
+ *     since DocSearch also paints `.DocSearch-Hit-source` (the sticky section
+ *     header) with it, hits would then scroll through the header.
+ *   - `--docsearch-hit-highlight-color` is the selected row's fill while
+ *     `--docsearch-text-color` stays the label, so the fill must stay light in
+ *     light mode and dark in dark mode.
+ *   - `--docsearch-highlight-color` colours both matched terms and icons. The
+ *     brand red (#f41e22) is only 4.1:1 on white, so light mode uses the darker
+ *     shade below; dark mode lifts it instead.
  *
  * Selectors are deliberately more specific than DocSearch's own `html:root` /
  * `html[data-theme=dark]` blocks: both files end up in the same stylesheet and
  * DocSearch's are emitted last, so matching specificity would lose on order.
+ * For the same reason the dark block repeats every variable: anything it omits
+ * would fall back to DocSearch's dark default rather than the light value.
  */
 html:root {
-  --docsearch-primary-color: var(--ifm-color-primary);
-  --docsearch-muted-color: var(--ifm-color-content-secondary);
-  --docsearch-hit-color: var(--ifm-color-content);
-  --docsearch-modal-background: var(--ifm-background-color-surface);
-  --docsearch-footer-background: var(--ifm-footer-background-color);
-  --docsearch-search-button-text-color: var(--ifm-color-content-secondary);
+  --docsearch-primary-color: #c81a1e;
+  --docsearch-text-color: #1e2128;
+  --docsearch-secondary-text-color: #5a6270;
+  --docsearch-muted-color: #5a6270;
+  --docsearch-icon-color: #4f5764;
+  --docsearch-subtle-color: #d5dae2;
+  --docsearch-background-color: #e9edf3;
   /* Matched terms are underlined text, so this is a text colour, not a fill. */
-  --docsearch-highlight-color: var(--ifm-color-primary);
+  --docsearch-highlight-color: #c81a1e;
+  /* Fill of the keyboard-selected row; text keeps `--docsearch-text-color`. */
+  --docsearch-hit-highlight-color: #fbe7e8;
+  --docsearch-soft-primary-color: rgba(200, 26, 30, 0.08);
+  --docsearch-focus-color: #c81a1e;
+  --docsearch-container-background: rgba(18, 26, 40, 0.55);
+  --docsearch-modal-background: #f1f3f7;
+  --docsearch-modal-shadow: 0 24px 64px rgba(15, 23, 42, 0.28), 0 2px 8px rgba(15, 23, 42, 0.12);
+  --docsearch-searchbox-background: #ffffff;
+  --docsearch-searchbox-focus-background: #ffffff;
+  --docsearch-hit-background: #ffffff;
+  --docsearch-hit-color: #1e2128;
+  --docsearch-key-background: #ffffff;
+  --docsearch-key-color: #5a6270;
+  --docsearch-footer-background: #e9edf3;
+  --docsearch-footer-shadow: none;
+  --docsearch-logo-color: #5a6270;
+  --docsearch-search-button-background: #ffffff;
+  --docsearch-search-button-text-color: #5a6270;
 }
 
 html[data-theme="dark"]:root {
+  --docsearch-primary-color: #f41e22;
+  --docsearch-text-color: #eef2f9;
+  --docsearch-secondary-text-color: #aebbd0;
+  --docsearch-muted-color: #93a4bd;
+  --docsearch-icon-color: #aebbd0;
+  --docsearch-subtle-color: #22344f;
+  --docsearch-background-color: #142338;
   /* Lightened brand red so marks stay legible on the navy modal. */
-  --docsearch-highlight-color: #ff6b6e;
+  --docsearch-highlight-color: #ff8184;
+  --docsearch-hit-highlight-color: #2a1a22;
+  --docsearch-soft-primary-color: rgba(255, 129, 132, 0.14);
+  --docsearch-focus-color: #ff9ea0;
+  --docsearch-container-background: rgba(3, 7, 14, 0.78);
+  --docsearch-modal-background: #0b1524;
+  --docsearch-modal-shadow: 0 0 0 1px #22344f, 0 24px 64px rgba(0, 0, 0, 0.65);
+  --docsearch-searchbox-background: #101d31;
+  --docsearch-searchbox-focus-background: #101d31;
+  --docsearch-hit-background: #101a2b;
+  --docsearch-hit-color: #eef2f9;
+  --docsearch-key-background: #142338;
+  --docsearch-key-color: #c7d3e4;
+  --docsearch-footer-background: #0e1a2b;
+  --docsearch-footer-shadow: none;
+  --docsearch-logo-color: #aebbd0;
+  --docsearch-search-button-background: #0b1524;
+  --docsearch-search-button-text-color: #aebbd0;
+}
+
+/* DocSearch renders the query at weight 300; 400 holds up better at 1.2em. */
+html .DocSearch-Input {
+  font-weight: 400;
+}
+
+/*
+ * The Algolia wordmark is an inline SVG with `<style>.cls-1{fill:#003dff}`
+ * baked into it, so `--docsearch-logo-color` never reaches it. That blue is
+ * only 2.7:1 on the navy footer, so repaint its shapes with the colour that
+ * variable was meant to set.
+ */
+html .DocSearch-Logo svg path,
+html .DocSearch-Logo svg rect {
+  fill: currentColor;
 }
