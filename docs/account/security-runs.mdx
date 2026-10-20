@@ -1,0 +1,229 @@
+---
+id: security-runs
+title: How security runs are counted
+sidebar_position: 2
+---
+
+Plan capacity is metered in **security runs**. The console shows the meter as
+"This scan will use N of your remaining monthly security runs"; plan material
+sometimes calls the same units *usage credits*, and the API carries the number
+a scan was launched with as `security_run_units`. Whatever the label, one run
+is not one scan: a full assessment usually charges four, a focused review
+charges one, and a failed run charges nothing.
+
+That is not a rounding detail, it is the pricing rule. This page covers the two
+numbers behind every scan — what it reserves and what it is charged — which
+pipeline work is worth a unit, and what happens to the unit when a scan does
+not finish.
+
+## Two numbers, not one
+
+Every scan writes one row to the account's run ledger at launch, in the same
+transaction that creates the scan, and that row is amended once when the scan
+reaches a terminal state.
+
+- **Reservation** — the ceiling. Five for a full assessment, one for a focused
+  review. This is what the monthly allowance sees while the scan is in flight.
+- **Charge** — what the ledger settles to when the scan finishes: zero, one per
+  completed stage, or the reservation itself when the outcome cannot be priced
+  from stage records.
+
+The reservation exists because settlement happens after the fact. If the cap
+counted only finished work, two full assessments could launch against the same
+remaining balance and both pass the check; reserving the ceiling is what makes
+the allowance hold under concurrency. It is also why the notice above the
+launch button states what the scan *will use* rather than a precise forecast: a
+scan is not priced until it has run.
+
+On a plan with no monthly allowance (Enterprise in the current catalog) the cap
+never trips, but scans still write ledger rows, so the month stays readable if
+the account moves to a plan with a limit.
+
+| While the scan is | The ledger holds | The monthly allowance counts |
+| --- | --- | --- |
+| queued, running, awaiting batch | the reservation | the reservation |
+| finished | the settled charge | the settled charge |
+
+## A unit per stage that finished
+
+Settlement is derived from the scan's own stage records: one run for each
+pipeline stage that reached successful completion. A stage that raised is
+recorded as failed and earns nothing.
+
+| Stage | Runs when | What it delivers |
+| --- | --- | --- |
+| Coordinator | every assessment | The research loop: reads, probes, dispatches workers |
+| Rechecks | retest scope, or verification-only | Re-tests of previous findings |
+| Triage | every assessment | Severity, confidence, dedup, the finding set |
+| HackerOne eligibility review | the scan opted in | Bounty eligibility per finding |
+| Adversarial review | the scan opted in (on by default) | Vendor-style rebuttal pass |
+| Artifacts | every assessment | PoC, disclosure email, deployment package |
+
+The deterministic passes — SAST, SCA, infrastructure and secret inventory,
+fingerprint refresh, confidence recompute — are not stages and cost no runs.
+They consume no agent budget and produce nothing a unit pays for, and counting
+them would add a fixed cost to every scan.
+
+A default full source, binary, or remote assessment completes four stages:
+coordinator, triage, adversarial review, artifacts.
+
+## What a scan settles at
+
+| Scan shape | Reserves | Settles at |
+| --- | --- | --- |
+| Full source, binary, or remote assessment | 5 | 4 runs (four completed stages) |
+| … with HackerOne eligibility review | 5 | 5 |
+| … with retest scope ("re-check previous findings") | 5 | 5, or 6 with HackerOne review too |
+| Changed-file review (focused rescan, CI pull-request review) | 1 | 1, however many stages it walked |
+| Verification-only retest | 1 | 1 |
+| Failed | 5 or 1 | 0 |
+| Completed but stalled, or authentication degraded mid-run | 5 or 1 | 0 |
+| Cancelled | 5 or 1 | one per stage finished before the cancel |
+| Any of the above with no stage records | 5 or 1 | the reservation stands |
+
+The focused cap and the refund rule need more than a table row.
+
+### Focused products are capped at one
+
+A changed-file review runs the whole spine — coordinator, triage, adversarial
+review, artifacts — scoped to the diff. Priced per stage it would cost the same
+as a repository sweep, so the charge is capped at one run however much of that
+spine it walks. A verification-only retest reaches one on its own: it runs the
+rechecks stage and returns.
+
+These are the entry-point products. A three-file pull-request review should not
+cost what a whole repository assessment costs, or nobody would run one on every
+pull request.
+
+### A run that delivered nothing is free
+
+A failed scan settles to zero. So does a scan that reached `completed` without
+delivering the assessment: the coordinator's no-progress guard stopped it early,
+or authentication degraded mid-run and the findings cannot be trusted. Both are
+recorded and surfaced on the report; neither is charged.
+
+Healthy interruptions are not in this class. A runner dropout, a control-plane
+restart, or an automatic retry is a scan that still completed, and it stays
+billable.
+
+Making failure free is deliberate: a retry is the normal recovery path, and
+charging for it would make a flaky target or a bad credential expensive to
+diagnose. The bound on repeated failures is the concurrency limit, not the run
+allowance. The tokens such a run burned are still real, and still appear in
+model usage — see [Model usage is a different meter](#model-usage-is-a-different-meter).
+
+## Worked examples
+
+1. **Default full source scan.** Reserves 5. Coordinator, triage, adversarial
+   review, and artifacts complete; HackerOne review is off and there is no retest
+   scope. Settles at 4. The month shows 4 used, not 5.
+2. **The same scan with HackerOne eligibility review.** Five stages finish.
+   Settles at 5.
+3. **HackerOne review plus re-check previous findings.** Six stages. Settles at
+   6 — one over the launch reservation, deliberately: reserving the true maximum
+   would let a single launch consume a small plan's whole allowance.
+4. **Changed-file review of a three-file pull request.** Reserves 1 and settles
+   1, through the same spine as example 1.
+5. **Verification-only retest of two baseline findings.** Reserves 1, runs only
+   rechecks, settles 1.
+6. **Cancelled after the coordinator.** Settles 1: the coordinator's work was
+   delivered. The per-source allowance is untouched.
+7. **Failed during triage.** Settles 0 on both ledgers.
+
+## When the charge is the reservation
+
+A scan with no stage records at all is priced at its reservation, not at zero.
+That covers a worker on an isolated plane whose stage rows never shipped back, a
+scan that predates stage metering, and a scan cancelled before its worker wrote
+anything. Charging those as zero-stage runs would hand out free scans on the
+path that is hardest to audit, so the fallback takes the conservative side.
+
+If a scan you cancelled while it was still queued holds its reservation, this is
+why: there is no stage record to price, and the same absent-record path protects
+the scans that really did run.
+
+## The ledger, the month, and deleting a scan
+
+- The month is the UTC calendar month the scan was **launched** in. Settlement
+  amends the row's units, not its date, so a scan launched on the last day of
+  the month and settled the next day charges the launch month.
+- The allowance resets at the start of each month. Nothing rolls over.
+- The allowance belongs to the account, not to the member: every scan any member
+  launches draws on the same monthly balance.
+- Ledger rows outlive the scan they describe. Deleting a finished scan does not
+  return its runs; otherwise an account at its cap would refill by deleting its
+  history.
+- A scan can only be deleted after it finishes. Cancel it first — deleting an
+  in-flight scan would strand its reservation with nothing left to adjudicate.
+- The check happens twice: a preflight when you submit, so the refusal names
+  your real usage instead of the launch dying later, and a transactional check
+  in the same transaction that writes the scan, so two launches racing each
+  other cannot both slip past. Over the allowance, the launch is refused with a
+  402 and nothing is charged.
+
+## Per-source allowance on free and trial plans
+
+Free and trial plans bound a second quantity: how much a single source can
+consume per month, across every account that scans it. The source is the
+repository owner (`github.com/acme`) for a git target, or the hostname for a
+remote target. The allowance is shared, and it survives account closure, so
+signing up again does not reset it.
+
+A completed billable run burns its source allowance. A failed or cancelled run
+does not. Paid plans have no per-source limit. When the gate trips, the message
+names the source and shows its shared usage next to your own.
+
+## Model usage is a different meter
+
+Security runs measure plan capacity. They are not a proxy for token spend, and
+the two are metered separately:
+
+- Every LLM call records input, cache-hit, and output tokens against the scan
+  and its project, which is what the per-scan usage breakdown reports.
+- Hosted-model spend is invoiced monthly per model. Calls made with your own
+  provider key are billed by that provider and are not invoiced by ZeroQuarry.
+- Caps on monthly tokens and on platform-funded dollars are enforced per call,
+  independently of the run allowance. A model funded by your own key bypasses
+  those caps, because the spend is not ours.
+- Settlement of a run unit never touches token records. A refunded run still
+  burned tokens, and those tokens still appear in usage.
+
+## Where to read the number
+
+- **Account > Billing and Usage** — "N of M security runs used" for the current
+  month, against the plan's allowance. In-flight scans count at their
+  reservation.
+- **The launch form** — the notice above the submit button states what this scan
+  reserves from the remaining allowance, and says so up front when the allowance
+  cannot fit it.
+- **The 402 page** — current usage, the source's shared usage where relevant,
+  and the remedy that matches your role: upgrade yourself, or ask the account
+  owner.
+- **The API** — every scan and report object carries `security_run_units`, the
+  number the scan reserved at launch. Per-scan token spend is in the report's
+  usage breakdown.
+
+## Why it is shaped this way
+
+Billing follows delivered value rather than launches. A scan that failed, that
+you cancelled, or that never authenticated did not give you an assessment, so
+it should not cost a run. A scan that finished three stages gave you three
+stages' worth.
+
+The reservation is the counterweight. Settlement is retroactive, and an
+allowance that only counted settled work would be trivially overshot by
+concurrent launches. Reserving the ceiling and refunding the difference keeps
+the cap honest without charging for work that never landed.
+
+## Next
+
+- [Billing and usage](/account/billing) — plans, invoices, and where the meter
+  appears.
+- [LLM providers and models](/account/llm-providers) — which model a stage runs
+  on, and who pays for it.
+- [Scheduled rescans](/workflows/scheduled-rescans) — changed-code fires reserve
+  one run; broad fires reserve five.
+- [Verification tests](/reports/verification-tests) — the verification-only
+  retest, priced at one run.
+- [GitHub Actions](/workflows/github-actions) — pull-request reviews are the
+  focused, single-run product.
