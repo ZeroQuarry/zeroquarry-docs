@@ -1,0 +1,155 @@
+---
+id: llm-keys
+title: Bring your own LLM API keys
+sidebar_position: 2
+---
+
+Some plans run scans on LLM providers you pay for directly. This guide adds a
+provider API key to your account in the console, then points your pipeline
+stages at the models that key unlocks.
+
+Keys live in **Account > Overview**, in the **LLM Config** card.
+[Open that card directly](https://console.zeroquarry.com/account#llm-config).
+
+For what each stage does, what data providers receive, and how billing works,
+see [LLM providers and keys](/account/llm-providers).
+
+## Before you start
+
+You need:
+
+- an account owner or admin — only owners and admins can add or remove keys
+- an API key from one of the supported providers: Anthropic, OpenAI,
+  Google Gemini, MiniMax, or OpenRouter
+- a plan that either uses ZeroQuarry-managed models or requires your own keys
+
+Create the key in your provider's developer console first and keep it to hand —
+you paste it into the console in step 2.
+
+## 1. Open the LLM Config card
+
+In the console sidebar, choose **Account**, then scroll to the **LLM Config**
+card on the Account page.
+
+If your plan requires your own keys and none are configured yet, the card
+opens with a warning banner:
+
+> **Set up API keys before scanning.**
+> No account LLM API keys are configured yet, so scans cannot run until you
+> add at least one key below.
+
+The same card is reachable from **New scan**. On a plan that requires your own
+keys, the scan wizard stops at *One quick setup step before your first scan*
+with an **Add LLM API keys** button.
+
+## 2. Paste the key for your provider
+
+In the **Provider API keys** section, find the row for your provider. Each row
+carries a badge:
+
+| Badge | Meaning |
+| --- | --- |
+| **no key** | This account has no key for that platform yet |
+| **key added** | A key is already saved for that platform |
+
+To add one:
+
+1. Click the field reading **Paste your _provider_ API key**.
+2. Paste the key.
+3. Choose **Save key**.
+
+One key covers every model of that platform — you do not need a separate key
+per model. The key is stored encrypted and is not displayed again.
+
+:::note
+
+If there is no **Provider API keys** section, your plan uses ZeroQuarry-managed
+models. The **API key** column in the table below then carries a badge per
+model instead — **platform** for a ZeroQuarry-funded model, **configured**
+once you have added your own key for that provider. Click the badge on the
+model's row, paste the key, and choose **Save key**. That key applies to
+every model of the same provider.
+
+:::
+
+## 3. Check the key landed
+
+The badge beside your provider changes from **no key** to **key added**, and
+that platform's models appear in the table below the section, each carrying a
+**provider key** badge in the **API key** column. On plans that require your
+own keys, platforms you have not keyed stay out of the table entirely.
+
+## 4. Choose the model for each stage
+
+The table has one column per pipeline stage:
+
+- **Coordinator / Researcher** — the scan-stage investigation loop
+- **Triage / Vendor / HackerOne Reviewer** — the review passes, including
+  adversarial review
+- **Artifact Generator** — exploit proofs, disclosure drafts, and patches
+
+Choose the radio button in the column for the model you want. The choice
+saves immediately.
+
+Leave a stage alone and ZeroQuarry uses the platform's preferred model for
+it. That is usually what you want on day one — set a stage only when you want
+a different model for that stage.
+
+## 5. Run a scan
+
+Choose **New scan**. The model picker lists the models your account can reach.
+On a plan that requires your own keys that means only the models whose
+platform has a key, so a model you just keyed appears here straight away.
+
+Security research mode lets you override the model per scan. Guided and AppSec
+modes use the account defaults.
+
+## Replace a key
+
+On a plan that requires your own keys, the provider row shows **Remove key**
+once a key is saved, so replacing a key is two steps:
+
+1. Choose **Remove key** on the provider's row and confirm.
+2. Paste the new key into the field and choose **Save key**.
+
+While the key is removed, that platform's models are not selectable.
+
+On plans with per-model keys, click the model's badge, paste the new key, and
+choose **Update** — the old key is replaced in place.
+
+## Remove a key
+
+Choose **Remove key** and confirm.
+
+If a stage default still points at one of that platform's models, the removal
+is refused and the card names the stage holding it:
+
+> **That key was not removed.** The **Coordinator / Researcher** stage default
+> still points at one of this platform's models. Point that stage at a
+> different model in the table below, then remove the key again.
+
+Choose a different model in that stage's column, then remove the key again.
+
+## Troubleshooting
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| **Set up API keys before scanning.** | No key is configured on a plan that requires one | Add a key in **Provider API keys** |
+| **One quick setup step before your first scan** | The same, reached from the scan wizard | Choose **Add LLM API keys** |
+| **No key was saved.** | The key field was empty | Paste the key and choose **Save key** |
+| **That key was not removed.** | A stage default still points at one of that platform's models | Re-point that stage in the table, then remove the key again |
+| **Your plan requires a bring-your-own API key for '…'** | The scan picked a model whose platform has no key | Add a key for that platform, or choose a different model |
+| The model table is empty | No platform has a key yet | Add a key — keyed platforms appear in the table |
+| A stage radio is disabled | The model is not available on your plan, or its platform has no key | Choose a model your plan allows |
+
+## Handling keys safely
+
+- A key is **account-wide**. Every scan in the account can use it, so keep
+  access to key management limited to owners and admins.
+- Keys are stored encrypted and are never shown again after you save one.
+- Rotate keys on a schedule, and remove keys you no longer need.
+- Use provider-side usage limits where available.
+- Calls made with your own key are billed by that provider. They are not
+  included in ZeroQuarry model-usage invoices and are not counted against
+  platform token caps — but your ZeroQuarry subscription and its plan limits
+  still apply.

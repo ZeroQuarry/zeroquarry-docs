@@ -107,8 +107,9 @@ module.exports = {
       link: {type: "generated-index", title: "Account"},
       items: [
         "account/billing",
-        "account/security-runs",
+        "account/llm-keys",
         "account/llm-providers",
+        "account/security-runs",
         "account/notifications-and-team",
       ],
     },
