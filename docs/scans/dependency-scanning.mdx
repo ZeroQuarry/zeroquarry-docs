@@ -9,6 +9,25 @@ pinned versions, and asks osv.dev whether any of them carry a known advisory.
 
 It runs by default on source scans and can be turned off per scan.
 
+## What it reads
+
+The stage parses the common manifests per ecosystem: `package-lock.json`,
+`yarn.lock` (classic and Berry), `pnpm-lock.yaml`, `requirements*.txt`,
+`Pipfile.lock`, `uv.lock`, `poetry.lock`, `go.mod`, `Cargo.lock`,
+`Gemfile.lock`, `composer.lock`, and Maven `pom.xml` files. Binary scans
+parse version carriers out of the extracted upload instead (see
+[Binary scans](#binary-scans)).
+
+Lockfiles pin libraries, but the runtime those libraries run on has its own
+advisories, and some of the worst ones live there. The stage therefore also
+mines **runtime pins** from wherever the project honestly declares one:
+Dockerfile `FROM` images and compose `image:` fields, `engines` and `volta`
+in `package.json`, version files such as `.nvmrc`, `.python-version`, or
+`runtime.txt`, `requires-python` in `pyproject.toml`, the `go` directive in
+`go.mod`, and CI version matrices. A pin the project declares only as a
+range is recorded but never matched against advisories; only an exact
+version answers the question "is this runtime exploitable?"
+
 ## The disposition rule
 
 A version match is a **lead**, not a finding. For each one the agent has to
@@ -29,6 +48,77 @@ it.
 
 A package pinned in several manifests is still recorded once.
 
+## Dependency watch
+
+A scan answers one question at one point in time. Dependency watch answers
+the follow-up: what matches *today's* advisories?
+
+After each scan finishes, the pinned dependencies and runtimes of that scan
+lineage are remembered. Once a day every pinned package is re-checked
+against new advisories, and the CISA **KEV** catalog (Known Exploited
+Vulnerabilities) is polled separately several times a day. A package is not
+re-scanned; the pin is just matched against what is newly known.
+
+Matches appear on the project's **Automation** tab, in three cards:
+
+- **Dependency watch** — the opt-in toggle for the daily digest e-mail, and
+  the card that explains the two notification lanes.
+- **Open advisory matches** — one card per advisory, grouped across the
+  project's scan lineages, with the affected packages and versions, the
+  version that fixes it, and a **Validate now** button per lineage.
+- **Scan lineages & schedules** — the project's scan lineages with their
+  package counts, schedule, and a **Runtime known?** column. When no
+  Dockerfile, engine field, or version file declares a runtime, the cell
+  says so: runtime advisories cannot be answered for that lineage.
+
+### Notification lanes
+
+There are two, and they differ on purpose:
+
+- **Actively-exploited matches email immediately**, whether or not the
+  account opted in. A KEV match (or an RCE-class advisory on a pinned
+  package) is the one case where waiting a day for a digest is the wrong
+  default, so ZeroQuarry does not wait. These matches carry a red
+  **critical** chip and sort to the top.
+- **Everything else rides the daily digest**, and only for accounts that
+  opted in. Not opting in does not hide anything: new matches still appear
+  on the Automation tab, which is the pull surface.
+
+A match closes itself when a later scan of the lineage shows the package
+gone (bumped upstream) or a triaged finding or non-issue covers the
+advisory's CVEs.
+
+### Validate now
+
+**Validate now** dispatches a rescan of the affected lineage in update mode:
+pull the repository, re-parse the manifests, re-run the dependency stage.
+The point is reachability — an advisory match says the version is pinned;
+the rescan re-derives whether it is used, and the refreshed scan closes any
+advisory the pull mooted. The rescan counts against the plan's security-run
+allowance like any other, and it refuses while a scan of that lineage is
+still in flight.
+
+### Reading the watch without a scan
+
+The dependency-watch cache can also be read directly, without launching
+anything. The REST API exposes it under `/api/v1/dependency-watch`, with a
+separate inventory endpoint, and the [MCP server](/workflows/mcp) exposes it
+as the `get_dependency_watch` tool.
+
+Reading it is **free**: it consumes no security-run units and is not
+tier-gated. Only the *automatic rescan* that follows a match is metered.
+That makes it cheap enough to wire into a CI check or an agent's routine
+review.
+
+It answers one question: **is a known-vulnerable version pinned?** It does
+not answer "does a newer version exist?" True staleness is not computed
+here — that question needs a comparison against the upstream release feed,
+which is a different and slower thing.
+
+The tool's fix path is the direct one: bump the pin to the advisory's
+`fixed_version` and rescan. Patch generation and auto-fix pull requests
+stay in the console, where the scan and its patches live.
+
 ## When the advisory service is down
 
 The stage **fails open** and the scan continues, unless the account requires it
@@ -40,12 +130,30 @@ dependency results, check for the skip rather than assuming the stage ran.
 
 ## SBOM export
 
-The scan's inventory exports as an SBOM on demand, in **CycloneDX 1.5** or
-**SPDX 2.3**. Both render from the same artifact, so they always agree.
+The scan's inventory exports as an SBOM on demand, in **CycloneDX 1.5**,
+**SPDX 2.3**, or **SPDX 3.0.1**. All three render from the same artifact, so
+they always agree. The report's Components tab carries download buttons for
+CycloneDX and SPDX; SPDX 3.0 is available with the `spdx3` format parameter
+on the SBOM URL and through the API.
 
 Exports are deterministic: the document serial number and namespace are derived
 from the scan id, so the same scan produces byte-identical output and a download
 can be cached by content.
+
+When a scan's inventory includes AI models, they export as model components
+rather than being left out: the CycloneDX document carries a
+`machine-learning-model` entry per model with its license and, for
+hosted-provider models, the provider's data-handling terms (training on
+input, retention, output claims, each with its source and retrieval date);
+the SPDX 3.0 document represents each model as an AI-package element with
+the same terms as annotations. Self-hosted weights are matched against their
+Hugging Face model card for the declared license.
+
+AI components appear in the CycloneDX and SPDX 3.0 exports only. SPDX 2.3
+cannot represent them, so a 2.3 export carries the conventional software
+inventory and leaves the AI components out. Where the AI inventory matters,
+choose CycloneDX or SPDX 3.0 — and note that the report's own inventory
+view shows the AI components either way.
 
 ### CycloneDX as VEX
 
@@ -62,8 +170,9 @@ and a statement about which ones you are exposed to. An SBOM that lists 400
 advisories tells a customer nothing; an SBOM that marks the 3 that are reachable
 and explains the rest does.
 
-SPDX 2.3 has no vulnerability model, so the SPDX export carries inventory only.
-Choose CycloneDX when the audience needs the exposure statement.
+SPDX (2.3 and 3.0) has no vulnerability model, so the SPDX exports carry
+inventory only. Choose CycloneDX when the audience needs the exposure
+statement.
 
 ## Dependency fixes regenerate lockfiles
 
@@ -100,3 +209,5 @@ default; the default is on.
   reviewable change.
 - [Exports and disclosures](/reports/exports-and-disclosures) — the export
   surface.
+- [Dependency watch](#dependency-watch) — the Automation tab keeps watching
+  after the scan ends.

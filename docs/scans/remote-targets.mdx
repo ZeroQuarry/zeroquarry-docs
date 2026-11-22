@@ -36,13 +36,20 @@ The **Scope** step requires:
 - scope hosts
 - an authorization confirmation
 
+There is a second target mode for the case where the host matters more than
+any single service on it: **Host, all ports — host-only discovery**. It
+sweeps the host first and assesses every service it finds, rather than
+starting at one URL. See [Host-only scans](/scans/host-only-scans).
+
 If the project already has a [URL asset](/getting-started/project-assets), the
 form pre-fills the entry URL, scope hosts, and any authentication stored on the
 asset, and the scan is linked back to it. Assets scanned by a remote
 assessment collect their coverage history on the asset detail page.
 
 If you do not enter scope hosts, ZeroQuarry uses the entry URL host. Scope hosts
-limit where agents should send probes.
+limit where agents should send probes, and a host line can carry a wildcard:
+`*.stg.example.com` covers a whole staging fleet. The input's placeholder
+shows the same example.
 
 Treat scope hosts as a safety control, not documentation. Add every approved
 host explicitly when a workflow crosses subdomains, APIs, or CDN-backed routes.
@@ -50,8 +57,9 @@ Scope and policy are enforced at launch and re-checked on every probe — a
 redirect that leaves the approved hosts is refused.
 
 The **Access** step is optional for public targets. It collects required
-identification headers, cookies or API authentication, HTTP Basic credentials,
-and form-login details in separate controls.
+identification headers and the scan's identities: named accounts the scan
+authenticates with, each with its own session. See
+[Authenticated scans](/scans/authenticated-scans) for the full setup.
 
 ZeroQuarry Cloud rejects loopback, link-local, RFC1918, and internal-DNS targets.
 Enterprise accounts can test authorized internal applications from a
@@ -99,27 +107,40 @@ scan logs so you can verify compliance.
 
 ## Authentication and access
 
-Remote scans can attach authentication context to probes:
+Authentication is attached to a scan as **identities**. An identity is one
+named account with a role and its own credential material:
 
-| Method | Use it for |
+| Credential kind | Use it for |
 | --- | --- |
-| Cookies | Browser session cookies copied from developer tools. |
+| Cookies | Browser session cookies pasted from developer tools. |
 | Custom headers | Bearer tokens, API keys, or app-specific headers. |
 | HTTP Basic auth | Targets protected by Basic auth. |
-| Form login | A one-time login request that obtains session cookies before probing. |
+| Form login | A login the scan performs itself to obtain session cookies before probing. |
+| API login | The same, posted as a JSON body, for API-shaped login endpoints. |
+
+A scan carries up to 5 identities, each with its own logged-in session, and
+each labelled and roled (primary session, IDOR victim, IDOR attacker,
+observer) so the agents can hold a victim and an attacker account at the
+same time. Find login form fills in the login action and field names for
+you; Test credentials proves the login actually authenticates before you
+spend a scan on it.
 
 ![ZeroQuarry remote scan access step with identification headers and authentication methods.](/img/screenshots/remote-scan-access.png)
 
 _Public targets can skip access details. Authenticated assessments can add only
 the mechanism required by the approved test account._
 
+The full setup — identity kinds, bot-protected targets, the credential
+library, and session handling — is on
+[Authenticated scans](/scans/authenticated-scans).
+
 When the target is saved as an asset with auth, the scan reuses it — no need to
 re-enter credentials per scan.
 
-Sensitive authentication values are redacted from scan logs. They are still
-sent to the LLM agent as scan context and to the target as HTTP headers or
-cookies. Use authentication only with LLM providers and target environments you
-are comfortable exposing to that data.
+Sensitive authentication values are encrypted at rest and redacted from scan
+logs. They are still sent to the LLM agent as scan context and to the target
+as HTTP headers or cookies. Use authentication only with LLM providers and
+target environments you are comfortable exposing to that data.
 
 ## What happens when the session dies
 
@@ -154,10 +175,13 @@ What happens next is your policy:
 The scan timeline keeps the transitions, so you can see when it degraded, when
 someone refreshed the session, and when it wrapped.
 
-You can update the session mid-scan without restarting it. A verified re-login
-clears the degraded verdict and the scan carries on from where it was, which is
-usually the cheapest outcome: the work done before the session expired is not
-thrown away.
+You can update the session mid-scan without restarting it. The scan page's
+**Update session** pane takes a fresh cookie string — pasted from your
+browser after signing in again, or after clicking a magic link in your own
+mailbox — and the scan reseeds its session and retests the routes it saw
+refuse. A verified re-login clears the degraded verdict and the scan carries
+on from where it was, which is usually the cheapest outcome: the work done
+before the session expired is not thrown away.
 
 ## E-mail verification without an operator
 
@@ -195,12 +219,15 @@ Name and tag each scan so the report makes the tested role obvious. Never use
 production administrator credentials unless that is explicitly approved for the
 test.
 
-Running them as separate scans matters more than it used to. A single
-authenticated scan cannot see a vulnerability that requires *no* authentication,
-because every request it sends carries the session. Before a remote scan wraps up,
-it closes that gap: any route it answered *with* its session but never probed
-without one is re-probed cookieless and reported separately. A scan with no
-configured credentials has no such gap, because there is no differential to close.
+One scan can carry up to 5 identities with separate sessions, so a
+victim/attacker pair for IDOR testing belongs in a single scan; see
+[Authenticated scans](/scans/authenticated-scans). Separate scans still matter
+for the vantage itself: an authenticated scan cannot see a vulnerability that
+requires *no* authentication, because every request it sends carries a
+session. Before a remote scan wraps up, it closes that gap: any route it
+answered *with* a session but never probed without one is re-probed
+cookieless and reported separately. A scan with no configured credentials
+has no such gap, because there is no differential to close.
 
 ## Safe scoping
 

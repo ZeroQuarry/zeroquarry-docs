@@ -1,0 +1,90 @@
+---
+id: basic-passes
+title: Basic passes (scan depth)
+sidebar_position: 5
+---
+
+A source scan can run at three depths. **Full assessment** is the default and
+the one the rest of these docs describe. The other two are basic passes: the
+same detectors, a narrower set of stages, and a capped cost.
+
+Choose the depth on **Step 3 of 3** of the source scan wizard, under **Scan
+depth**. The scan's factsheet records the depth it ran at, so a report always
+says which one produced it.
+
+## The three depths
+
+| Depth | Security runs | What runs |
+| --- | --- | --- |
+| Full assessment | Settles per completed stage | Everything: agents research and verify every finding. |
+| Basic pass — deterministic | 1 | Static detectors only. |
+| Basic pass — verified | 2 | Static detectors, plus the LLM verification spine. |
+
+### Full assessment
+
+The default. Agents map the codebase, investigate likely vulnerabilities,
+review the evidence, and prepare a report. Each stage that finishes settles
+its own unit of the [security run](/account/security-runs) allowance, so the
+cost tracks the work the scan actually did.
+
+### Basic pass — deterministic
+
+One security run. This is the cheapest scan ZeroQuarry runs, and it is
+entirely deterministic: SAST rules, secret detection, and dependency
+advisories. No LLM stage runs at all — no coordinator, no triage, no
+adversarial review.
+
+The detectors promote their own output straight into findings. Those findings
+are **unverified**: no agent has reviewed the evidence behind them. Secrets
+detected this way are reported as candidates with the value withheld, so the
+finding says what was found and where without printing the secret.
+
+### Basic pass — verified
+
+Two security runs. Everything in the deterministic pass, plus the LLM
+verification spine: a coordinator and triage stage, and an adversarial volley
+where your plan licenses it. A plan without `allow_adversarial_review` runs
+the spine without the volley and the console says so.
+
+A verified basic pass still does not produce proof-of-concept artifacts, and
+it does not generate auto-fix pull requests. Those belong to a full
+assessment.
+
+## What a basic pass is for
+
+A deterministic pass is a fast answer to "is this branch clean enough to
+push?" — cheap enough to run on every commit, and deterministic enough that
+the same code gives the same answer. A verified pass is the middle ground: it
+confirms the static findings with a model before you act on them, without the
+cost of a full assessment.
+
+The trade is trust. A basic pass tells you what the detectors found. A full
+assessment tells you what is actually there.
+
+## Findings from a basic pass are unverified
+
+This is the part that matters when you read the results.
+
+A basic pass promotes the static detectors' output directly. Findings are
+unverified until a human or a full scan adjudicates them, and the console
+says so at the point of selection. Treat them as a shortlist to work
+through, not as settled conclusions — the same finding may be real, may be a
+false positive, or may need context only an agent or a reviewer can supply.
+
+A finding that survives adjudication is recorded on the finding itself, so the
+distinction does not have to be remembered.
+
+## Re-running
+
+A rescan inherits the scan's configuration, with one exception: **a rescan
+drops the basic pass and runs at full assessment.** The rescan is the point
+at which you have decided a finding is worth adjudicating properly.
+
+## Where to go next
+
+- [How security runs are counted](/account/security-runs) — what a unit is,
+  what a scan settles at, and how the cap works.
+- [Source code scans](/scans/source-code) — the full source-scan flow.
+- [Findings](/reports/findings) — reading and adjudicating what a scan found.
+- [Confidence and review](/reports/confidence-and-review) — how a finding's
+  confidence is established and recorded.

@@ -61,6 +61,48 @@ combined in the same scan. For repeatable work, prefer Git over one-off
 uploads. Git-backed scans support lineages, rescans, and CI delta scans more
 naturally.
 
+### Git source rows
+
+The **Add Git URLs** input is a list of rows, one repository per row. Add and
+remove rows with the + and − controls, so a scan can cover several
+repositories without conflating them into one target.
+
+Each row carries three things:
+
+- the **repository URL**
+- an optional **ref** — a branch or tag
+- an optional **subdirectory** to scope the scan to
+
+### The rows check themselves
+
+Each URL is probed when you leave the field. The row tells you whether the
+repository is reachable and, when it is, which branches and tags it has —
+read with the same credentials the clone would use, so what you see is what
+the scan will get. A definitive failure offers the setup step that fixes it,
+with a link.
+
+Directory suggestions are offered per forge: GitHub, GitLab, Bitbucket, and
+Gitea or Forgejo instances each expose their own directory listing, so the
+row can suggest a subdirectory rather than making you type it.
+
+The row check is advisory. It is there to catch a wrong URL or a missing
+credential before the scan is queued, not to gate the scan.
+
+### Refs are per row
+
+A ref pins that row to a branch or tag. It does **not** constrain the scan to
+one repository — the same branch name may legitimately exist in several of the
+URLs you listed, and each row resolves against its own repository.
+
+This is different from a subdirectory scope, which applies to a single
+repository. A ref travels with its row.
+
+### Pasting a link
+
+A tree, blob, or `src` link pasted into the row is decomposed into a clean
+clone URL, a ref, and a subdirectory, so a link from your browser goes
+straight into the scan without hand-editing.
+
 ## Three deterministic stages, then agent investigation
 
 Before the coordinator starts, ZeroQuarry runs bounded deterministic analysis

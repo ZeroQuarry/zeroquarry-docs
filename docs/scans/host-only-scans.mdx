@@ -1,0 +1,83 @@
+---
+id: host-only-scans
+title: Host-only scans (all ports)
+sidebar_position: 4
+---
+
+A **host-only scan** assesses a whole host rather than one service on it.
+You give it a bare hostname or IP address and it discovers what is listening,
+then assesses every service it finds.
+
+It is a different mode from a [remote scan](/scans/remote-targets). A remote
+scan starts at a URL and assesses that service; a host-only scan sweeps the
+host first and assesses everything that answers.
+
+## Running one
+
+On the remote scan wizard, set **Target mode** to **Host, all ports — host-
+only discovery** and give the **Target host**. The field takes a bare host:
+a DNS name or an IP literal, with no scheme, no path, and no port. A value
+with a port is rejected and sent back to you, because in this mode the sweep
+finds the ports itself.
+
+The **Scope hosts** field does not apply here. Scope is locked to the one
+host you named.
+
+**Also sweep the top UDP ports** is an opt-in checkbox. Leave it off for the
+default: TCP only. UDP is slow and noisy — a port sweep of the full UDP
+range is a multi-hour activity that firewalls answer with a blizzard of
+unanswered packets, so only the most common UDP ports are considered, and
+only when you ask.
+
+## How the sweep runs
+
+The sweep is deterministic and paced. It runs before the agent-driven work
+begins, so the agents know the real attack surface before they start, and
+every service it finds is assessed in the same scan run — the sweep is not a
+separate scan you have to reconcile with a second one.
+
+The default sweep covers the full TCP range. The rate is capped rather than
+hoped for: the cap is applied to the sweep tool's own arguments, so it holds
+even if the tool would otherwise run flat out. The default rate is 1000
+connections per second and the platform maximum is 20000; the effective rate
+is always clamped into that range, so a typo cannot turn a sweep into an
+unthrottled flood. A sweep that exceeds its time budget is cut off rather
+than left running.
+
+## Who can run one
+
+Host-only scans sweep every port on the target, so they are granted
+deliberately rather than by default. One of these has to be true:
+
+- **Your account has general remote-scanning authorization.** Any host is in
+  scope, including IP literals.
+- **The scan runs from one of your private runner pools.** Your own runner,
+  inside your own perimeter, may target interior hosts, loopback addresses,
+  internal DNS names, and IP literals. Pointing your own runner at your own
+  interior host is itself the authorization evidence.
+- **Your account has been opted in** and the host is a DNS name under a
+  domain you have verified with a DNS TXT record.
+
+Otherwise the scan is refused, with the reason and the alternatives in the
+message: contact us to opt in, run the host from a private runner pool, or
+scan a specific `host:port` service as usual.
+
+The opt-in path covers DNS hostnames only. Literal IP addresses and
+single-label internal names are not reachable through it — a TXT challenge
+cannot vouch for an address — so those need general authorization or
+private-runner execution.
+
+## What you get back
+
+The scan's report covers each service found on the host, in the same shape as
+a remote scan's findings, with the host as the target. The scan's factsheet
+lists the services discovered.
+
+## Where to go next
+
+- [Remote target scans](/scans/remote-targets) — scanning a specific service
+  at a URL.
+- [Authenticated scans](/scans/authenticated-scans) — testing a service that
+  needs credentials.
+- [Private runners](/workflows/private-runners) — running scans from your own
+  network.
