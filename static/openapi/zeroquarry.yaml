@@ -59,6 +59,11 @@ tags:
     description: Create and manage scans.
   - name: reports
     description: Read-only views of completed scans + report exports.
+  - name: dependency-watch
+    description: >
+      Free dependency-watch reads from the background sweep's cache —
+      known-vulnerable pinned versions (advisories + KEV matches) and the
+      pinned-package registry. No tier gate, no security run units consumed.
   - name: disclosures
     description: Responsible-disclosure tracker (tier-gated).
   - name: patches
@@ -75,6 +80,12 @@ tags:
     description: GitHub auto-fix bot — generate, approve, and reject patches that get pushed as PRs (tier-gated).
   - name: workers
     description: Data-plane worker registration, heartbeat, and queue claims.
+  - name: credentials
+    description: >
+      Credential ingest (companion CLI): upload scan credentials by value
+      once and receive a reference id; lists are metadata-only by construction.
+      Credential values are never accepted as tool/model-visible arguments and
+      never echoed back — not in success bodies, not in errors.
 
 # ---------------------------------------------------------------------------
 # Reusable components
@@ -500,10 +511,20 @@ paths:
   /v1/workers/heartbeat:
     post:
       tags: [workers]
-      summary: Record worker liveness.
+      summary: Record worker liveness (optionally with the runner's free-disk reading).
       security:
         - workerAuth: []
         - workerTokenAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                free_disk_bytes:
+                  type: [integer, "null"]
+                  description: Free bytes on the runner's storage volume; the last reading is surfaced on the workers dashboard. Absent keeps the previous value.
       responses:
         "200":
           description: Heartbeat accepted.
@@ -514,6 +535,30 @@ paths:
                 properties:
                   status: { type: string }
                   worker: { $ref: "#/components/schemas/Worker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/resume:
+    post:
+      tags: [workers]
+      summary: Clear an operator drain on this worker after a clean start.
+      description: >
+        A drained worker (operator pre-restart quiesce) resumes claiming on
+        its next clean start by calling this once. No-op when already
+        active; unreachable for revoked workers. Decommissioning a worker
+        is revoke, not drain.
+      security:
+        - workerAuth: []
+        - workerTokenAuth: []
+      responses:
+        "200":
+          description: Worker is active (resumed or already active).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  status: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/workers/github/installation-token:
@@ -573,6 +618,50 @@ paths:
                 type: object
                 properties:
                   worker: { $ref: "#/components/schemas/Worker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/workers/terminal-scan-status:
+    post:
+      tags: [workers]
+      summary: Which of these scans are safe for the runner to garbage-collect scratch for (#690).
+      description: |
+        Runner scratch-GC check. The runner posts the per-scan scratch
+        directory names it holds; the response partitions them into
+        `terminal` (owning scan is completed/failed/cancelled AND this
+        worker ran an attempt on it) and `missing` (no scan row —
+        deleted, provably garbage). Scans that are queued or running —
+        e.g. a queued follow-up rerun whose warm scratch the runner
+        should keep — are deliberately absent from the response.
+      security:
+        - workerAuth: []
+        - workerTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scan_ids]
+              properties:
+                scan_ids:
+                  type: array
+                  maxItems: 500
+                  items: { type: string }
+      responses:
+        "200":
+          description: Deletability partition of the requested ids.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  terminal:
+                    type: array
+                    items: { type: string }
+                  missing:
+                    type: array
+                    items: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/workers/claim:
@@ -979,15 +1068,38 @@ paths:
                     items: { $ref: "#/components/schemas/Scan" }
     post:
       tags: [scans]
-      summary: Create a new source-mode scan.
+      summary: Create a scan (source, binary, or remote mode).
       description: |
         Kicks off a scan and returns the scan record. When `auto_delta` is true
         and a prior completed scan exists for the same account + git URL set,
         the server dispatches an `update_diff` rescan instead of a fresh run
-        (subsequent CI runs only re-scan changed files).
+        (subsequent CI runs only re-scan changed files). The delta fast-path
+        applies to `source` scans only; `binary` and `remote` dispatches are
+        always fresh.
 
-        `multipart/form-data` is required when attaching uploads. Otherwise,
-        a plain JSON body is simpler to generate from `curl`.
+        Modes:
+        - `source` (default): git URLs and/or uploaded source archives.
+        - `binary`: one or more uploaded artifacts (multipart only) plus an
+          `artifact_type` (`mobile`, `firmware`, or `other`).
+        - `remote`: a live target `url` (DAST). Requires an explicit
+          `authorized: true` acknowledgement — you must be authorized to test
+          the target. The URL passes an SSRF guard, and self-serve accounts
+          must cover the host with a DNS-verified domain (the error message
+          includes the verification setup when a challenge is new). Scope host
+          lines narrow the crawl; `http_rate_limit_per_second` throttles
+          outbound requests (0 = unthrottled).
+
+        Credential boundary (ADR-0006): remote-scan credentials attach
+        platform-side. Pass saved-identity references (`auth_identity_id`, or
+        `identities` entries with an `identity_id`) — secret values (cookies,
+        tokens, passwords, header values) are never accepted on this API,
+        because agent/skill-driven request bodies end up in transcripts, logs,
+        and LLM providers. Save credentials in the dashboard's scan wizard or
+        project identity library, then reference them here.
+
+        `multipart/form-data` is required when attaching uploads (source or
+        binary mode). Otherwise, a plain JSON body is simpler to generate
+        from `curl`.
       requestBody:
         required: true
         content:
@@ -995,7 +1107,7 @@ paths:
             schema:
               type: object
               properties:
-                mode:               { type: string, enum: [source] }
+                mode:               { type: string, enum: [source, remote] }
                 git_urls:
                   oneOf:
                     - type: array
@@ -1005,6 +1117,34 @@ paths:
                 gits:
                   type: string
                   description: Backward-compatible alias for `git_urls`.
+                url:
+                  type: string
+                  description: Remote mode — the entry URL to test.
+                authorized:
+                  type: boolean
+                  description: Remote mode — must be true; confirms you are authorized to test the target.
+                scope:
+                  oneOf:
+                    - type: array
+                      items: { type: string }
+                    - type: string
+                      description: Remote mode — scope host lines (newline/comma-separated when a string; at most 25). Every host is gated like the entry URL — self-serve accounts need a verified domain (or an engagement warrant) covering it, `*.domain` patterns must be bounded by a verified domain or warrant, and the project scan gate applies. The entry URL's host is always part of the crawl scope — a scope declaration only adds hosts.
+                auth_identity_id:
+                  type: string
+                  description: Remote mode — saved scan identity id for the primary authenticated session. Never a credential value.
+                identities:
+                  type: array
+                  description: Remote mode — additional saved-identity references for multi-role testing.
+                  items:
+                    type: object
+                    properties:
+                      identity_id: { type: string }
+                      role:        { type: string, enum: [attacker, victim, observer] }
+                      label:       { type: string }
+                    required: [identity_id]
+                http_rate_limit_per_second:
+                  type: number
+                  description: Remote mode — outbound request throttle (0 = unthrottled); default is the platform setting.
                 project_id:         { type: string }
                 project_name:       { type: string }
                 project_profile:
@@ -1025,6 +1165,9 @@ paths:
                       description: Comma-separated list.
                 batch_mode:         { type: boolean }
                 adversarial_review: { type: boolean }
+                sca:                { type: boolean, description: "Per-scan dependency-analysis stage toggle (source and binary scans)." }
+                infra:              { type: boolean, description: "Per-scan infrastructure-code detection stage toggle (source scans only)." }
+                secrets:            { type: boolean, description: "Per-scan secret-detection stage toggle (source scans only)." }
                 git_credential_id:  { type: string }
                 execution_target:
                   { type: string, description: "`cloud` or `pool:<runner_pool_id>`; defaults to the project's configured environment." }
@@ -1032,12 +1175,17 @@ paths:
             schema:
               type: object
               properties:
-                mode:               { type: string, enum: [source] }
+                mode:               { type: string, enum: [source, binary] }
                 git_urls:           { type: string, description: "Comma- or newline-separated list" }
                 gits:               { type: string, description: "Backward-compatible alias for `git_urls`." }
                 uploads:
                   type: array
                   items: { type: string, format: binary }
+                  description: Source archives (source mode) or binary artifacts (binary mode).
+                artifact_type:
+                  type: string
+                  enum: [mobile, firmware, other]
+                  description: Binary mode — what kind of artifact the uploads are; default `other`.
                 project_id:         { type: string }
                 project_name:       { type: string }
                 project_profile:
@@ -1053,8 +1201,9 @@ paths:
                 tags:               { type: string }
                 batch_mode:         { type: boolean }
                 adversarial_review: { type: boolean }
+                sca:                { type: boolean, description: "Per-scan dependency-analysis stage toggle (source and binary scans)." }
                 git_credential_id:  { type: string }
-                execution_target:   { type: string, description: "`cloud` or `pool:<runner_pool_id>`. Private execution does not accept browser uploads." }
+                execution_target:   { type: string, description: "`cloud` or `pool:<runner_pool_id>`. Private source execution does not accept uploads." }
       responses:
         "200":
           description: Idempotent duplicate dispatch suppressed because an identical git scan is already in progress.
@@ -1586,6 +1735,201 @@ paths:
                     items: { $ref: "#/components/schemas/Finding" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/scans/{scan_id}/findings/{finding_id}/verdict:
+    parameters:
+      - { $ref: "#/components/parameters/ScanId" }
+      - { $ref: "#/components/parameters/FindingId" }
+    get:
+      tags: [scans]
+      summary: Read a finding's current human verdict and recent history.
+      description: >
+        The human lifecycle decision for a finding (validated, disputed,
+        mitigated, accepted_risk, …) — the same append-only ledger the
+        console's finding page reads and writes, so API-recorded verdicts
+        are identical to console-recorded ones. `state` is null when no
+        human decision exists.
+      responses:
+        "200":
+          description: Current verdict + recent signal history.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:     { type: string }
+                  finding_id:  { type: string }
+                  state:       { type: [string, "null"] }
+                  label:       { type: [string, "null"] }
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        signal:         { type: string }
+                        actor_type:     { type: string }
+                        actor_id:       { type: [string, "null"] }
+                        reason_code:    { type: [string, "null"] }
+                        reason_text:    { type: [string, "null"] }
+                        source_surface: { type: string }
+                        created_at:     { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [scans]
+      summary: Record a human verdict on a finding.
+      description: >
+        Writes the same ledger the console writes. States use the
+        console's lifecycle vocabulary: `validated` (accept),
+        `disputed` (reject — a reason is required, `reason_code` from
+        the console's invalidation taxonomy or free-text `reason_text`),
+        `mitigated`, `retested`, `regression`, `accepted_risk` (reason
+        required), `archived` (reason required), or
+        `candidate`/`needs_validation` to reopen. `rejected` is accepted
+        as an alias of `disputed`. The finding's confidence signal is
+        recomputed, exactly as on the console path.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state]
+              properties:
+                state:
+                  type: string
+                  enum: [candidate, needs_validation, validated, disputed, mitigated, retested, regression, accepted_risk, archived]
+                reason_code:
+                  type: string
+                  description: disputed only — one of the invalidation reasons.
+                reason_text:
+                  type: string
+                  description: free-text reason where one is required.
+      responses:
+        "200":
+          description: Verdict recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signal_id:      { type: integer }
+                  scan_id:        { type: string }
+                  finding_id:     { type: string }
+                  state:          { type: string }
+                  previous_state: { type: [string, "null"] }
+                  reason_code:    { type: [string, "null"] }
+                  reason_text:    { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/webhooks:
+    get:
+      tags: [webhooks]
+      summary: List the account's outbound delivery webhooks.
+      description: >
+        HTTP sinks that receive a signed JSON summary when a scan
+        reaches a terminal state (completed, failed, cancelled). URLs
+        are masked to scheme + host — the path may embed a token, and
+        transcripts are forever. The signing secret is never listed.
+      responses:
+        "200":
+          description: Registered webhooks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:         { type: string }
+                        url_masked: { type: string }
+                        label:      { type: [string, "null"] }
+                        enabled:    { type: boolean }
+                        created_at: { type: string }
+    post:
+      tags: [webhooks]
+      summary: Register an outbound delivery webhook.
+      description: >
+        The signing secret (`zqwh_…`) is returned exactly once, in this
+        response — store it. Every delivery is POSTed with
+        `X-ZeroQuarry-Signature: sha256=HMAC(secret, body)`,
+        `X-ZeroQuarry-Event` (scan.completed | scan.failed |
+        scan.cancelled) and `X-ZeroQuarry-Delivery` headers. Delivery is
+        at-least-once: failures retry on a backoff schedule, then the
+        delivery is marked exhausted in the log.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  description: Absolute https URL (http allowed for localhost).
+                label:
+                  type: string
+      responses:
+        "201":
+          description: Registered — `secret` is shown only this once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:     { type: string }
+                  url:    { type: string }
+                  label:  { type: [string, "null"] }
+                  secret: { type: string }
+                  note:   { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/webhooks/{webhook_id}:
+    parameters:
+      - { name: webhook_id, in: path, required: true, schema: { type: string } }
+    delete:
+      tags: [webhooks]
+      summary: Delete a webhook registration.
+      responses:
+        "204": { description: Deleted. }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/webhooks/{webhook_id}/deliveries:
+    parameters:
+      - { name: webhook_id, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [webhooks]
+      summary: The webhook's delivery log (most recent first).
+      description: >
+        Per-delivery attempt state — the debugging surface for "did my
+        sink get the event?". Statuses: pending (retry scheduled),
+        delivered, exhausted (schedule ran out), delivering (in flight).
+      responses:
+        "200":
+          description: Recent deliveries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook_id: { type: string }
+                  deliveries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:              { type: string }
+                        event:           { type: string }
+                        scan_id:         { type: string }
+                        attempt:         { type: integer }
+                        status:          { type: string }
+                        response_code:   { type: [integer, "null"] }
+                        error:           { type: [string, "null"] }
+                        created_at:      { type: string }
+                        last_attempt_at: { type: [string, "null"] }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/scans/{scan_id}/scan-mail:
     parameters: [ { $ref: "#/components/parameters/ScanId" } ]
     post:
@@ -1843,6 +2187,131 @@ paths:
             application/json:
               schema: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ===========================================================
+  # dependency-watch — free reads from the background sweep's cache.
+  # Answers "am I using a known-vulnerable pinned version?" (advisories
+  # + KEV matches). NOT "does a newer version exist?" — true staleness
+  # is not computed. No tier gate, no security run units consumed.
+  # ===========================================================
+  /v1/dependency-watch:
+    get:
+      tags: [dependency-watch]
+      summary: Open dependency advisories + KEV matches, with a sweep-freshness summary.
+      description: >
+        Read side of the daily dependency sweep: every open advisory event
+        the noise gate lets through (suppressed events never surface), with
+        KEV membership flagged per advisory. Advisory payloads carry the
+        fixed version and an Upgrade remediation string shaped like the
+        SCA finding remediations, so the fix is a pin bump + rescan.
+        Summary counts are unbounded even when the advisory list is
+        truncated by limit.
+      parameters:
+        - { name: project_id, in: query, schema: { type: string }, description: "Scope to one project; omit for account-wide" }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 }, description: "Max advisories returned (clamped; summary counts stay unbounded)" }
+      responses:
+        "200":
+          description: Advisory overview.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_id: { type: string }
+                  project_id: { type: [string, "null"] }
+                  summary:
+                    type: object
+                    properties:
+                      packages_tracked:    { type: integer }
+                      runtime_pins_tracked: { type: integer }
+                      open_advisories:     { type: integer }
+                      kev_matches:         { type: integer }
+                      by_escalation:
+                        type: object
+                        properties:
+                          critical: { type: integer }
+                          elevated: { type: integer }
+                          standard: { type: integer }
+                      by_ecosystem:
+                        type: object
+                        additionalProperties: { type: integer }
+                      sweep_enabled: { type: boolean, description: "Whether the background sweep runs on this deployment — without it, null last_sweep_at means not monitored, not nothing found" }
+                      last_sweep_at:  { type: [string, "null"], description: "Last successful daily-sweep pass (ISO timestamp)" }
+                      last_sweep_error: { type: [string, "null"], description: "Last sweep attempt error, null after a success" }
+                  advisories:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:               { type: string }
+                        lineage_id:       { type: string }
+                        osv_id:           { type: string }
+                        cve_aliases:      { type: array, items: { type: string } }
+                        ecosystem:        { type: string }
+                        package_name:     { type: string }
+                        package_version:  { type: string }
+                        manifest_path:    { type: string }
+                        is_runtime:       { type: boolean, description: "Runtime advisory (Bitnami row) — the fix is an image rebuild, not a textual bump" }
+                        summary:          { type: string }
+                        severity_label:   { type: string }
+                        escalation_class: { type: string, enum: [critical, elevated, standard] }
+                        kev:              { type: boolean, description: "Advisory CVE is CISA KEV-listed" }
+                        evidence:         { type: object, additionalProperties: true, description: "Noise-gate evidence (kev hits, RCE CWEs, prior-finding id)" }
+                        fixed_version:    { type: [string, "null"] }
+                        remediation:      { type: [string, "null"], description: "Upgrade <ecosystem>:<name> from <current> to <fixed> — null without a fixed version, and null for runtime advisories (is_runtime: the fix is an image rebuild on fixed_version, not a textual bump)" }
+                        discovered_at:    { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/dependency-watch/inventory:
+    get:
+      tags: [dependency-watch]
+      summary: The pinned-package registry — library pins + runtime pins.
+      description: >
+        What the sweep matches against: every pinned component derived at
+        scan completion, plus the runtime pins mined from the source tree
+        (Dockerfile FROM, engines fields, compose images). Filtered and
+        capped; the per-scan SBOM export is the full-fidelity artifact.
+      parameters:
+        - { name: project_id, in: query, schema: { type: string }, description: "Scope to one project; omit for account-wide" }
+        - { name: ecosystem, in: query, schema: { type: string }, description: "Case-insensitive ecosystem filter (npm, pypi, cargo, …)" }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 200 }, description: "Applies to packages; runtime_pins are capped at 500" }
+      responses:
+        "200":
+          description: Inventory listing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_id: { type: string }
+                  project_id: { type: [string, "null"] }
+                  count:      { type: integer, description: "Number of packages in this page" }
+                  packages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ecosystem:     { type: string }
+                        name:          { type: string }
+                        version:       { type: string }
+                        manifest_path: { type: string }
+                        license:       { type: string }
+                        first_seen_at: { type: string }
+                        last_seen_at:  { type: string }
+                  runtime_pins:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        component:      { type: string, description: "php, node, python, …" }
+                        version_spec:   { type: string, description: "Raw spec, e.g. 8.1-apache or >=20.11" }
+                        spec_precision: { type: string, enum: [exact, range, unknown], description: "Only exact pins join the advisory sweep" }
+                        source:         { type: string, description: "dockerfile, engines, compose, …" }
+                        source_path:    { type: string }
+                        last_seen_at:   { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   # ===========================================================
@@ -2482,3 +2951,175 @@ paths:
               schema: { $ref: "#/components/schemas/AutofixProposal" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  # ===========================================================
+  # credentials (zq companion CLI ingest, #486)
+  # ===========================================================
+  /v1/projects/{project_id}/identities:
+    parameters: [ { $ref: "#/components/parameters/ProjectId" } ]
+    get:
+      tags: [credentials]
+      summary: List the project's scan identities — metadata only, never values.
+      description: >
+        Reference rows for the identity library: ids, labels, roles, kinds,
+        provenance (including `cli` for companion-CLI imports), verification
+        status, and a bounded shape summary (cookie counts, header NAMES,
+        scrubbed login URLs). No cookie, header, password, or token value has
+        a field in this payload.
+      responses:
+        "200":
+          description: The project's identity references.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  identities:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        label: { type: string }
+                        role: { type: string, enum: [primary, victim, attacker, observer] }
+                        auth_kind: { type: string, enum: [cookies, headers, basic_auth, form_login, none] }
+                        provenance: { type: string }
+                        verification_status: { type: string }
+                        shape: { type: object }
+                        revoked: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [credentials]
+      summary: Upload auth material → receive the `auth_identity_id` reference.
+      description: >
+        Requires project-edit permission. The body's `auth` is the platform's
+        standard credential shape — at least one of `cookies` (canonical
+        `k=v; k2=v2`), `headers` (name → value map), `basic_auth`
+        ({username, password}), or `form_login` (a login the platform performs
+        itself at scan start, optionally with `token_path`/`token_header` for
+        an API login whose response carries a session token). Unknown keys fail
+        loudly. The response carries ONLY the reference id; values are stored
+        encrypted and never echoed — in success bodies or errors.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, auth]
+              properties:
+                label: { type: string }
+                role:
+                  type: string
+                  enum: [primary, victim, attacker, observer]
+                  default: primary
+                auth:
+                  type: object
+                  minProperties: 1
+                  properties:
+                    cookies: { type: string }
+                    headers:
+                      type: object
+                      additionalProperties: { type: string }
+                    basic_auth:
+                      type: object
+                      properties:
+                        username: { type: string }
+                        password: { type: string }
+                    form_login:
+                      type: object
+                      required: [url]
+                      properties:
+                        url: { type: string }
+                        username_field: { type: string }
+                        username: { type: string }
+                        password_field: { type: string }
+                        password: { type: string }
+                        extra_fields:
+                          type: object
+                          additionalProperties: { type: string }
+                        encoding: { type: string, enum: [form, json] }
+                        token_path: { type: string }
+                        token_header: { type: string }
+                        csrf_preflight: { type: boolean }
+      responses:
+        "201":
+          description: Stored — the reference id to pass as `auth_identity_id`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/git-credentials:
+    get:
+      tags: [credentials]
+      summary: List saved Git credentials — metadata only, never the secret.
+      description: Owner/admin. Names, hosts, types, usernames, timestamps; the
+        stored secret never leaves its encrypted column.
+      responses:
+        "200":
+          description: The account's Git-credential references.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credentials:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        auth_type: { type: string, enum: [https, ssh] }
+                        host: { type: string }
+                        username: { type: string }
+                        created_at: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [credentials]
+      summary: Upload a Git credential → receive the `git_credential_id` reference.
+      description: >
+        Owner/admin. The same tier gates as the console: accounts licensed
+        public-repos-only are refused, and `auth_type: ssh` additionally
+        requires the tier's SSH entitlement. The host is re-normalized
+        server-side (send a bare hostname; a URL works but is reduced). The
+        response carries ONLY the reference id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, auth_type, host, username, secret]
+              properties:
+                name: { type: string }
+                auth_type: { type: string, enum: [https, ssh] }
+                host: { type: string }
+                username: { type: string }
+                secret:
+                  type: string
+                  description: An access token (https) or a PEM private key (ssh).
+                known_hosts:
+                  type: string
+                  description: SSH only — stored alongside the key for host verification.
+      responses:
+        "201":
+          description: Stored — the reference id to pass as `git_credential_id`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }

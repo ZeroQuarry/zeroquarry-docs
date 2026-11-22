@@ -36,16 +36,66 @@ availability depends on the account tier and the user's role.
 ## Team members and roles
 
 Plans that allow invitations can add teammates under **Account > Members**.
-Roles are account-scoped:
+Account roles are:
 
-- **Owner** and **Admin** manage settings, integrations, billing, and members.
-- **Billing** manages payment methods and receives invoices without access to
-  scan configuration. See [Billing and usage](/account/billing).
-- **Member** runs scans and works findings within the projects available to
-  them.
+- **Owner** manages everything, and is the only role that can change a
+  member's account role, including promoting a new owner. The last owner
+  cannot be demoted or removed, and you cannot change your own role.
+- **Admin** manages settings, integrations, billing, members, and can invite
+  new teammates; only the role changes themselves are owner-only.
+- **Billing** manages payment methods and receives invoices, and can launch
+  self-serve scans against the plan's security-run allowance. It has no
+  access to members, integrations, or account settings. See
+  [Billing and usage](/account/billing).
+- **Member** has no account-management surfaces; what they can do inside
+  each project is set by the project role below.
 
 Use the smallest role that lets a teammate complete their work. Remove members
 who no longer need access.
+
+## Project roles
+
+By default every account member has full access to every project. A project
+can scope a member down from its **Access** tab, which states the rule the
+same way: "Every account member has full access to this project by default.
+Scope someone down by setting an explicit role."
+
+| Project role | Can |
+| --- | --- |
+| **Viewer** | Read everything in the project: scans, findings, reports, evidence. |
+| **Editor** | Everything a viewer can, plus add assets and launch and cancel scans. |
+| **Admin** | Full access, including managing the project's access list and deleting the project. |
+
+Account owners and admins always retain full access on every project, and an
+override records who set it and when, with a **Reset to default** button to
+remove it. The same roles apply at every entry point: the console, the API,
+and an agent connected over [MCP](/workflows/mcp).
+
+## API keys
+
+There are two kinds of key, and they answer different needs.
+
+**Account API keys** live under **Account > API Keys** and are minted by an
+owner or admin for CI and other machine callers. A key of this kind acts
+with the role of the user who minted it.
+
+**Personal API keys** live on your **Profile** page. They act *as you*: the
+key's power is your current permissions, capped by the scopes you give it.
+Scopes are:
+
+- `read` — view projects, scans, findings, and reports
+- `scans:write` — launch and cancel scans
+- `mcp` — use the ZeroQuarry MCP server with this key
+
+With no scopes selected the key is read-only. Keys carry a stable `zq_`
+prefix so secret scanners can recognize them, are shown exactly once at
+creation, and are revoked from the same list.
+
+Two lifecycle rules make personal keys safe to hand out: the cap is
+re-checked on every request, so if your role or project access changes, the
+key narrows with it immediately; and removing a member from the account
+revokes every key that member minted. A key whose owner has left the
+account authenticates nothing.
 
 If you operate the platform as a super-admin, there is also a separate
 account-creation invite flow on the platform admin dashboard. That flow sends

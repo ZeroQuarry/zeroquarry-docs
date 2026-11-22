@@ -23,41 +23,106 @@ _The Billing and Usage page carries the plan checkout, payment method, and
 the current month's usage. Past invoices appear here once hosted model usage
 has been invoiced._
 
+## The trial
+
+A new account starts on a 30-day trial. No card is required. The trial
+includes one pool of **6 security-run units** for the whole 30 days: the pool
+does not reset partway through, and a focused review that uses one unit and a
+full assessment that uses four draw from the same pool. A per-source cap
+also applies to free scanning: the free allowance per repository owner (or
+target host) is shared across all ZeroQuarry accounts, so signing up again
+does not refill it.
+
+When the pool is at 80% or spent, a banner appears on every page with the
+numbers behind it and, for owners and admins, a link to the plans on the
+billing page. New scans and reruns are refused once the pool is spent, and
+the banner shows when the trial ends; the allowance does not reset
+mid-trial. Calls billed to your own provider keys bypass the token caps, but
+the security-run pool still applies.
+
 ## Choose a plan
 
-Available plans are listed with their monthly and annual prices. Changing
-plans goes through Stripe Checkout; the change applies to the account as a
-whole, not to individual members.
+The **Plans** card on the billing page lists every self-serve plan with its
+monthly and annual prices. Annual billing saves 20% (for example, a plan at
+$50/month is $480/year). Pick a price on a plan's row and Stripe Checkout
+takes the card details; the plan applies to the account as a whole, not to
+individual members.
 
-### The Open Source plan
+The card header says what each part costs: "Platform subscription. Hosted
+model usage is billed monthly on top; calls made with your own provider key
+are billed by that provider."
 
-The Open Source plan is free and permanent, and its contract is narrow: scan an
-open source repository. That boundary is enforced rather than advisory. Only public
-Git URLs are accepted, and ZeroQuarry confirms each one with the hosting forge's own
-unauthenticated API before cloning. Uploaded archives and local paths are refused,
-so private source cannot slip through the public-repository check. Binary and remote
-scans are not available, generated patches and the auto-fix bot are off, and
-reports carry a watermark.
+### Upgrading from the trial
 
-What stays on is the work a maintainer does with the result: findings, exploit
-proofs, evidence and deployment packages, HackerOne and adversarial review, incoming
-email triage, disclosure tracking, and filing issues into your own Linear.
+Upgrading ends the trial immediately. Two things are worth knowing:
 
-The surfaces that only make sense when you are running a security program are off:
-the triage centre, the Evidence Room, secure shares, attestation engagements, and
-inviting team members. Linear filing stays available because an issue in the
-maintainer's own tracker is the deliverable, while reading labeled issues back for
-verification intake is gated separately.
+- **The paid allowances start fresh at the upgrade.** Token, spend, scan,
+  and security-run windows all begin at the moment the plan activates, so
+  trial usage does not eat into the first paid month.
+- **Trial usage is never billed automatically.** The next renewal is the
+  normal plan price. Model usage from the trial sits in its own ledger that
+  the monthly invoicer never reads, and upgrading does not sweep it onto an
+  invoice.
 
-An Open Source account starts with a **Source code** project, which is also why
-those two are separate: the default profile shows the discovery feed but no manual
-asset library.
+## Change or cancel a plan
+
+Once the account has a subscription, the billing page shows a **Your
+subscription** card instead of the plan list, so a second subscription
+cannot be bought by accident. That card is where plan changes and
+cancellation live.
+
+### Change plan
+
+Choose **Change plan** (owner or admin). The picker lists your current plan
+and higher-priced plans, plus the other billing period for your own tier;
+moving to a lower-priced plan is not available self-serve, and the picker
+says to contact us instead.
+
+Plan changes take effect at your next renewal, not immediately. Nothing is
+charged on the day you schedule the change; the card on file is charged the
+new plan's price when it takes over, and usage allowances reset to the new
+plan's limits at that boundary. Work already done stays where it is. You can
+undo a scheduled change any time before the renewal date, and re-aiming the
+picker replaces the previous switch rather than stacking a second one.
+
+A scheduled cancellation outranks a scheduled switch: undo the cancellation
+first if you also want to change plan.
+
+### Cancel
+
+Choose **Cancel subscription** (owner or admin). The confirmation page sets
+out exactly what happens:
+
+- **Until the period ends:** nothing changes. The plan stays fully active,
+  because it is already paid through that date.
+- **On the end date:** one final bill for that month's hosted-model usage,
+  charged to the card on file. A balance under the $0.50 invoicing minimum
+  is skipped entirely.
+- **After the end date:** the account becomes read-only. Reports remain
+  available to download while the account winds down, and it is deleted 60
+  days after the subscription ends. Deletion is permanent.
+- **Any time before the end date:** undo the cancellation from the billing
+  page and nothing changes at all.
+
+While a cancellation is scheduled, the subscription card shows the date the
+plan ends and an **Undo cancellation** button.
+
+During wind-down the account keeps its reports: scans cannot run and members
+cannot sign in, but the owner can browse, export, and download, and can
+choose **Cancel deletion and re-activate** to resume the subscription before
+the 60 days are up.
 
 ## Payment method
 
-Payment methods are managed in the Stripe customer portal. Use **Manage
-payment methods** to update the card on file or review invoices in Stripe.
-Invoices and receipts are emailed to the account's billing contacts.
+The **Payment** card shows whether a card is actually on file: a green
+**payment method on file** badge when it is, with **Manage payment methods
+(Stripe)** next to it for updating the card or reviewing invoices. Invoices
+and receipts are emailed to the account's billing contacts, and the card
+names the address they are sent to.
+
+An account with no payment method and no subscription generates no usage
+invoices. Abandoning a checkout leaves nothing owed and no stranded draft
+invoice behind.
 
 ## Plan usage: security runs
 
@@ -73,6 +138,12 @@ reservation of any scan still in flight. That is why a five-run launch can show
 the month higher than the runs it has actually cost so far. Reports, decisions,
 sharing, and pipeline-stage re-runs consume no additional runs, and deleting a
 finished scan does not return its runs.
+
+The account overview always shows the security-run row with a used/limit bar
+and the reset date, so the "how many runs do I have left" number does not
+require a trip to the billing page. Token and platform-spend rows appear
+there once they reach 80% of their cap. When a scan is refused for lack of
+runs, the refusal page links back to the plan and the usage breakdown.
 
 See [How security runs are counted](/account/security-runs) for the stage
 breakdown, the settlement rules for failed and cancelled scans, and the
@@ -94,14 +165,19 @@ tokens, and those tokens still appear in this table.
 
 Teammates who need to manage payment details or receive invoices do not need
 full admin access. Invite them with the **billing** role under **Account >
-Members**; billing-role members can manage the Stripe portal session and
-billing contacts but cannot create scans or change security settings.
+Members**. A billing member can manage payment methods and billing contacts
+and can launch self-serve scans against the plan's security-run allowance,
+but cannot manage members, integrations, or account settings.
 
 Billing contacts default to the account owner. Invite a billing teammate and
 have them set the contact to change where invoices are delivered.
 
 ## What happens if a plan expires
 
-When a plan or trial expires, new scans and artifact generation are blocked,
-but existing reports, findings, evidence, and exports remain readable. Settle
-the billing issue in the Stripe portal to resume normal operation.
+An expired trial refuses new scans and artifact generation with "Your trial
+has expired. Choose a plan to continue." Existing reports, findings,
+evidence, and exports remain readable.
+
+A paid plan that reaches its end date without a renewal enters the same
+wind-down described under [Cancel](#cancel): the account is read-only, one
+final usage bill is issued, and the owner can re-activate before deletion.

@@ -39,6 +39,26 @@ An account owner or admin must:
 Installation access and enrollment are separate gates. A repository visible to
 the GitHub App is not automatically approved for auto-fix.
 
+The bot and the auto-fix capability are licensed separately. On plans that
+include private repository access but not auto-fix, ZeroQuarryBot can still
+be installed to enumerate repositories and clone private ones at scan time;
+the auto-fix controls (kill switch, per-repository push settings) stay
+hidden because there is nothing to push, and the integrations page says so:
+"Auto-fix PRs not included — ZeroQuarryBot's ability to auto-fix issues via
+pull requests requires a higher tier."
+
+## If the bot is uninstalled
+
+When ZeroQuarryBot is removed on the GitHub side, account owners and admins
+get an e-mail saying so. Until it is reinstalled, scans can no longer
+enumerate those repositories or clone private ones at scan time, and
+auto-fix pull requests are paused.
+
+Reinstalling from the integrations page links the installation back to the
+account automatically. Removing an installed app requires organization-owner
+rights on GitHub's side, so if the uninstall was not yours, that is where to
+look.
+
 ## Review and push a proposal
 
 1. Open a source finding and generate an auto-fix proposal, or open the

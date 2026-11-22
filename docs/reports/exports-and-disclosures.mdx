@@ -44,6 +44,25 @@ Use report exports for:
 For evidence across several assets, use the [Evidence Room](/reports/evidence-room)
 instead of downloading and combining reports manually.
 
+## What an export says about itself
+
+An export is often read without the console next to it, so it carries its own
+completeness statement when one is needed:
+
+- When a whole stage of the scan failed to finish, every export carries a
+  **Scan disclosure** block (a **Scan completeness** section in the markdown
+  export): "N stage(s) of this scan did not complete, so part of this report
+  is missing. The findings below are what the scan did produce, not
+  everything it was asked to produce."
+- When no executive summary was generated, the Summary section opens with
+  "No executive summary for this scan — what follows is the severity count
+  only."
+
+Both notices are generated from the scan's own record and cannot be left out
+of the exported copy, which is the point: the file a customer or auditor
+reads states its own limits. On-screen versions of the same notices link to
+the audit log; the exported ones travel with the document.
+
 ## Export filters
 
 Exports can filter findings by confidence and vendor-review state. By default,
