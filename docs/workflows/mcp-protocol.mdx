@@ -1,0 +1,189 @@
+---
+id: mcp-protocol
+title: MCP protocol reference
+sidebar_position: 4
+---
+
+This page is for anyone writing or debugging an MCP client against ZeroQuarry.
+It describes the wire contract: transport, versions, methods, and error codes.
+
+## Transport
+
+One JSON-RPC 2.0 request in, one JSON response out, over HTTP POST. The
+server is stateless: it keeps no session id, opens no server-initiated
+stream, and holds nothing between requests. Every request carries its own
+authorization and tenant context, so the endpoint scales like any other
+stateless API route and a client can reconnect at any time.
+
+The endpoint is `POST /api/v1/mcp`. A deployment that sets `MCP_ROOT_HOST`
+also serves the same handler at `POST /` on that host.
+
+The request body is a single JSON object. JSON-RPC batching was removed from
+MCP in the 2025-06-18 revision, and a batched array comes back as an invalid
+request error. A request with no `id` is a notification, and the server
+answers with a 202 and no body.
+
+The server identifies itself as `zeroquarry`, version `1.0.0`.
+
+## Protocol versions
+
+The server speaks three revisions:
+
+| Version | Contract |
+| --- | --- |
+| `2025-06-18` | The default. The `initialize` handshake, with `tools/list` and `tools/call`. |
+| `2025-11-25` | Adds OAuth-protected-resource discovery and path-inserted metadata paths. |
+| `2026-07-28` | Per-request `_meta` contract, `server/discover`, the Tasks extension, and the Skills extension. |
+
+A client pinned to an older published revision (`2024-11-05` or `2025-03-26`)
+still gets `2025-06-18` back at `initialize`, which it speaks. The server
+never refuses a published revision outright: the header is a hint about which
+contract the client will speak, not a second negotiation gate.
+
+The `MCP-Protocol-Version` header, when present, is checked against that
+wider set. A version outside it gets a 400 with an unsupported-protocol-version
+error.
+
+## The per-request contract
+
+A 2026-07-28 client declares its version and capabilities on every request,
+in the reserved `io.modelcontextprotocol/` namespace under `params._meta`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {
+        "extensions": {
+          "io.modelcontextprotocol/tasks": {},
+          "io.modelcontextprotocol/skills": {}
+        }
+      }
+    },
+    "name": "list_projects",
+    "arguments": {}
+  }
+}
+```
+
+A request missing either required `_meta` field is malformed and comes back
+as a 400 with an invalid-params error that names the missing field. A request
+declaring a version the server does not speak comes back as a 400 with an
+unsupported-protocol-version error that lists the versions it does speak.
+
+Calling an extension method without declaring that extension is a 400 with a
+missing-client-capability error naming the capability.
+
+A request that carries either reserved key is treated as modern. A legacy
+client never carries them, so a legacy client keeps the legacy result shape:
+modern results add a `resultType` field, and legacy ones do not.
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| `initialize` | The handshake. Returns the negotiated version and the server's capabilities. |
+| `ping` | A liveness check. Returns an empty result. |
+| `server/discover` | Modern only. Returns the supported versions, capabilities, server info, and the instructions an agent reads first. |
+| `tools/list` | The tool catalog, with each tool's JSON Schema. |
+| `tools/call` | Runs one tool. |
+| `tasks/get` | Modern only. The current state of a long-running task. |
+| `tasks/cancel` | Modern only. Cancels a task. |
+| `tasks/update` | Modern only. Answers an input request. |
+| `skills/list` | Modern only. The skills pack listing. |
+| `skills/get` | Modern only. One skill's entry. |
+| `resources/list` | Modern only. The pack's resources. |
+| `resources/read` | Modern only. One resource's bytes. |
+| `resources/directory/read` | Modern only. The children of a directory resource. |
+
+`server/discover` is the modern entry point. It returns the supported
+versions, the capabilities, the server info, and instructions that name the
+core tools and point at the entrypoint skill.
+
+## The Tasks extension
+
+A client that declares `io.modelcontextprotocol/tasks` and calls `create_scan`
+gets a task back instead of the ordinary tool result:
+
+```json
+{
+  "resultType": "task",
+  "taskId": "3f9c...",
+  "status": "working",
+  "statusMessage": "queued",
+  "createdAt": "2026-10-31T02:00:00Z",
+  "lastUpdatedAt": "2026-10-31T02:00:00Z",
+  "ttlMs": 2592000000,
+  "pollIntervalMs": 5000
+}
+```
+
+The task id is the scan id. Polling `tasks/get` with it returns the task's
+state, and a terminal poll carries the final tool result inline, so the
+client does not have to make a second call to `get_scan` to collect the
+outcome.
+
+A task's status is `working` while the scan is queued, running, or awaiting
+batch artifacts, `completed` when the scan completed, `failed` when the scan
+failed, and `cancelled` when it was cancelled. A failed task carries an error
+object with the scan id and its status.
+
+The task TTL is 30 days and the suggested poll interval is 5 seconds. The
+scan keeps running regardless of whether the client polls at all, which is
+the point: a disconnect, a restart, or a closed laptop loses nothing.
+
+Only new work becomes a task. A client that did not declare the extension
+never sees one, and the result shape it gets is unchanged.
+
+## The Skills extension
+
+The Skills extension is covered in
+[the skills pack](/workflows/mcp-skills), including how a client declares it
+and what the resource URIs look like.
+
+## OAuth discovery
+
+The server publishes RFC 9728 protected-resource metadata at three paths,
+because clients in the wild discover it differently:
+
+```text
+/.well-known/oauth-protected-resource
+/.well-known/oauth-protected-resource/api/v1/mcp
+/api/v1/mcp/.well-known/oauth-protected-resource
+```
+
+The document names the resource that tokens must carry, the authorization
+servers that broker it, the bearer methods supported, and the scopes.
+
+A client that probes the older `{server_url}/.well-known/openid-configuration`
+path gets a 302 to the authorization server's own discovery document. The
+server is not the authorization server, so it redirects rather than
+duplicating the document.
+
+An unauthenticated request comes back as a 401 whose `WWW-Authenticate`
+header carries the `resource_metadata` URL, which is how a URL-only client
+finds the whole OAuth flow without being configured with anything. The
+challenge names only credential types that actually work on the deployment.
+
+## Error codes
+
+| Code | Meaning |
+| --- | --- |
+| `-32700` | Parse error. The body was not JSON. |
+| `-32600` | Invalid request. A batched body, a non-object `params`, or a missing method. |
+| `-32601` | Method not found. |
+| `-32602` | Invalid params. A bad argument, an unknown tool, a missing object, or a missing `_meta` field. |
+| `-32021` | Missing client capability. An extension method without the declared extension. |
+| `-32022` | Unsupported protocol version. |
+
+Transport-level failures carry their own HTTP status: a 401 for
+authentication, a 403 for a missing API-key scope, and a 400 for a malformed
+request.
+
+A tool that fails is not a protocol error. It returns `isError: true` with
+the reason as message text, so the agent reads the reason and reacts rather
+than the client treating it as a broken connection.

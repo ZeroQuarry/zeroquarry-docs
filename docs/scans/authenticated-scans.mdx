@@ -1,0 +1,263 @@
+---
+id: authenticated-scans
+title: Authenticated scans
+sidebar_position: 4
+---
+
+An authenticated remote scan probes a target as a signed-in user. The
+credentials are attached to the scan as **identities**: one named account per
+identity, each with its own role and its own logged-in session during the
+run.
+
+The part this exists for is authorization testing. With one session a scan
+can only ever see the application as one user. With several, the agents can
+hold a victim account and an attacker account at the same time and test what
+one can reach in the other's name.
+
+## The Access step
+
+The remote scan wizard has three steps: **Scope**, **Access**, and
+**Review**. Access is the step headed "Does the target need access details?",
+and it is optional: the step itself says to skip it for public targets.
+
+Three cards live there:
+
+- **Required identification headers** — headers a bug-bounty program requires
+  on every request, such as `X-Bugcrowd-Ninja`. These ride every probe,
+  including the login request itself.
+- **Identities** — the accounts the scan authenticates with.
+- **Let the agents register accounts** — permits the scan to sign up on the
+  target using its own disposable e-mail address, with a cap on how many
+  accounts it may create. Victim-plus-attacker pairs are the point of the
+  cap: two self-registered accounts are enough for IDOR testing on a target
+  with no pre-provisioned users. See
+  [E-mail verification without an operator](/scans/remote-targets#e-mail-verification-without-an-operator)
+  for how the mailbox works.
+
+The first identity you add is the **primary session**, the credential every
+probe carries by default. A note in the card says as much: "The first
+identity you add is the primary session. Public target? Leave this empty and
+continue."
+
+A scan carries at most 5 identities, including the primary. Labels must be
+unique; the scan refuses a duplicate.
+
+## What an identity holds
+
+One identity can combine several kinds of credential material.
+
+| Kind | Fields |
+| --- | --- |
+| **Cookies** | A session cookie string pasted from your browser. |
+| **Custom headers** | One `Name: value` per line — bearer tokens, API keys. |
+| **HTTP Basic** | Username and password for Basic auth. |
+| **Form login** | Login URL, username and password, field names, optional extra fields (a CSRF token, for example). |
+| **API login** | The same fields as a form login, with **Request format** set to "JSON API — credentials posted as a JSON body". |
+
+### Form login and API login
+
+A form login needs the login page URL and the credentials. The field names
+(the "username field" and "password field") can be filled in for you — see
+[Find login form](#find-login-form) below. Hidden fields such as CSRF tokens
+are carried automatically at scan time and never need typing.
+
+The **Request format** dropdown chooses between two shapes:
+
+- **HTML form — found on the page** (default): the scan fetches the login
+  page, locates the form, and posts it with a fresh CSRF token merged in.
+- **JSON API — credentials posted as a JSON body**: the credentials are
+  posted straight to the URL as JSON, with no form discovery. Nested field
+  names like `user[email]` work.
+
+An API login that answers with a token rather than a session cookie needs
+the advanced **Session token & CSRF pre-flight** options: where to find the
+token in the response (`data.access_token` is auto-detected if you leave it
+blank), the header to send it in (`Authorization: Bearer {token}` is the
+usual shape), and an optional pre-flight request — a CSRF-cookie URL that is
+fetched first, with its cookie echoed back as a header on the login. The
+defaults fit Laravel Sanctum, and Django's `csrftoken`/`X-CSRFToken` is the
+same shape.
+
+A JSON login that answers 200 with neither a token nor a session cookie
+counts as a failed login, whatever the status code says.
+
+### Find login form
+
+**Find login form** sits next to the login URL and resolves the action URL,
+the field names, and the hidden-field count from the page itself. Nothing is
+persisted from this request.
+
+- One form: "Found a login form posting to _…_ — 2 hidden field(s) will be
+  carried automatically."
+- Several genuinely different forms: the button fills one in and offers the
+  others as labelled choices, so a page carrying both a login and a
+  registration form does not guess silently. Forms that behave identically
+  collapse into one choice.
+- A script-driven page with no HTML form gets an honest answer: switch the
+  request format to JSON API and enter the login endpoint, or paste session
+  cookies instead.
+
+### Test credentials
+
+**Test credentials** runs the scan's exact login path against the target,
+then fetches an entry page with and without the resulting session. A login
+only counts as proven when the authenticated page differs from the anonymous
+one, because some SSO funnels answer everyone with a 200.
+
+The result appears inline:
+
+- **ok** — "Login succeeded — captured N cookie(s); the authenticated page
+  differs from the anonymous one." A found session token is named, so you
+  can pin the token path.
+- **warning** — the target returned 200 and cookies but the response was
+  identical with and without the session, so the credentials may not
+  actually authenticate anything.
+- **error** — the login failed, with the reason.
+
+The button tests everything on the identity: cookies, headers, Basic, and
+the login itself. Nothing a test submits is stored.
+
+## Bot-protected targets
+
+When the login page sits behind bot protection (DataDome, Cloudflare and
+friends), **Find login form** says so plainly instead of failing quietly:
+the page fetch came back 403, automated form login will not work against
+this site, and the scan's own login POST would be blocked the same way.
+
+The honest workflow on such a target is to sign in yourself and hand the
+scan your session cookie:
+
+1. Sign in to the target in your own browser.
+2. Copy the cookies from DevTools. In Chrome or Edge: DevTools (F12) →
+   **Application** → **Cookies** → select the site, click the first row,
+   select all, copy. In Firefox: DevTools → **Storage** → **Cookies**, same
+   select-all and copy.
+3. Paste into the identity's **Cookies** field.
+
+The paste box understands what browsers copy. A DevTools cookies-table copy,
+`copy(document.cookie)` console output, JSON cookie exports, Netscape
+`cookies.txt` files, and plain `name=value` lines all normalize to the same
+cookie string on paste, and the field shows what the scan will actually
+send. Prefer the table copy: `copy(document.cookie)` cannot see HttpOnly
+cookies, which usually include the session cookie itself.
+
+If the login needs a human anyway (OTP, captcha), the identity editor offers
+the other door: put the credentials in the scan notes and the login agent
+will attempt them at scan time. Notes are visible to the AI models by
+design; stored credentials never are.
+
+## Roles and multiple sessions
+
+Each identity carries a label (how the agents see the account) and a role:
+
+| Role | Use it for |
+| --- | --- |
+| **Primary session** | The default vantage every probe carries. |
+| **IDOR victim** | The account whose objects the attacker tries to reach. |
+| **IDOR attacker** | The account attempting cross-account access. |
+| **Observer (read-only)** | A passive vantage for comparing visible surface. |
+
+Every identity gets its own independent logged-in session for the whole
+scan. Form and API logins are performed at scan start; cookies and headers
+are used as given. To act as a specific account the agents switch sessions
+by label, and the label and role are all the briefing ever shows — values
+stay out of it.
+
+A failed login marks only that identity as failed. The scan continues
+without that account's session and says so in the log: `identity "attacker-1":
+login FAILED (…) — the scan continues without this account's session`. One
+dead account never takes down the others.
+
+This changes the old advice about running one scan per role. Separate scans
+are still the right tool when the vantage must be *clean* (an unauthenticated
+scan sees surface an authenticated one cannot), but a victim/attacker pair
+belongs in one scan now, because the pair only means something when both
+sessions are live at once. The cookieless re-probe that closes the
+unauthenticated gap at the end of a scan still applies; see
+[Authenticated testing strategy](/scans/remote-targets#authenticated-testing-strategy).
+
+## The project identity library
+
+Tick **Save to this project for reuse in later scans** when adding an
+identity, and the entry lands in the project's identity library. The library
+lives at `/projects/<id>/identities`; the wizard's checkbox is the usual way
+in, and the saved-identities dropdown in the identity editor lists what is
+already there. A saved identity is reusable material, not a scan artifact:
+later scans attach it by name, and the values enter a scan only at launch.
+
+The library page supports:
+
+- **Verify** — runs the stored material through the scan's real login path
+  and records the verdict on the row, shown as a ✓ verified badge.
+- **Replace credentials** — rotation. Saving new credentials resets the
+  verification state.
+- **Revoke** — future scans can no longer attach the identity. A scan-linked
+  identity can be revoked but not deleted.
+- **Delete** — only for identities no scan references.
+
+Saved identities are project-scoped: a scan can only attach identities from
+its own project.
+
+## Credential handling
+
+- Secret values — cookie values, header values, passwords, CSRF tokens —
+  are encrypted at rest, each value individually.
+- Scan logs carry labels, kinds, and counts, never values. The identities
+  page states the contract directly: "Values are encrypted at rest, never
+  shown here, and enter a scan only at launch — scan logs carry labels,
+  never values."
+- Decryption happens only where a scan actually needs the values: the login
+  at scan start, the mid-scan session update, and the equivalent worker
+  paths.
+- Credentials pasted mid-scan are never logged; the log rows carry versions
+  and cookie names only.
+
+## Credentials are referenced, never passed
+
+A credential value is never accepted as a scan argument — not in the console,
+not through the REST API, and not through an MCP tool call. A scan refers to
+a saved identity by its id, and the platform attaches the value to the
+request at scan time.
+
+This holds for agents too. An MCP client passes `auth_identity_id`, or a list
+of identities with their roles; the credential value itself is not a
+parameter that exists. An agent that wants to authenticate a scan tells the
+platform *which* saved identity to use, and nothing about the secret crosses
+the model's context.
+
+The same boundary applies when adding credentials: the value is uploaded
+from your machine and the platform returns a reference id, so the value
+never enters an agent's context, the scan logs, or an LLM provider.
+
+The practical consequence: a credential you have added can be used by any
+tool that can reach the platform, but a credential you have *not* added
+cannot be used by any of them, including one running as you.
+
+## When the session dies
+
+A scan whose session stops authenticating looks healthy from the outside, so
+ZeroQuarry watches for it and says so: a banner on the report, a `degraded`
+state on the scan, and a notification that the scan needs a session. The
+mechanics are described in
+[What happens when the session dies](/scans/remote-targets#what-happens-when-the-session-dies).
+
+Two things finish the loop:
+
+- **Update session.** The scan page has an **Update session** pane. When the
+  session dies it opens with "Session no longer authenticating — paste a
+  fresh cookie". Paste a fresh cookie string and the scan reseeds its
+  session and retests the routes it saw refuse. This is also the magic-link
+  path: click the link in your own mailbox, copy the session cookie from
+  your browser, paste it here.
+- **The degradation policy.** When auth fields are present, the Review step
+  shows "If the session stops authenticating mid-scan": keep scanning
+  unauthenticated and flag it on the report (the default), hold expansion
+  and auto-wrap after about ten minutes if no session arrives, or wrap up
+  early and save the budget.
+
+## Next
+
+- [Remote target scans](/scans/remote-targets) — the full scan lifecycle,
+  scope rules, and what happens mid-run.
+- [Project assets](/getting-started/project-assets) — storing auth on a URL
+  asset so every scan of a target starts prefilled.

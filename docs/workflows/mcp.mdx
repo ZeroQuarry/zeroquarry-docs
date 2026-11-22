@@ -1,0 +1,173 @@
+---
+id: mcp
+title: Connect an AI agent (MCP)
+sidebar_position: 4
+---
+
+ZeroQuarry runs an MCP server (Model Context Protocol) so an AI agent can work
+ZeroQuarry directly: list projects, launch a scan, follow the logs, read
+findings, and render reports. Claude, Cursor, ChatGPT and Codex, and any MCP
+client you run yourself can connect to it.
+
+A scan launched over MCP is a real scan. It passes the same tier, quota, and
+authorization checks as one launched from the console, and it produces the same
+finding objects the console shows. There is no agent-only path with weaker
+gates, and nothing an agent returns stays inside the agent: the console shows
+the scan, its findings, and any verdict the agent records.
+
+## Server URL
+
+For ZeroQuarry Cloud, point the client at:
+
+```text
+https://mcp.zeroquarry.com/
+```
+
+Self-hosted deployments serve the same protocol at `POST /api/v1/mcp` on their
+own host. A deployment that sets `MCP_ROOT_HOST` also serves the bare root path
+on that host, which is the URL to paste into a client that expects a single
+URL with no path.
+
+The console prints the exact URLs for the deployment you are signed in to, on
+**Account > Integrations > MCP server (AI agents)**.
+
+## Authenticate
+
+A client connects one of two ways. Both resolve to the same thing: a
+ZeroQuarry user, and the agent acts as that user with that user's live
+permissions.
+
+**Through your ZeroQuarry sign-in (OAuth).** Add the server URL and the client
+opens a browser prompt. Sign in with Google or GitHub, approve the connection
+once, and the client holds a token it refreshes itself. The sign-in is
+ZeroQuarry's own identity provider, so your ZeroQuarry user stays the account
+of record. Deactivate the user or change their role and the next request is
+denied.
+
+Clients find this path on their own. An unauthenticated request comes back as a
+401 whose `WWW-Authenticate` header carries the OAuth discovery metadata URL,
+and the server publishes that metadata at
+`/.well-known/oauth-protected-resource`. A client configured with nothing but
+a URL finds the whole flow from that 401 alone.
+
+On a deployment with just-in-time signup enabled, the first sign-in creates the
+ZeroQuarry account. The 401 says so when that applies, so a client does not
+report a dead end to a user who has never signed in before.
+
+**With a personal API key.** For scripts and headless agents, mint a key on
+your **Profile** page and pass it as a bearer token. The key acts as you,
+capped by its scopes.
+
+The Profile page offers three scopes, and an agent needs more than one:
+
+| Scope | Grants |
+| --- | --- |
+| `mcp` | Opens the MCP server to this key. Without it, the server answers with a 403 naming the missing scope. |
+| `read` | Views projects, scans, findings, and reports. |
+| `scans:write` | Launches and cancels scans. |
+
+Tick `mcp` and `read` for an agent that reports on what it finds. Add
+`scans:write` for an agent that also launches scans.
+
+The three are independent, and the failure modes are worth knowing before you
+wire an agent up. A key with only `mcp` gets past the server's scope check
+and then finds that every scan read comes back as not found and every launch
+is refused for lack of permission. A key with `mcp` and `read` can read
+everything and still not launch anything. The scope cap only ever narrows a
+key, so a key with all three behaves exactly like the user who minted it.
+
+## Connect a client
+
+The mechanics differ slightly per client. The URL is the same.
+
+Claude Code:
+
+```bash
+claude mcp add --transport http zeroquarry https://mcp.zeroquarry.com/ \
+  --header "Authorization: Bearer zq_..."
+```
+
+Cursor (`.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "zeroquarry": {
+      "url": "https://mcp.zeroquarry.com/",
+      "headers": { "Authorization": "Bearer zq_..." }
+    }
+  }
+}
+```
+
+ChatGPT and Codex use the same URL as a connector or an MCP server entry. Their
+browser sign-in flow is the default path.
+
+Leave the `Authorization` header out if you would rather not keep a
+long-lived key in the client's configuration file. A client that supports the
+browser sign-in gets a refreshable token that way.
+
+## What the agent can do
+
+The tool surface mirrors the console's core loop:
+
+| Tool | What it does |
+| --- | --- |
+| `list_projects`, `get_project`, `create_project` | Work with projects. |
+| `create_scan` | Launch a source, binary, or remote scan. |
+| `get_scan`, `list_scans`, `get_scan_logs` | Follow status and progress. |
+| `cancel_scan` | Stop a queued or running scan. |
+| `check_repo_access` | Check that repositories are cloneable before scanning. |
+| `get_findings`, `get_finding` | Read results, with a severity filter. |
+| `record_finding_verdict` | Record the human decision on a finding. |
+| `get_poc_artifact` | Fetch a finding's proof-of-concept artifact. |
+| `get_report` | Render the report as markdown. |
+| `search` | Full-text search across the caller's projects, scans, findings, and disclosures. |
+| `get_account` | Read the account's tier, entitlements, usage, and trial clock. |
+| `get_dependency_watch` | Read known-vulnerable pinned versions across the account or one project. |
+| `list_webhooks`, `create_webhook`, `delete_webhook`, `list_webhook_deliveries` | Manage outbound scan delivery. |
+| `list_skills`, `load_skill` | Reach the skills pack from a client without the native skills surface. |
+| `get_started` | Get a setup-and-first-scan plan for a new account. |
+
+Three of these are conditional, and an agent should not be surprised by their
+absence. `list_skills` and `load_skill` are advertised only to clients that did
+not declare the MCP Skills extension; a modern client reads the pack natively
+instead. `get_started` is advertised only until the account has run its first
+scan. All three stay callable either way, because a client may be holding a
+catalog it cached earlier.
+
+Each tool's arguments are documented in [MCP tools](/workflows/mcp-tools).
+
+## Long scans are durable
+
+A scan can run for a while, longer than a chat turn. `create_scan` on a client
+that supports the MCP Tasks extension returns a durable task: the scan keeps
+running on ZeroQuarry's side, the client can poll its status, and a disconnect,
+a restart, or a closed laptop loses nothing. The scan's own id is the task id,
+so picking the work back up later is just reading the scan.
+
+## Permissions
+
+The agent acts as you, and the same rules apply as in the console:
+
+- Scan access is gated on the project's read permission. A scan in a project
+  your user cannot read comes back as not found, and its findings and report
+  come back with it.
+- Launching a scan requires the launch permission on the target project, and
+  cancelling requires the cancel permission. The refusal says which.
+- A personal API key's power is its owner's current permissions, capped by its
+  scopes and re-checked on every request. Demoting or deactivating the user
+  narrows the agent on its next call.
+- Registering a webhook requires the account owner or admin role, because the
+  platform POSTs account data to the URL you register.
+
+## Where to go next
+
+- [MCP tools](/workflows/mcp-tools) is the reference for each tool and its
+  arguments, including the three scan modes.
+- [The ZeroQuarry skills pack](/workflows/mcp-skills) covers the guided
+  workflows the server serves over the MCP Skills extension.
+- [Scan delivery webhooks](/workflows/mcp-webhooks) covers outbound delivery of
+  scan results to your own systems.
+- [MCP protocol reference](/workflows/mcp-protocol) documents the versions,
+  methods, and error codes, for anyone writing a client.

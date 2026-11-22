@@ -1,0 +1,118 @@
+---
+id: mcp-webhooks
+title: Scan delivery webhooks
+sidebar_position: 3
+---
+
+An agent can register a webhook that ZeroQuarry POSTs to when a scan reaches a
+terminal state. This is the way to get scan results into a system that is not
+an MCP client: a ticket queue, a chat channel, a CI job that waits on a
+result.
+
+The console has the same feature at **Account > Integrations > Delivery
+webhooks**. An agent and a person can both register sinks, and both see the
+same delivery log.
+
+Registering a webhook requires the account owner or admin role. The platform
+POSTs account data to the URL you register, so the permission is deliberate.
+
+## What a delivery contains
+
+One POST per terminal scan state. The body is a summary, not the findings:
+
+```json
+{
+  "event": "scan.completed",
+  "scan_id": "3f9c...",
+  "name": "nightly",
+  "mode": "source",
+  "status": "completed",
+  "project_id": "proj_...",
+  "completed_at": "2026-10-31T02:14:09Z",
+  "finding_counts": {"critical": 1, "high": 4, "medium": 12},
+  "report_url": "https://console.zeroquarry.com/reports/3f9c..."
+}
+```
+
+There are three events: `scan.completed`, `scan.failed`, and `scan.cancelled`.
+
+The body tells the receiver enough to decide whether to fetch detail and
+points at the report for it. It never carries findings. A sink that needs the
+findings reads them from the report, which the receiver's own credentials
+gate.
+
+## Registering a sink
+
+`create_webhook` takes an absolute URL and an optional label.
+
+```json
+{
+  "url": "https://hooks.example.com/zeroquarry",
+  "label": "security-alerts"
+}
+```
+
+The URL has to be `https`. Plain `http` is accepted only for `localhost`,
+`127.0.0.1`, and `::1`, because a delivery carries account data over the open
+internet and a non-local sink has to encrypt the hop.
+
+The response carries the signing secret, prefixed `zqwh_`, and the server never
+shows it again. Store it at the sink before you let anything else happen. A
+listing shows the URL masked to scheme and host, since a Slack-style URL
+embeds a path token that does not belong in a transcript.
+
+`list_webhooks` returns the registered sinks with their masked URLs.
+`delete_webhook` removes one. Pending deliveries for a deleted webhook are
+abandoned rather than redirected.
+
+## Verifying the signature
+
+Every delivery carries the signature of the exact bytes sent:
+
+```text
+X-ZeroQuarry-Signature: sha256=HMAC(secret, body)
+```
+
+Compute an HMAC-SHA256 over the raw request body with the `zqwh_` secret as
+the key, hex-encode the digest, and compare it to the header value with a
+constant-time comparison. Compare against the body you actually received,
+not against a re-serialized copy of the parsed JSON: the signature covers the
+bytes, and re-serializing changes them.
+
+Three other headers travel with it:
+
+| Header | Value |
+| --- | --- |
+| `X-ZeroQuarry-Event` | The event name, for routing without parsing the body. |
+| `X-ZeroQuarry-Delivery` | The delivery id, which is the same id that appears in the delivery log. |
+| `User-Agent` | `ZeroQuarry-Webhooks/1.0`. |
+
+## The delivery contract
+
+Delivery is at-least-once, not exactly-once. A sink should be idempotent and
+should use `X-ZeroQuarry-Delivery` as its deduplication key.
+
+A delivery is attempted immediately and then retried on a fixed schedule: five
+attempts in total, spaced roughly one minute, five minutes, thirty minutes,
+and two hours after the first try. After the fifth attempt the delivery is
+exhausted and stays in the log as failed.
+
+A 2xx response marks the delivery delivered. Anything else is a failure and
+schedules the retry. The request times out after ten seconds.
+
+## The delivery log
+
+`list_webhook_deliveries` takes a `webhook_id` and returns the most recent
+deliveries first: the event, the scan, the attempt number, the status, the
+response code, the error text if there was one, and when it was created and
+last attempted.
+
+This is the surface for "did my sink get the event?". When a delivery failed,
+the log carries the response code and the error, which is usually enough to
+tell a misrouted URL from a sink that returned 500.
+
+## Where to go next
+
+- [MCP tools](/workflows/mcp-tools) for the rest of the tool surface.
+- [Issue trackers](/workflows/issue-trackers) for the other way to move
+  findings into engineering work.

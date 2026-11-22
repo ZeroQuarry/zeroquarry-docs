@@ -36,6 +36,7 @@ module.exports = {
         "scans/source-code",
         "scans/binary-artifacts",
         "scans/remote-targets",
+        "scans/authenticated-scans",
         "scans/dependency-scanning",
         "scans/infrastructure-as-code",
       ],
@@ -70,6 +71,17 @@ module.exports = {
         "workflows/github-actions",
         "workflows/scheduled-rescans",
         "workflows/email-triage",
+        {
+          type: "category",
+          label: "Connect an AI agent (MCP)",
+          link: {type: "doc", id: "workflows/mcp"},
+          items: [
+            "workflows/mcp-tools",
+            "workflows/mcp-skills",
+            "workflows/mcp-webhooks",
+            "workflows/mcp-protocol",
+          ],
+        },
       ],
     },
     {

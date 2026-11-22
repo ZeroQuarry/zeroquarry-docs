@@ -1,0 +1,115 @@
+---
+id: mcp-skills
+title: The ZeroQuarry skills pack
+sidebar_position: 2
+---
+
+The MCP server serves a skills pack alongside the tools. A skill is a document
+that tells an agent how to do one job well, including the judgement calls the
+tools cannot make on their own: what to confirm before launching a scan, how
+to record a verdict, when a dependency is safe to add.
+
+The pack is what the agent reads when a request needs more than a tool call.
+`create_scan` launches a scan. The `onboarding` skill tells the agent how to
+walk a brand-new account through their first one.
+
+## How a client gets the pack
+
+The pack is served over the MCP Skills extension (SEP-2640), so a client has
+to ask for it. Declare the extension in the client's capabilities:
+
+```json
+{
+  "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+  "io.modelcontextprotocol/clientCapabilities": {
+    "extensions": {
+      "io.modelcontextprotocol/skills": {}
+    }
+  }
+}
+```
+
+A client that calls `skills/list` or `skills/get` without declaring the
+extension gets a 400 naming the capability it is missing.
+
+Every skill lives at a URI under one namespace:
+
+```text
+skill://zeroquarry/<skill-name>/SKILL.md
+```
+
+The `skills/list` method returns each skill's frontmatter and a manifest of
+its files with a SHA-256 digest and a size for each. `skills/get` returns one
+skill's entry by its `SKILL.md` URI. The generic resource methods serve the
+bytes: `resources/list` enumerates them, `resources/read` returns one, and
+`resources/directory/read` lists the direct children of a directory.
+
+A client that verifies digests against the manifest gets a mismatch when the
+pack changed between the listing and the read. The server checks the size on
+read for the same reason, so a pack that changes under a client surfaces as an
+error rather than as silently stale content.
+
+## The pack
+
+| Skill | Use for |
+| --- | --- |
+| `zeroquarry` | The entrypoint. Orients the agent and routes it to the right tool or skill. |
+| `onboarding` | A brand-new account, and "get started" requests. First scan, tier limits, what to set up next. |
+| `sast-basic` | A quick, cheap static pass over a repository — the two basic-pass depths, what each costs, and when it is enough. |
+| `security-review` | A full security review of a codebase — a pre-release audit, a compliance-mandated scan, or a re-scan after fixes. |
+| `remote-scan` | Testing a live target — a URL, a SaaS API, or a host — including scope, authorization, and authenticated testing. |
+| `binary-scan` | Scanning a compiled artifact instead of a repository — firmware, an APK, a JAR, a native library. Upload mechanics and size caps included. |
+| `outdated-dependencies` | Whether pinned dependencies carry known vulnerabilities — CVEs in manifests and lockfiles, and actively-exploited packages. |
+| `slopsquatting` | Whether a dependency or package is safe to add, and hallucinated-package checks. |
+| `security-hygiene` | Secure-coding guidance for the code the agent itself writes. Needs no scan and no connection. |
+| `automation` | Recurring scans, CI scanning, and delivery into Slack, Jira, Linear, ServiceNow, or email triage. |
+| `rest-api` | Capabilities beyond the MCP tools: report exports, SBOM and VEX downloads, share links, patches and auto-fix pull requests, disclosures, schedules, per-scan LLM usage, and multipart uploads too large for MCP. |
+
+The entrypoint is at `skill://zeroquarry/zeroquarry/SKILL.md`. It is what the
+server's own discovery instructions point an agent at, and it is the one to
+load first: it verifies the connection, lists what is reachable, and points
+at the specialised skill for the task.
+
+The pack is not fixed. Skills are added to it as the product gains the
+capability to describe, and an agent should list the pack rather than assume
+the table above is complete.
+
+The skills are written to the agent, not to a person. They use the tool names
+directly, they name the console pages where a human takes an action, and they
+carry the rules the agent is expected to follow without being asked.
+
+## How the pack is served
+
+A few properties matter if you are writing a client or running your own
+deployment.
+
+The pack is a directory on the server, one subdirectory per skill, and each
+subdirectory has a `SKILL.md` with YAML frontmatter carrying at least a `name`
+and a `description`. The directory name and the frontmatter `name` have to
+match, and both have to be a valid Agent Skills name: lowercase letters,
+digits, and hyphens.
+
+A skill that fails validation is excluded whole and never half-served. Either
+it is in the listing with its complete manifest, or it is not there at all.
+The server logs the reason at startup.
+
+Reads resolve only through the advertised manifest, so a file the listing
+does not mention is not served even if it exists on disk. The skill directory
+is the containment boundary.
+
+The listing pages at 50 entries. The freshness hint on a read is five
+minutes, which only trims how often a host refetches; the pack itself only
+changes on deploy.
+
+## Where the pack comes from
+
+The skills are the same documents the product maintains in its own repository,
+and they change with the product. A client that cached the pack should treat
+the digests as authoritative and refetch rather than assume a skill is
+unchanged.
+
+Two of the skills cross into the REST API on purpose. `rest-api` exists
+because the MCP tools cover the core loop (launch a scan, poll it, read the
+findings) and not the whole surface, and it is the right place to send an
+agent that wants a PDF report, an SBOM, or a multipart upload of an artifact
+that does not fit through a tool argument.

@@ -1,0 +1,364 @@
+---
+id: mcp-tools
+title: MCP tools
+sidebar_position: 1
+---
+
+The server publishes 21 tools in its core catalog, and up to three more
+depending on the client and the account. A client discovers them through
+`tools/list`, and every tool ships its own JSON Schema, so a capable client can
+call them without being told they exist.
+
+Every call carries the caller's own identity and tenant. The agent sees what
+its user can see: a scan in a project the user cannot read comes back as not
+found, and so do its findings and its report.
+
+## The catalog
+
+| Tool | What it does |
+| --- | --- |
+| `list_projects` | List the caller's projects. |
+| `create_project` | Create a project to group scans. |
+| `get_project` | Get one project with its most recent scans. |
+| `list_scans` | List scans, newest first. |
+| `get_scan` | Get one scan's status, summary, and targets. |
+| `get_scan_logs` | Read a scan's progress log. |
+| `create_scan` | Launch a scan. |
+| `cancel_scan` | Stop a queued or running scan. |
+| `check_repo_access` | Check that repositories are cloneable before scanning. |
+| `get_findings` | List a completed scan's findings. |
+| `get_finding` | Get one finding's detail. |
+| `record_finding_verdict` | Record the human decision on a finding. |
+| `get_poc_artifact` | Read a finding's proof-of-concept artifact. |
+| `get_report` | Render a scan's report as markdown. |
+| `search` | Full-text search across the account. |
+| `get_account` | Read the account's tier, entitlements, usage, and trial clock. |
+| `get_dependency_watch` | Read known-vulnerable pinned versions. |
+| `list_webhooks` | List outbound delivery webhooks. |
+| `create_webhook` | Register an outbound delivery webhook. |
+| `delete_webhook` | Delete a webhook registration. |
+| `list_webhook_deliveries` | Read a webhook's delivery log. |
+
+Three more tools are callable but not always advertised:
+
+| Tool | What it does | When it is advertised |
+| --- | --- | --- |
+| `list_skills` | List the skills pack: each skill's name, description, `skill://` URI, and supporting files. | Only for clients that did *not* declare the SEP-2640 Skills extension. |
+| `load_skill` | Load one skill's `SKILL.md`, or one of its supporting files. | Same as `list_skills`. |
+| `get_started` | A tailored setup-and-first-scan plan for the account. | Only while the account has never run a scan. |
+
+The advertisement rules exist so the catalog stays small. A modern client that
+declared the Skills extension reads the pack through the native skills surface
+instead of through two fallback tools, so the fallback tools would be dead
+weight in its catalog. `get_started` is noise on an account that has already
+scanned, so it drops out of the catalog once the account has run its first
+scan.
+
+Omission from the catalog is not a refusal. `tools/call` accepts every one of
+these from any client era and any account state, because a client may be
+holding a catalog it cached before the omission. An onboarded account calling
+`get_started` gets a short "already onboarded" pointer instead of a plan.
+
+The catalog is per-request and marked `cacheScope: private`, so a
+state-varying catalog stays inside the MCP caching contract.
+
+## Results come back twice
+
+A successful tool call returns the payload twice on purpose: once as
+`structuredContent`, which is the machine-readable object, and once as a text
+block carrying the same payload as formatted JSON. A client reads the
+structured field when it can, and a model reads the text.
+
+A tool that fails returns `isError: true` with the reason as message text.
+This is the tool's result, not a protocol error, so the agent can read it and
+react. The messages name the fix: a missing scope says which scope to mint, a
+tier refusal says which mode the plan does not include, a clone failure names
+the repository access step that is missing.
+
+## Projects
+
+`list_projects` takes an optional `include_archived` boolean and returns the
+account's projects, archived ones included only when asked for. The default
+project is always in the list.
+
+`create_project` takes a `name` and an optional `profile`, which defaults to
+`custom`. The profile restricts which scan modes the project can launch. The
+name is unique within the account, and a duplicate comes back as an error
+rather than a second project.
+
+`get_project` takes a `project_id` and returns the project with up to 20 of
+its most recent scans.
+
+## Launching a scan
+
+`create_scan` returns immediately with a `scan_id` and a `dispatch` of
+`fresh`. A scan launched over MCP is always a fresh dispatch: it does not join
+an in-flight scan that covers the same repository the way the REST API can.
+
+The mode is chosen with `mode`, and the three modes take different arguments.
+
+### Source mode
+
+The default. Give it `git_urls`, which takes a list of repository URLs or one
+newline/comma-separated string.
+
+```json
+{
+  "git_urls": ["https://github.com/example/service.git"],
+  "project_name": "example-service",
+  "name": "nightly"
+}
+```
+
+`path_scope` limits a monorepo scan to one subdirectory. It applies to one
+repository per call, so a monorepo that needs two directories takes two
+scans.
+
+`git_credential_id` selects a saved Git credential. Leave it out when exactly
+one saved HTTPS credential covers every target host, and ZeroQuarry attaches
+that one automatically.
+
+### Binary mode
+
+Give it `uploads`, a list of `{filename, content_base64}` objects. `artifact_type`
+is `mobile`, `firmware`, or `other`, and defaults to `other`.
+
+```json
+{
+  "mode": "binary",
+  "artifact_type": "mobile",
+  "uploads": [
+    {"filename": "app-release.apk", "content_base64": "UEsDBBQ..."}
+  ]
+}
+```
+
+Base64 inflates the file by about a third, and the caps account for that: 10 MB
+per file and 20 MB across the whole call, at most 10 files. A larger artifact
+does not fit through MCP and has to go through the REST API's multipart path.
+
+### Remote mode
+
+Give it `url` and `authorized: true`. The flag is not a formality: the server
+refuses a remote scan without it, and it is the caller's assertion that they
+are authorized to test the target.
+
+```json
+{
+  "mode": "remote",
+  "url": "https://staging.example.com",
+  "authorized": true,
+  "scope": ["staging.example.com"],
+  "http_rate_limit_per_second": 5
+}
+```
+
+`scope` takes host lines, as a list or one newline/comma-separated string.
+`http_rate_limit_per_second` throttles outbound requests; 0 means unthrottled,
+and the platform default applies when the argument is absent.
+
+Authenticated testing attaches saved scan identities only, through
+`auth_identity_id` for the primary session or `identities` for additional
+roles. The entries carry `identity_id`, a `role` of `attacker`, `victim`, or
+`observer`, and an optional `label`.
+
+Credential values are never accepted as tool arguments. A target that needs
+credentials gets them from the project's Identity Library in the console, and
+the agent references them by id.
+
+### Models and stages
+
+`model`, `model_review`, and `model_artifact` pick the model for the scan
+itself, the review pass, and artifact generation. The server resolves them
+against the models the account's tier has configured, and a model that is not
+available comes back as an error naming the ones that are.
+
+`sca`, `infra`, and `secrets` toggle the dependency, infrastructure-as-code,
+and secrets stages. Leaving one out keeps the platform default.
+
+`batch_mode` and `adversarial_review` mirror the console form. `tags`,
+`notes`, `name`, `project_id`, `project_name`, and `execution_target` set the
+metadata the scan carries.
+
+## Following a scan
+
+`list_scans` takes an optional `project_id`, an optional `status` of
+`queued`, `running`, `awaiting_batch`, `completed`, `failed`, or `cancelled`,
+and a `limit` between 1 and 200.
+
+`get_scan` takes a `scan_id` and returns the scan with its targets.
+
+`get_scan_logs` takes a `scan_id` and returns the log entries with a
+`latest_id`. Omit `since_id` and the call tails the most recent 200 entries,
+so an agent polling a live scan sees current activity rather than the first
+200 lines of setup. Pass the `latest_id` back as `since_id` to page forward.
+`has_more` says whether more entries exist beyond what came back.
+
+`cancel_scan` takes a `scan_id` and is idempotent. Cancellation is
+cooperative: a queued scan stops there, and a running scan learns to stop
+when its worker next renews its lease.
+
+## Repository access
+
+`check_repo_access` takes `git_urls` and runs the same access probe that
+`create_scan` runs before it queues anything. It creates nothing. For each
+repository it reports the path that covers it: a ZeroQuarryBot installation, a
+saved Git credential, or anonymous access to a public repository.
+
+```json
+{
+  "targets": [
+    {"git_url": "https://github.com/example/private.git", "access": "ready", "via": "saved Git credential"}
+  ],
+  "next": "All targets clone-ready — create_scan with these git_urls when the user confirms."
+}
+```
+
+Run it after the user completes an access step, such as installing the
+ZeroQuarryBot GitHub App. It is the cheap half of the guided access loop: the
+agent finds out that a repository is not reachable before a scan is created,
+rather than after.
+
+## Reading results
+
+`get_findings` takes a `scan_id`, an optional `severity` filter of `critical`,
+`high`, `medium`, `low`, or `info`, and an optional `limit`. It returns the
+findings severity-ordered along with `severity_counts`. Each finding carries
+its `human_state`, which is the recorded decision on it.
+
+`get_finding` takes a `scan_id` and a `finding_id` and returns the full
+detail: description, CVE references, CVSS scoring, and adjudication state.
+
+`get_poc_artifact` takes a `scan_id` and a `finding_id` and returns the
+proof-of-concept text with its language and title. A finding without an
+artifact says so. A tier without the artifact entitlement gets a plain
+not-found rather than an upgrade prompt, so the tool does not become a
+marketing surface.
+
+`get_report` takes a `scan_id` and renders the report as markdown. It returns
+the markdown alongside the list of sections it rendered.
+
+By default the report excludes rejected findings and unproven fail-open
+conclusions. `include_rejected` and `include_unproven_fail_open` opt back in,
+and `min_confidence` sets the confidence floor. It takes 0 to 1, and a value
+above 1 is read as a percentage. The default is the account's own
+low-confidence threshold.
+
+`sections` narrows the output to a subset of section ids: `overview`,
+`targets`, `notes`, `authentication`, `summary`, `findings`, `non_issues`,
+`chat`, `description`, `adversarial_review`, `poc`, and `email`.
+
+## Working the verdicts
+
+`record_finding_verdict` writes the same record the console's finding page
+writes, so both surfaces stay in sync. It takes a `scan_id`, a `finding_id`,
+and a `state`.
+
+| State | Meaning |
+| --- | --- |
+| `validated` | The finding is real. |
+| `disputed` | The finding is not real. Requires a reason. |
+| `mitigated` | The finding was fixed. |
+| `retested` | The fix was confirmed by a re-scan. |
+| `regression` | The finding came back. Requires a reason. |
+| `accepted_risk` | The finding is knowingly accepted. Requires a reason. |
+| `archived` | The finding is not worth tracking. Requires a reason. |
+| `candidate` | Reopen a settled finding for validation. |
+| `needs_validation` | Reopen a settled finding for validation. |
+
+`rejected` is accepted as an alias of `disputed`.
+
+`reason_code` takes one of `not_exploitable`, `not_reachable`,
+`intended_behavior`, `duplicate`, `out_of_scope`, `bad_evidence`,
+`environment_mismatch`, `fixed_or_mitigated`, or `other`. `reason_text` takes
+free text where a reason is required.
+
+The decision belongs to a person. Propose a state, record it once the user
+confirms, and do not adjust a recorded verdict unprompted. The console can
+change it afterwards, which is the point of writing it in one shared place.
+
+## Search
+
+`search` takes a `query` and an optional `limit` between 1 and 50. It runs
+full-text search across the caller's projects, scans, findings, repositories,
+and disclosures.
+
+## Account and entitlements
+
+`get_account` takes no arguments and returns the account's tier, its
+entitlements, its usage against the security-run cap, and its trial clock with
+the days remaining. The trial clock is read-only at expiry: it reports the
+days left and does not change what the account may do.
+
+Call it before proposing work the plan does not include. Binary scans, remote
+scans, proof-of-concept generation, auto-fix, and disclosures are all
+entitlement-gated, and finding out at the point of refusal is worse than
+finding out at the point of proposal. The tool exists so an agent can say "you
+have 12 days left on the trial" before it is surprised by it.
+
+## Dependency watch
+
+`get_dependency_watch` answers one question: is this account pinning a
+version with a known vulnerability?
+
+It reads the dependency-watch cache, which the daily sweep keeps fresh, and
+reports pinned versions with open advisories and matches against the
+Known Exploited Vulnerabilities catalog. It takes an optional `project_id` to
+scope the read to one project, an optional `include_inventory` boolean to also
+return the pinned packages and runtime pins, an optional `ecosystem` filter
+such as `npm` that applies to the inventory only, and an optional `limit`
+between 1 and 200 that caps the advisories returned.
+
+The tool is free: it consumes no security-run units and is not tier-gated. A
+project-scoped read applies the same project-read check the REST API applies,
+so a key scoped to `mcp` alone cannot read through MCP what the REST API would
+hide.
+
+It does not answer "does a newer version exist?". True staleness is not
+computed here. The fix path it points at is concrete: bump the pin to the
+advisory's `fixed_version` and rescan. Patch generation and auto-fix pull
+requests stay in the console, where the scan and its patches live.
+
+## Skills
+
+`list_skills` takes no arguments and returns the skills pack as metadata: each
+skill's name, description, `skill://` URI, and supporting files. It returns
+metadata only, not the instructions themselves.
+
+`load_skill` takes a `skill` name from `list_skills` and an optional `file`.
+Omit `file` to get the skill's `SKILL.md` — frontmatter plus instructions.
+Name a supporting file path from the skill's `files` list, such as
+`references/GUIDE.md`, to get that file instead.
+
+Both tools are the fallback path for clients that did not declare the
+SEP-2640 Skills extension. A client that did declare it reads the same pack
+through the native skills surface. See
+[The ZeroQuarry skills pack](/workflows/mcp-skills) for what the pack covers.
+
+## Getting started
+
+`get_started` takes no arguments and returns a tailored setup-and-first-scan
+plan for the account: what to ask the user, how to launch and follow the
+first scan, the tier limits that apply, and where the depth lives in the
+skills pack. The plan is composed server-side, so it reflects the account's
+real tier and real state rather than anything the model supplied.
+
+The server advertises the tool only while the account has never run a scan.
+After that it drops out of the catalog but stays callable, answering a short
+"already onboarded" pointer, because a client may be holding a catalog it
+cached before onboarding finished.
+
+## Webhooks
+
+The four webhook tools are covered in
+[Scan delivery webhooks](/workflows/mcp-webhooks). Registering one requires
+the account owner or admin role.
+
+## Where to go next
+
+- [The ZeroQuarry skills pack](/workflows/mcp-skills) explains the guided
+  workflows that sit above these tools.
+- [MCP protocol reference](/workflows/mcp-protocol) covers the request
+  contract and the error codes.
+- [How scans work](/getting-started/projects-and-scans) for what a scan
+  produces and what it costs.
