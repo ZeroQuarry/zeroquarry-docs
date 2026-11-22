@@ -1,0 +1,132 @@
+---
+id: retests-and-rechecks
+title: Retests and rechecks
+sidebar_position: 4
+---
+
+"Scan it again" means three different things in ZeroQuarry, and picking the
+wrong one wastes a run. This page names the three, then covers what a re-check
+produces and how to read it.
+
+## The three re-run meanings
+
+The report page deliberately names them differently, because they differ in
+what they cost and what they can find.
+
+### 1. Re-run stage on selected findings
+
+Re-runs one stage against **the findings you selected**. Use it when you have
+fixed something and want to know whether that specific finding is gone.
+
+### 2. Re-run a pipeline stage (whole scan)
+
+Re-runs the chosen stage over the **whole scan, in place**. It discovers
+nothing new and creates no new version — it redoes a stage of the scan you
+already have.
+
+### 3. Scan again — new version
+
+Runs a **full discovery pass** against the target again, and may find new
+issues beyond the findings this scan already found. This creates a new
+version of the scan. On a remote scan the re-check runs alongside it by
+default, and unchecking it skips the retest; either way it reserves security
+runs like any other scan.
+
+If you are not sure which you want, it is almost always one of these:
+
+- **I fixed something, is it gone?** → Re-run stage on selected findings.
+- **I do not trust that stage, run it again for everything.** → Re-run a
+  pipeline stage (whole scan).
+- **I changed the code, what else is wrong now?** → Scan again — new version.
+
+## Re-checking carries your selection and filters
+
+The re-check flow is goal-first: you choose the scope, and the findings
+already selected on the report, together with the filters you have applied,
+carry through to the re-check. You do not have to rebuild the set by hand.
+
+The re-checkable candidates can also be trimmed from a list — see
+[Verify fixes](/reports/results-workflows#verify-fixes) in the results picker
+page.
+
+## What a re-check produces
+
+### Retest results are separate from new findings
+
+A retest reports on the findings it checked. It does not mix them in with
+the scan's finding list, because they answer different questions. The report
+shows them as **Retest results**, and the new findings from the same scan as
+**New findings from this scan**.
+
+When a retest re-confirms an occurrence of a finding that was already known,
+that is counted as a re-confirmation rather than as a new finding.
+
+### Outcomes
+
+| Outcome | What it means |
+| --- | --- |
+| Fixed | The finding is gone. |
+| Still present | The finding is still there. |
+| Partially fixed | Some of it is gone and some is not. The residual severity is carried through. |
+| Inconclusive | The retest could not decide. |
+
+A partial remediation is recorded as a **partially fixed** verdict rather
+than being forced into fixed or still-present. Without a residual severity it
+degrades to inconclusive, because a partial fix that nobody has quantified
+is not a partial fix you can report.
+
+## A blocked retest is not a failure
+
+Sometimes a re-check cannot run because the session it needed is gone — the
+login expired, the credentials stopped working, or the target is
+unreachable. That is a **blocked** retest, and it is reported honestly
+rather than being dressed up as a result.
+
+| Blocked reason | What happened |
+| --- | --- |
+| Session expired | The authenticated session had expired. |
+| Credentials invalid | The configured login no longer works. |
+| Target unreachable | The target could not be reached. |
+
+A blocked retest consumes **zero security runs**. You are told which reason
+applies and what to do about it — for an expired session, run a fresh retest
+with a fresh session.
+
+The console distinguishes three states that are easy to conflate:
+
+- **BLOCKED** — the retest was blocked outright.
+- **CREDENTIAL HEALTH UNKNOWN** — static credentials are in use and their
+  health could not be established.
+- **DEGRADED** — the session tracked or canary died partway through, so the
+  result is weaker than a clean run.
+
+## The per-finding retest timeline
+
+Each finding carries its own **Retest history** panel, next to its decision
+history. It shows the outcome badges, where each run came from, and the
+reasoning recorded for each result.
+
+The retest evidence lives here rather than in an accordion on the report
+page, so the history of a finding and the finding's decisions sit together.
+
+## Rechecks across runs in an engagement
+
+When an attestor re-checks findings across more than one scan, and two
+completed scans disagree about the same finding, the engagement surfaces the
+disagreement rather than picking a winner. Both outcomes are shown side by
+side, with the scan and its date.
+
+A targeted retest can also be **preflighted** before it is queued: the
+engagement shows how many findings would be checked, what is blocking them,
+which targets are involved, and any model, rate-limit, or scope overrides
+that would apply.
+
+## Where to go next
+
+- [Working with results](/reports/results-workflows) — the picker and the
+  wizards it opens.
+- [Finding lifecycle](/reports/finding-lifecycle) — the states a finding
+  moves through and what each one records.
+- [Verification tests](/reports/verification-tests) — checking findings
+  against frozen evidence.
+- [Remote target scans](/scans/remote-targets) — retesting a live target.

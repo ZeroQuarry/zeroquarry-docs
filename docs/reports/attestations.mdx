@@ -60,6 +60,52 @@ Sign-off is gated on every finding having a verdict. Review notes are optional
 attestor commentary and never block it, so an attestor is not forced to write an
 essay per finding to get paid.
 
+## The attestation wizard
+
+The report page's **Prove it** card opens a three-step walk-through rather
+than dropping you into a form:
+
+1. **Choose the baseline evidence.** An attestation retests against a frozen
+   snapshot — sealed, hash-verified, and immutable. The wizard says plainly
+   that the most recently designated snapshot is not automatically the right
+   one, so you pick deliberately. You can also designate the results as
+   evidence from this step, which is the Freeze stage of the
+   [evidence chain](/reports/results-workflows#the-evidence-chain).
+2. **Invite the attestor.** The invitation goes out as soon as you confirm.
+   The attestor works in their own read-only room against the baseline you
+   chose.
+3. **Review and confirm.** The step states what happens when the attestation
+   begins.
+
+If an attestation is already running on the sealed results, the card tracks
+the existing engagement instead of starting a second one.
+
+## Remediation verification
+
+A **remediation verification** engagement re-checks findings that were
+reported earlier, anchored to the same baseline. Its document is laid out
+verification-first: the finding's verification test and its target come
+before the supporting prose, because the question being answered is "is this
+fixed?" rather than "is this real?".
+
+Each finding carries a status badge in the document and in the console:
+
+| Badge | Verdict | Meaning |
+| --- | --- | --- |
+| `FIXED` | fixed | The finding is gone. |
+| `PARTIALLY FIXED` | partially_fixed | Some of it is gone. The residual severity is carried alongside the badge. |
+| `REMAINING` | not_fixed | The finding is still there. |
+| `UNABLE TO VERIFY` | unable_to_verify | The check could not decide. |
+| `ACCEPTED RISK` | accepted_risk | The finding is knowingly accepted. |
+| `PENDING REVIEW` | — | No verdict recorded yet. |
+
+A partial remediation is annotated with what remains — "residual medium
+(5.3)" — rather than being reduced to a fixed/not-fixed pair, so a reader
+knows the size of what is left.
+
+See [Verification tests](/reports/verification-tests) for the verification
+mechanism itself.
+
 ## The attestor's side
 
 The attestor works inside their **own** ZeroQuarry account, against their own

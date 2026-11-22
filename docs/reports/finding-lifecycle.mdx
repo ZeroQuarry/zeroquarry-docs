@@ -64,19 +64,35 @@ delete previous state events.
 
 ## Restore an automated retraction
 
-An adversarial rebuttal can retract a finding when the researcher agent
-concedes that the claim should not remain active. Retracted findings move out
-of the active findings table into **Retracted by rebuttal**, where their
-evidence and rebuttal reasoning remain available for review.
+An adversarial rebuttal can withdraw a finding when the researcher agent
+concedes that the claim should not remain active. Withdrawn findings move out
+of the active findings table into a separate **Withdrawn after review**
+section, where their evidence and rebuttal reasoning remain available for
+review.
+
+The withdrawal records *why* it happened, classified server-side at the moment
+of retraction:
+
+| Reason | What it means |
+| --- | --- |
+| `remote_re_probe` | The withdrawal came out of a live re-probe pass. |
+| `rerun_flip` | A forced per-finding rerun retracted a verdict the researcher had previously defended. |
+| `conceded_vendor_rejected` | The selecting vendor verdict was *rejected* — the claim was disproven or a false positive. |
+| `conceded_insufficient_evidence` | The selecting vendor verdict was *needs more info* — no demonstrable evidence, rather than a disproven claim. |
+
+The distinction between the last two matters: a rejected claim was shown to
+be wrong, while a claim that needs more information was never demonstrated in
+the first place. A finding with no recorded reason is shown generically
+rather than with a story the platform cannot support.
 
 If a human reviewer has evidence that the finding is valid after all, expand
 that section and select **Promote**. Enter a validation rationale and submit
 **Promote to active**. ZeroQuarry restores the finding to the active table with
-a **Human restored** label, while preserving both the original retraction and
+a **Human restored** label, while preserving both the original withdrawal and
 the human validation in its history.
 
 Use promotion for an explicit human decision supported by evidence; do not use
-it merely to re-open an unanswered question. For that case, keep the retracted
+it merely to re-open an unanswered question. For that case, keep the withdrawn
 record as audit context and investigate a new or revised claim.
 
 ## What the audit log records

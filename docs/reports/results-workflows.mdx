@@ -1,0 +1,123 @@
+---
+id: results-workflows
+title: Working with results (picker and wizards)
+sidebar_position: 3
+---
+
+A finished scan produces findings, and a finding is only useful once somebody
+does something with it. The report page is built around two pieces: a strip
+that shows where the scan is in the chain of work, and a picker that offers
+the next step for whichever goal you have.
+
+## The evidence chain
+
+Across the top of the report runs a four-stage strip:
+
+**Decide → Freeze → Verify → Prove**
+
+Each stage has a state, a short note, and the action that moves it forward.
+The strip's headline is the first stage that is still open, so the report
+always answers "what is the next thing to do with this scan?".
+
+| Stage | What it means | What moves it forward |
+| --- | --- | --- |
+| **Decide** | The findings have not been adjudicated. This is the findings tab's decision queue. | Review the findings and record a verdict on each. |
+| **Freeze** | The scan's evidence snapshot — the sealed record of what the scan found. | **Designate as evidence** creates the snapshot. |
+| **Verify** | Whether the findings still hold. | A re-check or retest, or a verification test against the frozen evidence. |
+| **Prove** | The evidence has been attested to by a third party. | An [attestation engagement](/reports/attestations). |
+
+The stages are a pipeline, not a checklist: freezing before deciding seals
+the findings as they are, verification before freezing has nothing sealed to
+check, and proving needs the freeze.
+
+Freezing is irreversible. There is no un-designate, which is why the picker
+card for it always links to a walk-through rather than posting a freeze from a
+single click.
+
+## Work with these results
+
+The **Work with these results** picker on the report header is the way into
+the workflows below. It asks what you are trying to do rather than where you
+are in the UI, and opens the matching wizard.
+
+The Download menu that used to sit on the report header is folded into this
+picker. There is one entry point, not two.
+
+### Share
+
+Two different jobs, two different deliverables. The share wizard asks which
+one you mean before it asks anything else.
+
+- **A report for a person** — a document. A human reads it.
+- **Share links to specific findings** — links. A human opens them in the
+  console.
+
+That distinction runs through the whole wizard: what goes in it, what the
+recipient receives, and how long it lives are all asked in the light of the
+answer to the first question.
+
+The wizard is four steps: **Who is this for? → What's in it? → Delivery →
+Review & confirm**. Which findings it covers can be narrowed by selection and
+by the filters active on the report, and the review step says plainly how
+many findings are included.
+
+See [Secure sharing](/reports/secure-sharing) for how share links work, and
+[Exports and disclosures](/reports/exports-and-disclosures) for the other way
+results leave ZeroQuarry.
+
+### Send to a tool
+
+For getting results into another tool rather than to a person. The wizard is
+three steps: **Where are these results going? → Which file formats? → Review
+& confirm**.
+
+The first step is the ingestion point, because it decides the formats. A code
+scanner wants SARIF. A dependency-review tool wants an SBOM. Picking the
+destination first means the format list is the formats that destination
+actually accepts, rather than every format ZeroQuarry can produce.
+
+Everything you pick arrives in one download.
+
+### Verify fixes
+
+For checking whether findings still hold. The wizard is three steps: **Which
+findings should be re-verified? → Review the findings → Review & confirm**.
+
+Step 1 sets the scope. The counts are as of right now, and step 2 shows
+exactly what will be re-checked, so nothing is discovered by surprise. You
+can narrow the scope to a list you pick, or trim the re-checkable candidates
+by hand — each candidate is a row with its severity, title, and citation, and
+the wizard shows how many are selected out of how many are available.
+
+Step 2 is the review, and it separates the two halves of a re-check. The
+**accepted** side is the findings you want checked. The **rejected** side is
+the findings you are withdrawing from the re-check, each with a reason. A
+finding that adversarial review already ended up rejecting starts unchecked,
+so it has to be put back deliberately rather than swept along.
+
+Step 3 confirms what will happen and what it costs.
+
+A verify run re-checks findings against the cited code or the live target.
+**Nothing new is discovered** — it is a check on what is already there, not
+another scan. For a scan that looks for new problems, see
+[Source code scans](/scans/source-code).
+
+### Prove it
+
+For putting a third party behind the result. The card's copy depends on
+where the scan is: if the results are already sealed as evidence and an
+attestation is running, the card tracks it; if they are sealed but no
+attestation is running, it starts one; if they are not sealed, it walks you
+through sealing them first.
+
+See [Attestation engagements](/reports/attestations) for the full flow.
+
+## Where to go next
+
+- [Findings](/reports/findings) — reading and adjudicating what a scan found.
+- [Finding lifecycle](/reports/finding-lifecycle) — the states a finding moves
+  through and what each one records.
+- [Retests and rechecks](/reports/retests-and-rechecks) — what a re-check
+  does and does not do.
+- [Attestation engagements](/reports/attestations) — sealing results and
+  having them attested.

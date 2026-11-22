@@ -94,6 +94,8 @@ module.exports = {
         "reports/findings",
         "reports/finding-lifecycle",
         "reports/confidence-and-review",
+        "reports/results-workflows",
+        "reports/retests-and-rechecks",
         "reports/coverage",
         "reports/auth-health",
         "reports/mutation-ledger",
