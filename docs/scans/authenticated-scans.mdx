@@ -225,9 +225,10 @@ parameter that exists. An agent that wants to authenticate a scan tells the
 platform *which* saved identity to use, and nothing about the secret crosses
 the model's context.
 
-The same boundary applies when adding credentials: the value is uploaded
-from your machine and the platform returns a reference id, so the value
-never enters an agent's context, the scan logs, or an LLM provider.
+The same boundary applies when adding credentials. The
+[zq CLI](/account/cli-and-device-login) uploads the value from your machine
+and prints back a reference id; the value never enters an agent's context,
+the scan logs, or an LLM provider.
 
 The practical consequence: a credential you have added can be used by any
 tool that can reach the platform, but a credential you have *not* added

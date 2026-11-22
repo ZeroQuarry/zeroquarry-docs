@@ -127,6 +127,8 @@ module.exports = {
         "account/llm-providers",
         "account/security-runs",
         "account/notifications-and-team",
+        "account/skills",
+        "account/cli-and-device-login",
       ],
     },
     {

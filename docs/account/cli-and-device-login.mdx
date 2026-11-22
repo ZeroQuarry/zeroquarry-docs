@@ -1,0 +1,128 @@
+---
+id: cli-and-device-login
+title: The zq CLI and device login
+sidebar_position: 7
+---
+
+`zq` is the ZeroQuarry companion CLI. It does two things: it signs you in
+from a terminal, and it moves scan credentials to ZeroQuarry without the
+values ever entering an agent's context.
+
+## Why a CLI exists for credentials
+
+An MCP server runs on the far side of a network. It cannot read your
+machine's files. So when an agent needs an authenticated scan of
+`app.example.com`, or a scan of a private repository, *something local* has to
+do the upload — and that something must not be the model.
+
+`zq` is that something. It performs exactly one secret-bearing step: your
+hand moves the credential, the CLI uploads it over HTTPS, and it prints the
+**reference id** your agent then uses.
+
+```
+$ zq creds add identity --project "Main Site"
+Paste the cookies (DevTools copy, document.cookie, k=v lines) (input hidden):
+Stored "Session cookies" in project proj-aaa. Use it as auth_identity_id.
+ident-1234                                            # stdout: the id, nothing else
+```
+
+Then tell your agent:
+
+> scan https://app.example.com with auth_identity_id `ident-1234`
+
+The value never entered model context, scan logs, or an LLM provider. The
+platform attaches it to requests deterministically at scan time. The platform
+attaches credentials; the model never sees them.
+
+## Signing in
+
+`zq login` uses the OAuth device flow (RFC 8628), which is designed for
+exactly this: a terminal that cannot open a browser and a user at a keyboard
+who can.
+
+The CLI prints a URL and a short code — eight characters, shown as
+`XXXX-XXXX` — on stderr. Open the URL on any device, type the code, and sign
+in with Google or GitHub through ZeroQuarry's identity provider. The CLI
+polls for the result while you do.
+
+The code is valid for 10 minutes. Polling starts at 5-second intervals; poll
+too fast and the server answers `slow_down` and the interval grows by 5
+seconds. The device code itself is stored hashed, so the server never holds
+the secret half of the grant in a form it could read back.
+
+Tokens are kept in your user config directory — `~/.config/zq/credentials.json`
+on Linux, `~/Library/Application Support/zq/credentials.json` on macOS, and
+`ZQ_CONFIG_DIR` to override. The file is written with `0600` permissions.
+
+| Command | What it does |
+| --- | --- |
+| `zq login` | Sign in via the device flow. |
+| `zq logout` | Revoke the token on a best-effort basis, then delete it. |
+| `zq whoami` | Verify the stored credentials the way CI would. |
+
+## Connecting your agent
+
+`zq setup` registers the ZeroQuarry MCP server with the MCP clients installed
+on the machine — Claude Code, Cursor, Codex, and Claude Desktop. It detects
+what is there and merges a `zeroquarry` entry into each client's own config.
+
+No login, no network, no secrets. It works before any account exists, and
+the agent does the authenticating.
+
+It edits config files you own, so it is careful by construction:
+
+- **Merge, never clobber.** Only the `zeroquarry` entry is touched.
+  Unrelated servers, unknown keys, fields you added inside the entry, and
+  comments all survive. A hand-registered `zeroquarry` entry with no URL — a
+  stdio setup — is reported and left untouched rather than overlaid with a
+  transport it cannot use.
+- **Backup before the first write.** The original bytes go to
+  `<config>.zq-backup`. An existing backup is never overwritten.
+- **Idempotent.** A second run changes nothing on disk.
+- **It tells you what it did.** Every addition and update is echoed, and one
+  client failing does not block the others.
+- **`--print-only`** previews the entry each client would get and changes
+  nothing.
+
+Claude Desktop cannot take a remote server from its config file, so for it
+`zq setup` prints the manual step instead of writing.
+
+After setup, see [Connect an AI agent (MCP)](/workflows/mcp) for how the
+client authenticates and what the agent can do.
+
+## Credentials
+
+Two kinds, and both work the same way: you supply the value, the CLI prints
+a reference id.
+
+| Command | What it does |
+| --- | --- |
+| `zq creds add identity` | Upload auth material — cookies, headers, basic, or form login — to a project's identity library. Prints an `auth_identity_id`. |
+| `zq creds add git` | Upload an HTTPS token or SSH deploy key. Prints a `git_credential_id`. |
+| `zq creds list identity\|git` | List stored references — ids, labels, kinds. Metadata only, never values. |
+
+An identity belongs to a project. A git credential belongs to the account.
+
+The identity kinds match what the console accepts too, so a credential
+uploaded with the CLI is the same kind of object one created in the console's
+[Identity Library](/scans/authenticated-scans).
+
+## Installing
+
+Release binaries for darwin and linux (amd64 and arm64) are published on the
+[Releases page](https://github.com/ZeroQuarry/zq/releases), with a
+`SHA256SUMS` file to verify them against. Drop `zq` on your `PATH`.
+
+From source:
+
+```sh
+go install github.com/ZeroQuarry/zq@latest
+```
+
+## Where to go next
+
+- [Authenticated scans](/scans/authenticated-scans) — what a saved identity
+  holds and how it is used.
+- [Connect private repositories](/workflows/private-repositories) — getting
+  repository access sorted.
+- [Connect an AI agent (MCP)](/workflows/mcp) — the server the CLI points at.

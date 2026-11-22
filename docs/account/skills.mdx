@@ -1,0 +1,168 @@
+---
+id: skills
+title: Skills (account settings)
+sidebar_position: 6
+---
+
+ZeroQuarry serves a pack of skills to AI agents that connect over
+[MCP](/workflows/mcp). A skill is a document that teaches an agent how to do
+one job well — what to confirm before launching a scan, how to record a
+verdict, when a dependency is safe to add.
+
+**Account > Skills** is where you control which of them your agents get.
+
+## The console
+
+The Skills page is a list of the skills available to your account, each with
+a switch. Turning one off means agents connected to your account stop
+receiving it. Turning one on restores it.
+
+Two things sit above the list:
+
+- **Your resolved policy** — what your account has settled on, and whether
+  that came from an explicit choice or from the pack default.
+- **Recent activity** — the last 20 changes made to the policy, who made
+  them, and when.
+
+Each skill in the list carries its provenance: the template version it was
+rendered from, who approved it, the digests of its files, and the version of
+the pack it came from. That is what lets you tell a skill that has been
+updated apart from one that has not.
+
+## Who can manage skills
+
+Everything on this page needs the **manage skills** permission, which belongs
+to the **owner** and **admin** roles. Members and the billing role do not
+have it.
+
+The curation queue is under the same gate.
+
+## How the policy decides
+
+Each account has a policy for each skill. The rule is simple:
+
+1. **An explicit choice wins.** If you have set this skill to on or off, that
+   is the answer.
+2. **Otherwise the pack default applies.** A skill ships enabled if it is
+   part of the pack, and disabled if it is not.
+
+One skill is exempt: the **entrypoint** skill is always served and cannot be
+switched off. It is what the server's own discovery instructions point an
+agent at, and an agent that cannot reach it cannot route itself to anything
+else.
+
+## Where the policy applies
+
+The policy is enforced on **both** MCP surfaces. A client that reads the pack
+through the native skills surface gets the filtered pack, and a client that
+falls back to the `list_skills` and `load_skill` tools gets the same filtered
+pack. A skill switched off in the console is not reachable by either route.
+
+The filtered pack is cached per account with a private cache scope, so one
+account's policy never leaks into another's.
+
+## Skill templates
+
+Some skills are not fixed documents. They are **templates**: a document with
+slots in it that get filled in from your account's settings, then rendered
+into a skill.
+
+Four templates ship today:
+
+| Template | What it governs |
+| --- | --- |
+| `sdlc-issues-prs` | Work is tracked as issues and changes land through pull requests. Governs how security action items ride your issue-and-PR flow, including where tickets are filed. |
+| `sdlc-conventional-commits` | Commit messages follow Conventional Commits and history doubles as the audit trail. Governs how security fixes are named, scoped, and tied to work items. |
+| `compliance-soc2` | Maps ZeroQuarry artifacts — scans, findings, verdicts, reports — to the Trust Services Criteria they support, and assembles the evidence summaries you hand over. |
+| `compliance-iso27001` | The same mapping for ISO/IEC 27001:2022 Annex A controls. |
+
+A rendered skill takes the template's name. The console records which
+template version it was rendered from, who approved it, and its digests.
+
+### Choosing a style
+
+The SDLC templates are a choice, not a pair you enable independently. Pick
+one **SDLC style**:
+
+- **Issues and pull requests**
+- **Conventional commits**
+
+Selecting one stages the matching skill. Clearing it retires the skill.
+
+### The ticketing slot
+
+The SDLC templates take a **ticketing** slot — where a ticket is filed when
+a finding needs an owner:
+
+`jira` · `linear` · `servicenow` · `github_issues` · `none`
+
+Setting it restages the style skill atomically, so the skill and its slot
+never disagree.
+
+### Staged bytes
+
+A rendered template is **staged**: its bytes are frozen at the moment they
+are rendered and versioned with their digests, and the served skill is that
+staged version — not a fresh render on every request. That is what makes the
+provenance meaningful.
+
+When the template itself is updated, the console tells you that a newer
+version is available, and you restage deliberately. A staged skill that has
+drifted from the account's current profile is flagged too.
+
+A render that fails validation is excluded rather than served in part, and
+the reason is recorded.
+
+## The curation agent
+
+Alongside the manual switches, an AI agent can propose changes to your
+policy. It lives under **Account > Skills > Curation**.
+
+**The agent proposes. A person decides.** It has no write authority over
+your account: a proposal does nothing until somebody approves it. This is
+deliberate, not a limitation — the agent is there to notice patterns you
+would have to click through yourself, not to reconfigure your account.
+
+The queue shows each proposal with its rationale, and lets you approve,
+reject, or dismiss it. You can filter by status and page through the
+history, and the page reports how many proposals have been accepted and the
+median time to approval.
+
+### What the agent is allowed to see
+
+Only counts and profile metadata: your tier, and aggregate scan counts. It
+never reads finding content, repository content, or scan results. A proposal
+it writes is therefore about the shape of your usage — "you run a lot of
+binary scans" — and never about what your findings say.
+
+### What a proposal can do
+
+Each proposal item is one of:
+
+- enable a built-in skill
+- disable a skill
+- enable a template
+
+The proposal is validated before it is shown. If any item in it is invalid,
+the run fails closed and the rejected items are reported — a partially valid
+proposal is not offered as if it were fully fine.
+
+Only one curation run is in flight at a time. A run that gets stuck is
+reclaimed after 15 minutes rather than blocking the queue forever.
+
+## What is recorded
+
+Every change to the policy is written to an administrative audit trail: the
+skill, who changed it, when, and what changed. A proposal that is generated,
+approved, applied, rejected, or dismissed is recorded there too.
+
+A change that cannot be written to the trail does not happen. The mutation
+fails rather than proceeding unrecorded.
+
+## Where to go next
+
+- [The ZeroQuarry skills pack](/workflows/mcp-skills) — what the skills
+  themselves do, and how an agent receives them.
+- [Connect an AI agent (MCP)](/workflows/mcp) — connecting a client.
+- [Notifications and team settings](/account/notifications-and-team) — the
+  account's roles and permissions.
