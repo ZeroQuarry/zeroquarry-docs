@@ -1,0 +1,127 @@
+---
+title: rest-api
+sidebar_label: rest-api
+description: "Use when the agent needs a ZeroQuarry capability beyond the MCP tools — report exports (markdown/HTML/PDF), SBOM/VEX downloads, evidence share links, finding patches and auto-fix P"
+---
+
+# The `rest-api` skill
+
+Use when the agent needs a ZeroQuarry capability beyond the MCP tools — report exports (markdown/HTML/PDF), SBOM/VEX downloads, evidence share links, finding patches and auto-fix PRs, vulnerability disclosures, scan schedules, per-scan LLM usage, account-wide search, or multipart uploads of binary artifacts too large for MCP. Teaches the REST API: auth, conventions, scan creation in all three modes, and where the machine-readable endpoint catalog lives.
+
+## How to get it
+
+This is one of the skills in the [ZeroQuarry skills pack](/workflows/mcp-skills).
+It reaches your agent three ways:
+
+- **The native skills surface.** A client that declares the
+  `io.modelcontextprotocol/skills` extension finds it under
+  `skill://zeroquarry/rest-api/SKILL.md`.
+- **The fallback tools.** Any client can call `list_skills` and then
+  `load_skill` with `"rest-api`.
+- **A local copy.** The whole pack is published at
+  [skills](https://github.com/ZeroQuarry/zeroquarry-docs/tree/main/skills)
+  — save the directories into your agent's skills folder.
+
+## The skill
+
+This is the skill's own text, as the server serves it.
+
+# ZeroQuarry REST API
+
+The ZeroQuarry MCP tools cover the core loop (launch a scan, poll it,
+read findings). The REST API is the full surface. When the goal is
+already served by an MCP tool, prefer the tool; for everything else,
+work through the API described here.
+
+## Auth and base URL
+
+- Base URL (SaaS): `https://api.zeroquarry.com` — endpoints are under the
+  `/v1` prefix (e.g. `https://api.zeroquarry.com/v1/scans`). Self-hosted
+  deployments serve the same surface on the deployment origin under
+  `/api/v1`.
+- Authenticate with `Authorization: Bearer zq_…`. Two kinds of key exist:
+  - **Personal keys** ([console profile page](https://console.zeroquarry.com/settings) → API keys)
+    carry scopes — `read`, `scans:write`, `mcp` — and act with the user's
+    role capped by those scopes. Prefer these for agents: mint a dedicated
+    one with `read` and `scans:write`.
+  - **Account machine keys** ([Account → API keys](https://console.zeroquarry.com/account/api-keys),
+    owner/admin only) have no scopes and act with the owner's full role.
+    They exist for CI and pair with a ready-made GitHub Actions workflow
+    download — do not use one for an interactive agent.
+- Never ask the user to paste a key into chat; keys belong in client
+  configuration or environment (for example `ZEROQUARRY_API_KEY`).
+- Responses are JSON. Errors carry `{"error": "..."}`. Tier-gated
+  capabilities (disclosures, patches, share creation, auto-fix,
+  HackerOne review) return `403` when the account tier lacks the
+  feature — that is a plan boundary, not a bug. Proof-of-concept
+  artifacts intentionally return `404` when artifact generation is
+  unavailable, so POC absence cannot be inferred from any other status.
+
+## Capabilities the MCP tools don't cover
+
+| Goal | Endpoints |
+| --- | --- |
+| Share a report with a customer or auditor | `GET /v1/reports/{scan_id}`, `POST /v1/reports/{scan_id}/export` (markdown, single-file HTML, or pentester-style PDF), then `POST /v1/scans/{scan_id}/shares` to mint an expiring link; `GET /v1/shares` and `DELETE /v1/shares/{share_id}` to manage. The markdown/HTML export's Authentication section is safe to share as-is: usernames are masked (`user redacted` in the auth summary, `••••••` in the identity rows) and it names the identities the scan ran as — label, role, kind, provenance, verification, probe usage, masked shape facts (cookie counts, header names, scrubbed login URLs), and revoked flags — with secret values never included |
+| Software-composition evidence | `GET /v1/reports/{scan_id}/sbom` with `format=cyclonedx` (or `spdx`) — the SBOM carries VEX dispositions for every advisory. Only source/binary scans with a dependency inventory (or an AI surface) have one: remote scans and inventory-less scans return `404` with the reason in `error` |
+| Check pinned dependencies for known vulnerabilities (free, instant) | `GET /v1/dependency-watch` — open advisories + KEV matches for the account (or one project with `project_id`), answered from the background sweep's cache with `sweep_enabled`/`last_sweep_at`/`last_sweep_error` for freshness framing; `GET /v1/dependency-watch/inventory` lists the pinned packages and runtime pins. Not tier-gated, consumes no security run units. It answers "am I using a known-vulnerable pinned version?" — **not** "does a newer version exist?" (true staleness is not computed). Library advisories carry `fixed_version` and an `Upgrade <ecosystem>:<name> from <current> to <fixed>` remediation (pin bump + rescan); runtime advisories (`is_runtime`) have a null remediation — their fix is an image rebuild on `fixed_version`. Patch generation and auto-fix PRs stay scan-driven |
+| Work a fix to a pull request | `GET /v1/scans/{scan_id}/findings/{finding_id}/patches`, regenerate with feedback via `POST /v1/scans/{scan_id}/findings/{finding_id}/patches`, download as a unified diff via `GET /v1/scans/{scan_id}/findings/{finding_id}/patches/{patch_id}/download`, or push it as a GitHub PR with `POST /v1/autofix-proposals/{proposal_id}/approve` |
+| Record verdicts from CI or review tooling | `GET /v1/scans/{scan_id}/findings/{finding_id}/verdict` to read the current human verdict, `POST /v1/scans/{scan_id}/findings/{finding_id}/verdict` with `{state}` to record one — `validated` (accept), `disputed` (reject; reason required), `mitigated`, `accepted_risk`, `archived`. The same ledger the console writes |
+| Coordinated disclosure | `GET /v1/disclosures` / `POST /v1/disclosures` / `PATCH /v1/disclosures/{disc_id}` with timeline events via `POST /v1/disclosures/{disc_id}/events`; draft disclosure email via `GET /v1/reports/{scan_id}/findings/{finding_id}/email` |
+| Recurring coverage | `GET /v1/scans/{scan_id}/schedule`, `PUT /v1/scans/{scan_id}/schedule`, `DELETE /v1/scans/{scan_id}/schedule` (the `automation` skill walks through this) |
+| Push scan outcomes to your own systems | `POST /v1/webhooks` to register a signed sink (secret shown once), `GET /v1/webhooks` to list, `DELETE /v1/webhooks/{webhook_id}` to remove, `GET /v1/webhooks/{webhook_id}/deliveries` for the delivery log |
+| Account-wide lookup | `GET /v1/search` across projects, scans, findings, repos, and disclosures |
+| Cost transparency | `GET /v1/reports/{scan_id}/usage` — per-model/per-agent LLM usage and the security-run-unit entitlement |
+| Live progress without polling | `GET /v1/scans/{scan_id}/stream` (Server-Sent Events log stream) |
+
+## Creating scans over the API
+
+`POST /v1/scans` accepts all three scan modes:
+
+- **source** (default): `git_urls`, plus optional `project_id` /
+  `project_name` and model overrides. `auto_delta: true` reuses the
+  delta fast path — when a prior completed scan covers the same git URL
+  set, the server dispatches a change-only re-scan instead of a fresh
+  full run.
+- **binary**: multipart form `uploads` (one or more artifact files —
+  this path carries artifacts far larger than MCP's 10 MB/file base64
+  cap) plus `artifact_type` (`mobile`, `firmware`, or `other`).
+- **remote**: a live target `url` plus an explicit `authorized: true`
+  acknowledgement, optional `scope` host lines and
+  `http_rate_limit_per_second`. Scope hosts are gated like the entry
+  URL (authorization for the account, the project scan gate; at most
+  25, `*.domain` patterns must be bounded by a verified domain or
+  engagement warrant) and the entry host is always crawled even when a
+  scope is declared. Credentials attach platform-side: pass
+  saved-identity references (`auth_identity_id`, or `identities`
+  entries) — secret values are never accepted on this API, because
+  request bodies end up in transcripts and logs.
+
+Tier gating and project-profile mode restrictions apply identically to
+all modes (a `403` is a plan or profile boundary, not a bug). Scans
+consume the account's security run units. Private
+repositories need credentials configured in the console (a
+`git_credential_id`), never in the request.
+
+## Ground rules
+
+Same as the ZeroQuarry entrypoint skill: only scan what the user owns or
+is authorized to test; credentials never enter the conversation; findings
+carry both severity and confidence — report both faithfully and reference
+finding ids so the user can act on them.
+
+## The machine-readable catalog
+
+Do not memorize or improvise endpoint lists — fetch the spec when you
+need paths, parameters, or schemas:
+
+- **OpenAPI 3.1 spec (source of truth):**
+  `https://docs.zeroquarry.com/openapi/zeroquarry.yaml` — the same file
+  self-hosted deployments serve at `/static/ZeroQuarry.spec.yml` on the
+  app origin. It is validated against the live routes in CI, so it does
+  not drift from the service.
+- **Human-readable API reference:** `https://docs.zeroquarry.com/api/identity`.
+- **Human-readable workflow and common usage docs:** `https://docs.zeroquarry.com`.
+- **Scope note:** the spec also documents worker-registration endpoints
+  used by self-hosted worker fleets. Those authenticate with worker
+  registration tokens, not `zq_` API keys, and are not part of the
+  agent surface — ignore them.

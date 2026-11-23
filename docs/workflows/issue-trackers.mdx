@@ -40,16 +40,46 @@ suitable repository.
 
 ## Configure Linear
 
+Linear has two separate halves, and they are configured in two different
+places on the page. Filing a finding is one; watching for labeled issues is
+the other.
+
+### Filing
+
 1. Open **Account > Integrations > Linear**.
 2. For deep-link filing, stop here. Nothing is required and no key is stored.
 3. For API mode, paste a Linear personal API key.
-4. For labeled-issue intake, set the label ZeroQuarry should watch.
+4. Set a **default team key** — the team one-click filing targets, such as
+   `ENG`. Linear's create call needs a team id rather than a key, so
+   ZeroQuarry resolves the key at file time. Leave it blank and API filing
+   stays unconfigured; deep-link filing needs neither a key nor a team.
 
 ![ZeroQuarry Linear integration settings.](/img/screenshots/linear-integration.png)
 
-_Saving a key upgrades filing from a deep link to a direct create. The watched label
-is a separate setting, and intake stays off until both the tier and the label are
-in place._
+_Saving a key upgrades filing from a deep link to a direct create. The
+watched label is a separate setting, and intake stays off until both the tier
+and the label are in place._
+
+### Labeled-issue intake
+
+The intake half of the page is what turns a labeled issue into work. It
+carries four settings:
+
+| Setting | What it does |
+| --- | --- |
+| **Watched label** | The label ZeroQuarry watches for. Issues carrying it are picked up. |
+| **Team keys** | Which teams to watch, space-separated. Leave empty to watch every team. |
+| **Auto-approve validated scan proposals** | Off by default. When on, a proposal the agent anchored to an approved asset acts without a human click. |
+| **Post scan outcomes as comments** | On by default. The scan's outcome is posted back to the requesting issue. |
+
+**Approval-first is the default, per source rather than per account.** The
+agent proposes and a human clicks. Auto-approve is the escape hatch, and the
+console says plainly why it earns its keep: enable it once the agent's asset
+matches have earned trust. The first weeks of an account's usage should run
+approval-first so the team calibrates that trust rather than assuming it.
+
+A tracker whose adapter does not support unattended approval simply never
+auto-approves, so the default posture is the same everywhere.
 
 ## Configure Jira
 
@@ -93,10 +123,6 @@ comment so the engineering thread carries the result.
 Two things gate it. The account's tier must carry `allow_issue_management`, and a
 label must be configured. Turning on the integration without setting a label leaves
 filing working and intake idle.
-
-Intake starts approval-first per source rather than per account. A tracker whose
-adapter does not support unattended approval simply never auto-approves, so the
-default posture is the same everywhere.
 
 Adding another tracker is an adapter, not a new code path. Each source implements the
 same small interface — which accounts are connected, how to fetch recent labeled

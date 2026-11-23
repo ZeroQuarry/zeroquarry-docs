@@ -1,0 +1,84 @@
+---
+name: sast-basic
+description: Use when the user wants a quick, cheap security pass over a repository — "do a basic pass", "just run the static checks", "quick SAST check", "is this branch clean enough to push", or asks what the cheapest scan is. Covers both basic-pass depths (deterministic and verified), their exact cost, and how their findings differ from a full assessment.
+---
+
+# Basic passes: cheap, scoped security checks
+
+A basic pass is a capped-cost source scan for the moments a full
+assessment is more than the question needs: before pushing a branch,
+after AI-generated code landed, or as a first look at an unfamiliar
+repository. The price is fixed and known before launch — no stage
+metering surprises. Both flavors run the same deterministic detectors
+(SAST rules, secret detection, dependency advisories, infrastructure
+detection); they differ in what verifies the output.
+
+## Choose the depth
+
+| Flavor | What runs | Cost |
+| --- | --- | --- |
+| `deterministic` | Static detectors only — no LLM analysis stages (the one LLM touch is the closing executive summary) | 1 security run |
+| `verified` | The detectors plus the LLM verification spine: coordinator research, triage, and the adversarial vendor review where the plan licenses it; no POC artifacts | 2 security runs |
+
+- `deterministic` findings are **unverified**: the detectors' output is
+  promoted verbatim. Locations are exact; exploitability is
+  unassessed. Expect noise — a rule match is a lead, not a
+  vulnerability. Say this plainly in every summary.
+- `verified` findings carry the platform's normal verification spine,
+  but POC generation is deliberately not part of the product, on any
+  tier. Where the plan does not license adversarial review, verified
+  runs coordinator + triage and still costs 2.
+- Both flavors are available on every tier — the account's monthly
+  security-run allowance is the limiter. A 402 naming the allowance is
+  a plan boundary: relay it, never route around it.
+- A basic pass is always a fresh full scan: there is no delta fast
+  path for it, and a rescan of its lineage is a normal (non-basic)
+  scan.
+
+## Run it
+
+1. Confirm the target and depth with the user: which repositories
+   (`git_urls`), and which flavor. The deterministic pass answers "what
+   do the static rules see"; the verified pass answers "what does the
+   platform believe".
+2. `create_scan` with `git_urls`, `project_id` (or `project_name`),
+   and `basic_pass`. It returns a `scan_id` immediately and reserves
+   the flavor's price (1 or 2) against the account's allowance.
+3. Poll `get_scan` until `status` is `completed`; `get_scan_logs` for
+   live progress. If the client negotiated the MCP Tasks extension,
+   `tasks/get` serves the same statuses.
+4. Read `get_findings`, then `get_report` for the full report. Keep
+   severities as promoted — deterministic severities are conservative
+   by design: a SAST rule match lands at medium or below (the engine's
+   own label and confidence are in the description), while secret
+   detections promote at high and an SCA advisory uses the advisory's
+   CVSS vector when OSV published one. Never inflate an unverified
+   finding, and never soften a verified one.
+5. Work the verdicts the normal way: propose, get the user's
+   confirmation, record with `record_finding_verdict`. Adjudication is
+   the user's call here exactly as on a full scan.
+
+## After the pass
+
+- A dirty deterministic pass does not mean the code is vulnerable — it
+  means the rules matched. Offer the `verified` flavor as the next
+  step, then a full assessment for depth the basic pass deliberately
+  does not attempt (the `zeroquarry` entrypoint covers both).
+- For reviewing a specific change set, a focused changed-file review
+  may fit better than a whole-repository pass (the `security-review`
+  skill covers the full workflow and the delta paths).
+- The full detector artifacts (every candidate, the complete
+  dependency inventory) ride the scan's report artifacts; the findings
+  list is capped promotion, and the scan log says where the cap
+  stopped.
+
+## Ground rules
+
+- Report what ran: "deterministic pass, unverified" or "verified pass"
+  is part of every summary — never pass off basic-pass output as a
+  full assessment.
+- Credentials never enter the conversation; private repositories are
+  configured out-of-band exactly as the `zeroquarry` entrypoint
+  documents (`check_repo_access` → user platform step → re-check).
+- Findings are claims until verified; keep finding ids in every
+  summary so the user can act on them.

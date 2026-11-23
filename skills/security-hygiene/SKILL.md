@@ -1,0 +1,85 @@
+---
+name: security-hygiene
+description: Use when writing or reviewing code — secrets handling, dependency discipline, injection-safe construction, authorization defaults, logging hygiene. General secure-coding guidance for AI-written code; needs no ZeroQuarry connection and no scan. For actual verification of a codebase, use the ZeroQuarry entrypoint skill instead.
+---
+
+# Security hygiene for code you write
+
+Habits that keep vulnerabilities out of the diff in the first place.
+Cheaper than any scan — but not a substitute for one: when a change
+touches auth, payments, cryptography, or a trust boundary, recommend a
+real review (a ZeroQuarry scan or a human) rather than self-certifying.
+
+## Secrets
+
+- Never hardcode credentials, tokens, or connection strings — including
+  in tests (test "dummy" keys get reused for real). Use environment
+  configuration or a secret manager.
+- Never write secrets into logs, error messages, prompts, or tool
+  arguments: transcripts and log stores outlive the conversation.
+- A secret that touched a commit is compromised. Rotate it first or have
+  the user do so if they need to manage key rotation, then clean history —
+  deleting the file or the commit removes neither the leak nor the bots
+  watching for it.
+- Separate credentials per environment and per job; the staging key
+  must not open production.
+
+## Dependencies
+
+- Add dependencies deliberately and minimally; every new package is new
+  attack surface and a new link in the supply chain.
+- Verify the exact name on the authoritative registry before adding —
+  including names you "remember". Hallucinated package names get
+  registered by attackers; the `slopsquatting` skill covers the check
+  and ZeroQuarry's scan-based detection.
+- Pin versions, commit lockfiles, and prefer actively maintained
+  packages. An unmaintained dependency with a known CVE is a finding
+  waiting to be filed.
+
+## Don't weaken controls to make things pass
+
+- No TLS verification disabled, no protection middleware (CSRF, CSP,
+  security headers) switched off "temporarily", no wildcard CORS to fix
+  a failing test, no authorization check commented out to unblock
+  yourself.
+- If a security control blocks a legitimate flow, fix the flow.
+  Weakening the control trades a bug you can see for one you can't.
+- Do not catch-and-swallow security exceptions (auth failures,
+  validation errors). Let them fail closed and loudly.
+
+## Injection-safe construction
+
+- SQL: parameterized queries, always — including for internal tooling
+  and for the pieces parameters can't express, like sort columns
+  (whitelist those; never interpolate them).
+- Shell: argument lists, never string interpolation into a shell line.
+- Output: escape per context (HTML body, attribute, JS, URL) and keep
+  template autoescaping on.
+- Fetching URLs — user-supplied or model-supplied: validate scheme and
+  host against an allowlist, redirects included. Think SSRF.
+- Never interpolate untrusted input into code, file paths, or queries.
+  Structure it, validate it, then use it.
+
+## Authorization and least privilege
+
+- Check authorization server-side on every request and every object:
+  scope the query by tenant/ownership rather than hiding UI.
+- Deny by default and fail closed — consistent, explicit checks at the
+  point of object access.
+- Request the narrowest IAM scopes; use short-lived credentials and
+  scoped API keys rather than all-powerful ones.
+
+## Logging and data handling
+
+- Log events, not payloads: redact tokens, credentials, and personal
+  data, and keep sensitive values out of URLs (they end up in logs and
+  browser history).
+- Rate-limit and size-cap everything that accepts untrusted input.
+
+## When to escalate to a scan
+
+Self-review catches the classes above. For what a diff review cannot
+see — dependency CVEs, IaC misconfigurations, secrets across repository
+history, behavior under attack — a ZeroQuarry scan is the verification
+step (see the `zeroquarry` entrypoint skill). Confirm scope with the
+user first.

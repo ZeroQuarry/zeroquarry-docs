@@ -41,6 +41,7 @@ module.exports = {
         "scans/basic-passes",
         "scans/dependency-scanning",
         "scans/infrastructure-as-code",
+        "scans/ai-surface",
       ],
     },
     {
@@ -80,6 +81,24 @@ module.exports = {
           items: [
             "workflows/mcp-tools",
             "workflows/mcp-skills",
+            {
+              type: "category",
+              label: "The skills pack",
+              link: {type: "doc", id: "skills"},
+              items: [
+                "skills/zeroquarry",
+                "skills/onboarding",
+                "skills/sast-basic",
+                "skills/security-review",
+                "skills/remote-scan",
+                "skills/binary-scan",
+                "skills/outdated-dependencies",
+                "skills/slopsquatting",
+                "skills/security-hygiene",
+                "skills/automation",
+                "skills/rest-api",
+              ],
+            },
             "workflows/mcp-webhooks",
             "workflows/mcp-protocol",
           ],

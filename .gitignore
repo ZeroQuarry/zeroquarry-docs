@@ -11,3 +11,4 @@ pnpm-debug.log*
 api/*
 !api/
 !api/api-placeholder.mdx
+static/llms.txt

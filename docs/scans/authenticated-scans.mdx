@@ -212,6 +212,49 @@ its own project.
 - Credentials pasted mid-scan are never logged; the log rows carry versions
   and cookie names only.
 
+## Notes are the one exception
+
+A scan's **notes** field is free text you write to steer the agents. It is
+the one place a credential can enter the platform without being encrypted,
+redacted, or stored as a secret — and the reason is that notes are the
+agents' brief.
+
+**Notes go to the AI models verbatim.** Whatever you write in notes is placed
+into the researchers' instructions, so it is visible to the models and leaves
+the platform to the configured model provider. Every mode that briefs the
+agents does this — source, binary, and remote alike. It is not a remote-only
+property.
+
+This is a deliberate trade: you are choosing flexibility over the redaction
+boundary, by writing credentials into a field that is designed to be read by
+a model. The scan log still never carries them.
+
+So there are two ways to give a scan a credential, and they behave
+differently:
+
+| | Saved identity or stored credential | Notes |
+| --- | --- | --- |
+| Encrypted at rest | Yes | No |
+| Redacted from scan logs | Yes | No — the notes themselves are not secret to the model |
+| Visible to the AI models | No | Yes, verbatim |
+| Leaves the platform to the model provider | No | Yes |
+
+**Use saved identities for anything secret.** A cookie, a bearer token, a
+password — put it in the project's Identity Library and reference it by id.
+It never reaches a model, never reaches a log, and never leaves the platform.
+
+Use notes for what they are for: focus. Which endpoints matter, what to look
+at first, what to worry about. The notes field invites you to mention test
+accounts, so it is worth being deliberate about which field a credential goes
+in.
+
+There is one behaviour to know about on a remote scan. If no structured
+credential is attached and the notes look credential-bearing, ZeroQuarry
+attempts an assisted login using the credentials in the notes. That pass is
+remote-only, and it is skipped whenever structured auth is configured — so
+attaching an identity also turns the notes login off, even though your notes
+are still prompt-visible either way.
+
 ## Credentials are referenced, never passed
 
 A credential value is never accepted as a scan argument — not in the console,

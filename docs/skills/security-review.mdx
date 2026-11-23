@@ -1,0 +1,242 @@
+---
+title: security-review
+sidebar_label: security-review
+description: "Use when the user asks for a security review of a codebase — \\\"scan this repo\\\", \\\"check my code for vulnerabilities\\\", \\\"is this ready to ship\\\", a pre-release audit, a compliance"
+---
+
+# The `security-review` skill
+
+Use when the user asks for a security review of a codebase — \"scan this repo\", \"check my code for vulnerabilities\", \"is this ready to ship\", a pre-release audit, a compliance-mandated scan (SOC 2, ISO 27001), a customer-mandated assessment, or a re-scan after fixes. Covers the full source-mode workflow end to end: scope confirmation and repository access, launch and polling, findings triage with evidence and confidence, verdicts with the user, and the finished report.
+
+## How to get it
+
+This is one of the skills in the [ZeroQuarry skills pack](/workflows/mcp-skills).
+It reaches your agent three ways:
+
+- **The native skills surface.** A client that declares the
+  `io.modelcontextprotocol/skills` extension finds it under
+  `skill://zeroquarry/security-review/SKILL.md`.
+- **The fallback tools.** Any client can call `list_skills` and then
+  `load_skill` with `"security-review`.
+- **A local copy.** The whole pack is published at
+  [skills](https://github.com/ZeroQuarry/zeroquarry-docs/tree/main/skills)
+  — save the directories into your agent's skills folder.
+
+## The skill
+
+This is the skill's own text, as the server serves it.
+
+# Source-mode security review
+
+The complete workflow for reviewing a codebase: launch a source scan,
+follow it to completion, work the findings with the user, and produce
+the report. The `zeroquarry` entrypoint skill carries the auth setup,
+scan modes, and boundary conditions; this skill is the depth on the
+workflow itself. Repository access is verified before anything is
+queued, findings are claims to be triaged (not verdicts to be relayed),
+and adjudication stays the user's call.
+
+## 1. Scope the review
+
+Confirm with the user before creating anything:
+
+- **What to scan** — one or more git repository URLs (`git_urls`), and
+  for a monorepo whether to bound the scan with `path_scope` (one
+  subdirectory per call; issue one call per subdirectory).
+- **Which stages** — the SCA (`sca`), infrastructure-as-code (`infra`),
+  and secrets (`secrets`) stages are on by default; a scan can turn
+  them off explicitly. Say what will run so the result is interpretable.
+- **Where it lands** — `project_id`, or `project_name` (created when no
+  case-insensitive match exists); otherwise the account's default
+  project. Optional name, notes, and tags make the scan findable
+  later.
+- **Cost and tier.** Scans consume the account's security run units.
+  Check `get_account` once: source scans are license-gated, and an
+  `isError` result naming a plan or quota limit is a boundary to relay,
+  never to route around — plans are managed at
+  https://console.zeroquarry.com/account/billing. A project's
+  assessment profile can also restrict scan modes; the error names the
+  profile and what it allows — choose a different mode or project
+  rather than retrying.
+
+If this repository was scanned before, prefer the delta fast path
+(see Delta re-scans below) — repeated full scans of the same tree are
+the expensive way to answer "what changed?".
+
+## 2. Verify access before launching
+
+`check_repo_access` with the same `git_urls` reports how each target
+will clone: `access: ready` (verified by the probe from here) with
+a via label naming the auth used (`ZeroQuarryBot installation`,
+`saved Git credential`, or `anonymous (public repository)`), or
+`access: unverified` — unreachable, timed out, or the probe budget ran
+out. Unverified is not failure: create the scan and let the scan itself
+confirm, or re-run the check. The tool creates nothing and never
+carries secrets.
+
+On a gap, the result (or a failed `create_scan` pre-flight) names the
+user's next step with a deep link. The ladder, in order of preference:
+
+1. Install the
+   [ZeroQuarryBot GitHub App](https://github.com/apps/zeroquarrybot/installations/new)
+   on the repositories — a browser step the user does; keyless clones,
+   no credential stored.
+2. An SSH deploy key or a saved read-only Git credential in the console
+   (Integrations → Git credentials).
+3. The no-console route to the last rung: `zq creds add git` from the
+   [zq companion CLI](https://github.com/ZeroQuarry/zq) — the user
+   pastes the secret to the CLI, it uploads over HTTPS, and prints only
+   the `git_credential_id` reference.
+
+After the user completes a step, re-run `check_repo_access` with the
+same `git_urls`; call `create_scan` only once it passes (or once the
+remaining targets are unverified for reasons that are not failures —
+the result's next message says which).
+
+## 3. Launch and poll
+
+- `create_scan` with `git_urls` (plus the scope decisions above)
+  returns immediately: a fresh dispatch carries the new scan row, and
+  an overlapping in-flight scan of the same git URLs (and scope) dedups
+  to the existing scan (`dispatch: "dedup"`) instead of queueing a
+  second one — agents re-run prompts; this keeps that harmless.
+- **Polling:** `get_scan` until `status` is `completed` (or
+  `failed` / `cancelled`; `queued`, `running`, and `awaiting_batch` are
+  in-flight states — the last is batch pacing, not a stall). Use
+  `get_scan_logs` for live progress; pass its `latest_id` back as
+  `since_id` to paginate forward, and `has_more` to know when you are
+  caught up. If this client negotiated the MCP Tasks extension,
+  `tasks/get` serves the same statuses and carries the final result
+  inline at the terminal poll — polling `get_scan` works identically.
+- **Failed launches:** validation and pre-flight failures (unknown
+  model for the tier, unreachable repository, profile refusal) surface
+  as `isError` results before anything is queued. Relay the message —
+  the access failures carry the user's next step with deep links —
+  fix the cause, and launch again. A `failed` scan after launch is read
+  the same way (`get_scan` / `get_scan_logs`); fix and re-launch.
+- If the user changes their mind mid-run, `cancel_scan` stops a queued
+  or running scan.
+
+## 4. Triage the findings
+
+- `get_findings` lists the scan's findings severity-ordered with
+  `severity_counts`; the optional `severity` filter
+  (`critical|high|medium|low|info`) narrows a large result set. Each
+  finding carries its id, title, `severity` and `severity_score`,
+  `confidence_score`, `vuln_type`, `description`, `cve_refs` /
+  `cvss_vector`, and `human_state` (with a `human_state_label`).
+- `get_finding` pulls one finding's full detail — the evidence the
+  triage rests on: the platform's own verification signals
+  (`vendor_verdict`, `rebuttal_result`, `retraction_reason`,
+  `deployment_feasible` / `deployment_status`) alongside the
+  description and references.
+- `get_poc_artifact` reads a finding's proof-of-concept artifact text
+  when one was generated (`poc_path` on the finding says so); it
+  returns the artifact text with a `truncated` flag at the size cap.
+  A tier without artifact generation sees a plain not-found, and a
+  finding without a POC says so — neither is an upgrade pitch to relay.
+- **Check `human_state` before re-litigating.** The verdict ledger is
+  shared with the console: a finding already `validated`, `disputed`,
+  or `mitigated` has been adjudicated by a human — build on that state
+  rather than re-opening it unprompted (`candidate` /
+  `needs_validation` are the states a person can explicitly reopen).
+- Work the list in severity order, but the user sets the agenda: lead
+  with what they asked about (a release decision, a customer mandate,
+  one finding they saw in the console) and summarize the rest.
+
+## 5. Severity and confidence
+
+- Severity vocabulary is critical, high, medium, low, info;
+  `severity_score` is the numeric backing (and the ordering). It is the
+  platform's assessment — report it faithfully, never softened and
+  never inflated.
+- `confidence_score` (0–1) frames how sure the platform is. Use it in
+  prose ("high confidence", "the platform flagged this low-confidence")
+  rather than re-scoring anything yourself, and never drop a finding
+  from a summary because its confidence looks weak — say so and let the
+  user decide.
+- Findings are claims until verified. The evidence lives in the finding
+  detail; a `rebuttal_result` or `retraction_reason` that undercuts a
+  finding is part of the faithful report, not something to hide.
+- Report exports exclude rejected findings and unproven fail-open
+  conclusions by default, below the account's low-confidence threshold
+  — a report is deliberately quieter than raw `get_findings` output;
+  say so when the two disagree.
+- For compliance and customer mandates (fix medium-or-higher within a
+  window is the common clause), the severity counts are the number the
+  user's auditor cares about — surface them plainly and let the user
+  decide the remediation order.
+
+**Read `references/severity-rubric.md`** when you need the exact severity
+scores, the full human-state vocabulary and what each state means, the
+states that require a reason, the retest outcome set, the withdrawn-
+finding reasons, and the export defaults. It is the depth behind this
+section; this section is the rule.
+
+## 6. Delta re-scans
+
+`create_scan` over MCP dispatches a fresh scan every time (the
+in-flight dedup above only prevents overlapping runs). The delta fast
+path — re-scanning only what changed against a prior completed scan —
+is a REST and schedule feature, not a `create_scan` parameter:
+
+- **REST:** `POST /v1/scans` with `auto_delta: true` (the default)
+  reuses the delta fast path: when a prior completed scan in the
+  account covers the same git URL set (order-independent, and the
+  `path_scope` is part of the match), the server dispatches a
+  change-only re-scan (`update_diff`); the response carries
+  `dispatch: "delta"` and `parent_scan_id`. If the pull against the
+  parent's checkout fails it falls back to a fresh scan, and if nothing
+  changed it still returns a fresh scan_id (a full `update` without a
+  diff scope) — so the caller always gets a trackable scan.
+- **Schedules:** a schedule attached to a scan lineage (the
+  `automation` skill) re-scans on a cadence with `rescan_mode`
+  (`update` or `update_diff`) and fires only when git HEAD has moved.
+
+Practical guidance: for a repeat scan of a repository that was scanned
+before, route through the REST API's delta path (the `rest-api` skill)
+or set up a schedule rather than stacking full scans — and say which
+shape ran ("delta re-scan against scan X" vs a fresh full scan), since
+a delta result is narrower evidence than a full pass.
+
+## 7. Wrap up: verdicts and the report
+
+- **Verdicts, with the user's confirmation.** Propose a verdict for
+  each adjudicated finding with your reasoning — `validated` (accept),
+  `disputed` (reject; a `reason_code` or `reason_text` is required),
+  `mitigated` (fixed), `retested`, `regression` (reason required),
+  `accepted_risk` (reason required), `archived` (reason required) — and
+  record it with `record_finding_verdict` only after the user confirms.
+  Never adjudicate unprompted. The console shows the same record, so
+  tell the user it is reversible there.
+- **The report.** `get_report` renders the scan's report as markdown —
+  the same export the JSON API produces. Defaults are deliberate
+  (rejected findings and unproven fail-open conclusions excluded,
+  confidence floor at the account's threshold); `sections` trims the
+  export, and `min_confidence` / `include_rejected` /
+  `include_unproven_fail_open` widen it when the user asks. Credential
+  values are scrubbed from the export, so the markdown is safe to hand
+  around internally.
+- **Sharing and delivery** — markdown/HTML/PDF exports, expiring share
+  links for customers and auditors, SBOM/VEX downloads, patches and
+  auto-fix PRs — are REST capabilities: the `rest-api` skill covers
+  them when the account serves it.
+- **Follow-up.** After fixes land, a re-scan closes the loop — the
+  delta path above is the cheap way to verify a fix batch. For ongoing
+  coverage, a schedule or a delivery webhook (the `automation` skill)
+  beats ad-hoc re-scans. If the account is new to this, the `onboarding`
+  skill covers first-scan setup and tier limits.
+
+## Ground rules
+
+- **Authorization.** Only scan repositories the user owns or is
+  authorized to review. Do not help circumvent access, authorization,
+  or tier checks.
+- **Credentials never enter the conversation.** Never ask the user to
+  paste passwords, tokens, or private keys into chat or tool
+  arguments; repository credentials are configured out-of-band (the
+  ladder above) and referenced by id only.
+- **Faithful reporting.** Keep severity, confidence, and human state
+  intact in summaries; reference finding ids so the user can act on
+  them; never soften or inflate.
+- **Adjudication is the user's call.** Propose, confirm, then record.

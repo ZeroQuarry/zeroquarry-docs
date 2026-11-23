@@ -1,0 +1,33 @@
+---
+id: skills
+title: The skills pack
+sidebar_label: The skills pack
+description: The Agent Skills documents that teach an agent to drive ZeroQuarry.
+---
+
+# The skills pack
+
+A skill is an Agent Skills document — a markdown file with YAML frontmatter —
+that teaches an agent how to drive ZeroQuarry. The server serves the pack over
+MCP; you can also copy the files into your own agent.
+
+The pack is not fixed. It grows as the product gains the capability to
+describe, so treat the listing below as the pack's current shape rather than
+a guarantee.
+
+| Skill | What it is for |
+| --- | --- |
+| [`automation`](/skills/automation) | Use when the user wants recurring or scheduled security scans, CI-based scanning (GitHub Actions), or scan results delivered into team tooling — Slack notifications, Jira/Linear/ServiceNow tickets, or email triage. Covers the schedule API and human-in-the-console integration setup. |
+| [`binary-scan`](/skills/binary-scan) | Use when the user asks to scan a binary artifact instead of a repository — scan the firmware file at ~/firmware.bin, check this APK for vulnerabilities, analyze the JAR or native library we ship before release. Covers the binary scan mode end to end — upload mechanics and size caps, artifact types, what a binary scan actually runs (deterministic dependency analysis plus agentic analysis of the extracted image), the REST multipart path for oversized artifacts, and reading the results. |
+| [`onboarding`](/skills/onboarding) | Use when the ZeroQuarry account looks brand new (list_projects returns nothing) or the user asks to get started, set up ZeroQuarry, connect their repositories, or run their first scan. Walks connectivity, project and first-scan setup, tier limits and cost, and points at the right next steps (credentials, recurring scans, team delivery). |
+| [`outdated-dependencies`](/skills/outdated-dependencies) | Use when the user asks whether their pinned dependencies have known vulnerabilities — CVEs or advisories in manifests and lockfiles, actively-exploited (KEV) packages, "are any of my dependencies vulnerable?", "what version of X do we actually pin?" — or wants the fix path after an advisory lands. Covers the free dependency-watch read and how fixes clear advisories. For "is this package name real or hallucinated?", use the slopsquatting skill instead. |
+| [`remote-scan`](/skills/remote-scan) | Use when the user asks to test a live target — a website, a SaaS API, or an internal host — run a DAST-style or pentest-style assessment against a URL or host, scan a target they own or are authorized to test, or asks how remote-scan scope, target authorization, or authenticated testing works. Walks the guided intake (target type, scope, authorization acknowledgement) through launch and result read-back. |
+| [`rest-api`](/skills/rest-api) | Use when the agent needs a ZeroQuarry capability beyond the MCP tools — report exports (markdown/HTML/PDF), SBOM/VEX downloads, evidence share links, finding patches and auto-fix PRs, vulnerability disclosures, scan schedules, per-scan LLM usage, account-wide search, or multipart uploads of binary artifacts too large for MCP. Teaches the REST API: auth, conventions, scan creation in all three modes, and where the machine-readable endpoint catalog lives. |
+| [`sast-basic`](/skills/sast-basic) | Use when the user wants a quick, cheap security pass over a repository — "do a basic pass", "just run the static checks", "quick SAST check", "is this branch clean enough to push", or asks what the cheapest scan is. Covers both basic-pass depths (deterministic and verified), their exact cost, and how their findings differ from a full assessment. |
+| [`security-hygiene`](/skills/security-hygiene) | Use when writing or reviewing code — secrets handling, dependency discipline, injection-safe construction, authorization defaults, logging hygiene. General secure-coding guidance for AI-written code; needs no ZeroQuarry connection and no scan. For actual verification of a codebase, use the ZeroQuarry entrypoint skill instead. |
+| [`security-review`](/skills/security-review) | Use when the user asks for a security review of a codebase — \"scan this repo\", \"check my code for vulnerabilities\", \"is this ready to ship\", a pre-release audit, a compliance-mandated scan (SOC 2, ISO 27001), a customer-mandated assessment, or a re-scan after fixes. Covers the full source-mode workflow end to end: scope confirmation and repository access, launch and polling, findings triage with evidence and confidence, verdicts with the user, and the finished report. |
+| [`slopsquatting`](/skills/slopsquatting) | Use when the user asks whether a dependency, package, or library is safe to add or update, worries about hallucinated or slopsquatting packages, or after AI-generated code introduces new imports. Covers the free agent-side registry check and ZeroQuarry's hallucinated-dependency scan detection. |
+| [`zeroquarry`](/skills/zeroquarry) | Use whenever the user mentions ZeroQuarry or asks to run a security review, scan code, binaries, or remote targets for vulnerabilities, check dependencies for known CVEs or slopsquatting risk, set up recurring scans or team integrations, get secure-coding guidance for AI-written code, or connect an AI agent to ZeroQuarry. This is the ZeroQuarry skills pack entrypoint — it verifies the MCP connection, orients the agent, and routes to the right tool, skill, or workflow. |
+
+The [skills pack reference](/workflows/mcp-skills) covers how a client reaches
+the pack, the entrypoint, and the rules the skills follow.
