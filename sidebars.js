@@ -41,6 +41,7 @@ module.exports = {
         "scans/basic-passes",
         "scans/dependency-scanning",
         "scans/infrastructure-as-code",
+        "scans/ai-surface",
       ],
     },
     {

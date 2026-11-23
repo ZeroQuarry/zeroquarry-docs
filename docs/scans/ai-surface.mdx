@@ -1,0 +1,182 @@
+---
+id: ai-surface
+title: AI surface analysis
+sidebar_label: AI surface analysis
+description: Inventory the AI machinery your code references, export it as an AIBOM, and catch the risks that AI-assisted development introduces.
+---
+
+# AI surface analysis
+
+AI-assisted development changed what a codebase contains. It now references
+model providers, calls hosted inference endpoints, carries self-hosted
+weights, ships agent frameworks, configures MCP servers, and carries
+instruction files that tell an agent how to behave. None of that is a
+vulnerability. All of it is an attack surface, and none of it is visible in
+a conventional dependency manifest.
+
+ZeroQuarry inventories that surface on every source scan, exports it as an
+**AIBOM**, and runs two rule packs over it: one for the risks that come
+from AI-written code, and one for the risks that come from AI-assisted
+development itself.
+
+## What the inventory covers
+
+The inventory is built deterministically at scan time, from the code itself
+rather than from a manifest. It records what your product references and
+delegates to:
+
+| Category | What is recorded |
+| --- | --- |
+| Provider SDKs | Provider client libraries, found in manifests and in imports |
+| Provider endpoints | Calls to hosted inference APIs |
+| Hosted models | Referenced hosted model identifiers |
+| Self-hosted weights | Referenced model-weight repositories, with their pins |
+| Agent frameworks | Agent and LLM frameworks, found in imports, package specs, and manifests |
+| MCP configuration | Committed MCP client and server configurations |
+| Agent instruction files | Custody instruction files such as `SKILL.md`, `AGENTS.md`, and `CLAUDE.md` |
+| Tool registrations | Where tools are registered, with path, line, and the raw registration |
+| Hygiene leads | Auto-approve-class flags committed to the repository |
+
+Every entry keeps the file and line it was found at, so an entry is a
+pointer back to the code rather than a verdict.
+
+## What it does not claim
+
+**ZeroQuarry does not detect AI authorship.** It does not claim that a line
+of code was written by a model, and it will not tell you the percentage of
+your repository that is AI-generated.
+
+What it detects is the **AI surface** — the machinery your product hands
+control to — and the **AI-signature risks** that follow from that surface
+being present. A repository that calls a hosted model has an AI surface
+whether or not a person or a model wrote the call.
+
+This boundary is deliberate and it is the one the export holds to as well.
+The inventory says what your code *references*. It does not speculate about
+who wrote it.
+
+## The two rule packs
+
+### Prompt injection
+
+A prompt-injection rule pack runs over the code for the patterns that let
+untrusted content reach a model's instructions: templated user content
+concatenated into a system prompt, agent instructions built from request
+data, tool arguments assembled from model output.
+
+These are findings in the ordinary sense: a concrete place in the code where
+untrusted and trusted text meet.
+
+### Unresolved dependencies
+
+A package name that appears in an import but in no manifest, and that does
+not exist in the public registry, is the signature of a hallucinated
+dependency — a package an AI generated a name for, which someone then
+published, and which now resolves on every machine that installs it.
+
+ZeroQuarry collects the package names your source references, resolves each
+against the public registry, and reports every name it checked and found
+absent.
+
+This produces a **lead**, not a finding, and the difference matters. A
+checked absence is evidence, not a vulnerability. The name may have been
+registered since the scan looked, it may be a typo of a real package, and
+it may be a module of your own. Repo-internal names are filtered out
+beforehand, and you can allowlist your own naming patterns per scan. The
+agents adjudicate the rest against live registries, and what reaches the
+report has been checked again by something other than the first lookup.
+
+Treat a lead as the start of a question: *does this package exist, and did
+it exist when this code was written?*
+
+## The AIBOM export
+
+The inventory exports as an **AIBOM** — a bill of materials for AI, not a
+separate document format but the same SBOM machinery with the AI components
+folded in:
+
+- **CycloneDX ML-BOM** carries the AI components alongside the rest of the
+  inventory.
+- **SPDX 3.0** with the AI profile carries each model as an AI-package
+  element.
+
+SPDX 2.3 cannot carry AI components, so an SPDX 2.3 export is inventory
+only. Use CycloneDX or SPDX 3.0 when the audience needs the AI half.
+
+Two kinds of compliance data are stamped onto the inventory before it
+exports:
+
+- **Provider terms** for hosted-API models and detected provider SDKs, from a
+  curated registry. Every row carries the official source and the date the
+  terms were retrieved.
+- **Declared licenses** for self-hosted weights, read from the model card
+  and normalized to a validated SPDX expression.
+
+Where a fact could not be verified, it stays **unknown**. It is never
+guessed and never inferred from a sibling field. The declared license string
+is kept separately from the validated expression, so the artifact stays
+honest about what the source declared versus what could be confirmed.
+
+Model identifiers are matched against anchored family patterns rather than
+enumerated one by one. An identifier no pattern recognises is kept, with its
+raw string and its references, and classified as nothing. The inventory
+degrades toward incomplete rather than toward incorrect.
+
+## Where to read it in the console
+
+A scan that ran the AI surface analysis gets an **AI surface** tab on the
+report. It holds the full inventory, the AIBOM downloads, and the findings
+that were classified as AI-surface.
+
+On the Summary and Findings tabs, the same section appears in summary form:
+a count of AI-surface findings, or a badge that says there are none. When
+the detection stage did not run — a plan without the capability, or a scan
+that could not reach the stage — the report says so explicitly rather than
+showing an empty inventory that reads like a clean result.
+
+## Proving AI-assisted code is reviewed
+
+The compliance question this capability answers is usually phrased as
+*"how do I show a customer or auditor that our AI-assisted code is
+reviewed?"* The answer is the evidence chain the rest of the platform
+provides, with this capability supplying the part about AI:
+
+1. **Scan the code.** A source scan inventories the AI surface and runs the
+   prompt-injection and unresolved-dependency rule packs. The result is a
+   report with the inventory, the findings, and the leads.
+2. **Freeze the evidence.** Designate the report as an evidence snapshot. It
+   is immutable and integrity-hashed from that point, and it carries the AI
+   inventory and the AIBOM alongside everything else.
+3. **Hand it to an attestor.** An attestation engagement hands the baseline
+   to a user of another ZeroQuarry account, whose per-finding verdicts and
+   sign-off seal an independently attested report.
+
+The answer to the auditor is then concrete: here is the inventory of every
+AI dependency your product has, here is the registry we checked their terms
+and licenses against and when, here are the rules we ran over the code, and
+here is an independent party's verdict on the result.
+
+What it does not produce is a claim about authorship. No part of that chain
+asserts that a model wrote a given line. If your auditor is asking for
+provenance of authorship, that is a different question and a different tool.
+
+## Availability
+
+AI surface analysis and the two rule packs are plan capabilities, and they
+do not ship in the free and open-source plans. A scan on a plan without
+them does not run the stages, and the report says the detection stage did
+not run rather than showing an empty inventory.
+
+The deterministic stages are separate from the model-driven ones: the
+inventory, the rule packs, and the AIBOM enrichment do not depend on an LLM
+stage, so they are available on a basic pass as well as a full assessment —
+[basic passes](/scans/basic-passes) cover what a cheaper run includes.
+
+## Where to go next
+
+- [Source code scans](/scans/source-code) — where this runs in the scan.
+- [Dependency scanning](/scans/dependency-scanning) — the SBOM export, and
+  the advisory side of the dependency picture.
+- [Findings](/reports/findings) — reading findings, and the state a finding
+  can be in.
+- [Attestations](/reports/attestations) — the evidence chain in full.
