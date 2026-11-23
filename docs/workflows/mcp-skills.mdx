@@ -112,6 +112,13 @@ The pack is not fixed. Skills are added to it as the product gains the
 capability to describe, and an agent should list the pack rather than assume
 the table above is complete.
 
+A skill can carry **supporting files** alongside its `SKILL.md` — deep
+guidance that would otherwise crowd the entry. The listing advertises each
+one by path and size, and the agent asks for it by name when it needs the
+depth; the bytes are not served with the listing. The `security-review`
+skill carries a severity rubric, and the `remote-scan` skill carries the
+authentication options, both under `references/`.
+
 The skills are written to the agent, not to a person. They use the tool names
 directly, they name the console pages where a human takes an action, and they
 carry the rules the agent is expected to follow without being asked.
