@@ -1,0 +1,90 @@
+{
+  "serverUrl": "https://mcp.zeroquarry.com/",
+  "summary": "ZeroQuarry is an agent-driven security scanning platform. It scans source repositories, dependencies, binaries, and live remote targets for real vulnerabilities, and lets your own coding agent drive the whole thing over MCP.",
+  "what": [
+    "ZeroQuarry finds vulnerabilities in your source code, your dependencies, your shipped binaries, and your live targets — using AI agents that research, verify, and prove each finding rather than pattern-matching alone.",
+    "It runs as a service you drive from your own coding agent over MCP: the agent launches scans, follows their progress, triages findings, and pulls the report."
+  ],
+  "harnesses": [
+    {
+      "name": "Claude Code",
+      "auth": "metadata-document",
+      "prose": "The browser sign-in is the default path — no API key in your config file.",
+      "config": {
+        "language": "bash",
+        "code": "claude mcp add --transport http zeroquarry https://mcp.zeroquarry.com/\n"
+      }
+    },
+    {
+      "name": "ChatGPT and Codex",
+      "auth": "metadata-document",
+      "prose": "Add the URL as a connector or an MCP server entry; the browser sign-in handles authentication.",
+      "config": null
+    },
+    {
+      "name": "OpenCode",
+      "auth": "metadata-document",
+      "prose": "Add the URL as a remote MCP server and let the browser sign-in handle authentication.",
+      "config": null
+    },
+    {
+      "name": "Cursor",
+      "auth": "api-key",
+      "prose": "Add the URL to `.cursor/mcp.json`. Cursor has no browser sign-in, so it needs an API key with the `mcp` and `read` scopes.",
+      "config": {
+        "language": "json",
+        "code": "{\n  \"mcpServers\": {\n    \"zeroquarry\": {\n      \"url\": \"https://mcp.zeroquarry.com/\",\n      \"headers\": { \"Authorization\": \"Bearer zq_...\" }\n    }\n  }\n}\n"
+      }
+    },
+    {
+      "name": "Any other MCP client",
+      "auth": "either",
+      "prose": "Add the server URL as a remote MCP server. Leave the `Authorization` header out if the client supports the browser sign-in; otherwise mint an API key with the `mcp` and `read` scopes and pass it as a bearer token.",
+      "config": null
+    }
+  ],
+  "consent": [
+    "The first sign-in opens a consent screen. It names the client twice on purpose: the client's own name is self-asserted, while a hostname backed by a metadata document is verified because the server fetched that document from the host itself. An anonymously registered client shows a home page marked as self-declared.",
+    "The screen shows the requested scope and offers two choices, Approve or Deny. Denying is not a dead end — the refusal is recorded and the client can ask again.",
+    "Approval grants a token scoped to what the screen listed, and it is per user and per client: approving in one client does not approve another. The consent follows your account, so deactivating the user or changing their role narrows what the client can do on its next request."
+  ],
+  "nextInstruction": "Reconnect, then invoke `get_started`.",
+  "nextProse": "The `get_started` tool returns a plan tailored to this account: whether it is fresh or existing, the tier limits that apply, how to launch and follow the first scan, and where the depth lives in the skills pack. On a brand-new account, the plan is the whole first scan. If the client reports no projects, that is the sign of a new account — the first sign-in creates one.",
+  "firstCheck": "If you want a cheap connectivity check before anything else, call `list_projects` with no arguments.",
+  "skills": [
+    "The server serves a skills pack: `skills/list` and `skills/get` for clients that declare the `io.modelcontextprotocol/skills` extension, and the `list_skills` / `load_skill` tools for clients that do not.",
+    "A skill is an Agent Skills document that teaches the agent how to drive ZeroQuarry — how to run a security review, how to check for outdated dependencies, how to do a remote or binary scan."
+  ],
+  "links": [
+    {
+      "title": "MCP server reference",
+      "slug": "/workflows/mcp",
+      "url": "https://docs.zeroquarry.com/workflows/mcp",
+      "description": "The full tool surface, the consent screen, and the long-scan contract."
+    },
+    {
+      "title": "MCP tools",
+      "slug": "/workflows/mcp-tools",
+      "url": "https://docs.zeroquarry.com/workflows/mcp-tools",
+      "description": "Every tool with its arguments and its result shape."
+    },
+    {
+      "title": "Skills pack",
+      "slug": "/workflows/mcp-skills",
+      "url": "https://docs.zeroquarry.com/workflows/mcp-skills",
+      "description": "The pack, the three ways a client gets it, and how the skills relate to the tools."
+    },
+    {
+      "title": "First scan",
+      "slug": "/getting-started/first-scan",
+      "url": "https://docs.zeroquarry.com/getting-started/first-scan",
+      "description": "What a scan does and how to read the result."
+    },
+    {
+      "title": "Source code scans",
+      "slug": "/scans/source-code",
+      "url": "https://docs.zeroquarry.com/scans/source-code",
+      "description": "Connecting a repository and what the source mode covers."
+    }
+  ]
+}

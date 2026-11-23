@@ -1,0 +1,85 @@
+---
+id: connect
+title: Connect your coding agent
+sidebar_label: Connect your agent
+description: Add ZeroQuarry to your coding agent over MCP, in one step.
+unlisted: true
+---
+
+import connect from '@site/data/connect.json';
+
+# Connect your coding agent
+
+{connect.summary}
+
+This page is the short version. If you want the full picture — every tool,
+the consent screen in detail, and how long scans behave — read the
+[MCP server reference](/workflows/mcp).
+
+## 1. Add the server
+
+Add this URL as a remote MCP server in your agent:
+
+```text
+{connect.serverUrl}
+```
+
+{connect.harnesses.map((harness) => (
+  <details key={harness.name}>
+    <summary><strong>{harness.name}</strong></summary>
+
+    <p>{harness.prose}</p>
+
+    {harness.config ? (
+      <pre>
+        <code className={harness.config.language}>{harness.config.code.trimEnd()}</code>
+      </pre>
+    ) : null}
+  </details>
+))}
+
+Leave the `Authorization` header out if your client supports the browser
+sign-in — it gets a refreshable token that way. Otherwise mint an API key with
+the `mcp` and `read` scopes, and add `scans:write` if the agent should also be
+able to launch scans. The
+[companion CLI](/account/cli-and-device-login) registers the server with the
+clients it can detect.
+
+## 2. Approve the connection
+
+The first sign-in opens a consent screen. It is worth reading, because it is
+where the connection is identified.
+
+{connect.consent.map((line) => (
+  <p key={line}>{line}</p>
+))}
+
+## 3. Reconnect, then invoke `get_started`
+
+**{connect.nextInstruction}**
+
+{connect.nextProse}
+
+{connect.firstCheck}
+
+## Skills
+
+{connect.skills.map((line) => (
+  <p key={line}>{line}</p>
+))}
+
+The [skills pack reference](/workflows/mcp-skills) covers all three ways a
+client gets the pack.
+
+## Where to go next
+
+{connect.links.map((link) => (
+  <p key={link.slug}>
+    <a href={link.slug}>{link.title}</a> — {link.description}
+  </p>
+))}
+
+## Optional setup
+
+`llms.txt` is the machine-readable version of this page, at the site root:
+[llms.txt](https://docs.zeroquarry.com/llms.txt).
