@@ -244,6 +244,11 @@ Remote scans run with an internal rate limit so probing stays polite on
 shared or production-adjacent targets. Record tighter program limits in the
 notes so agents keep their distance.
 
+Notes are the agents' brief, so **notes go to the AI models verbatim**. Keep
+credentials out of them — a saved identity keeps its value encrypted, out of
+the logs, and out of the model. See
+[Notes are the one exception](/scans/authenticated-scans#notes-are-the-one-exception).
+
 ## Blind finding confirmation
 
 To confirm vulnerabilities that give no visible response (blind SSRF, XXE,
