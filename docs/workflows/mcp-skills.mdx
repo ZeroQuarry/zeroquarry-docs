@@ -79,6 +79,12 @@ agent's skills folder and point the agent at them. The skills are written to
 be read by an agent, and they name the console pages where a human takes an
 action, so they work the same way whichever way they arrived.
 
+**The pack is published**, so you do not have to pull it from the server by
+hand: the whole set is in the docs repository under
+[`skills/`](https://github.com/ZeroQuarry/zeroquarry-docs/tree/main/skills),
+one directory per skill, byte-for-byte what the server serves. Download what
+you need and drop it into your agent's skills folder.
+
 The copy the server serves is the source of truth: `list_skills` lists every
 skill with its URI and manifest, and `load_skill` returns the file to save.
 Treat the digests as authoritative and refetch rather than assuming a saved
@@ -89,19 +95,21 @@ describe how to use the tools, they do not replace them.
 
 ## The pack
 
+Every skill has a page of its own, with the full text the server serves it.
+
 | Skill | Use for |
 | --- | --- |
-| `zeroquarry` | The entrypoint. Orients the agent and routes it to the right tool or skill. |
-| `onboarding` | A brand-new account, and "get started" requests. First scan, tier limits, what to set up next. |
-| `sast-basic` | A quick, cheap static pass over a repository — the two basic-pass depths, what each costs, and when it is enough. |
-| `security-review` | A full security review of a codebase — a pre-release audit, a compliance-mandated scan, or a re-scan after fixes. |
-| `remote-scan` | Testing a live target — a URL, a SaaS API, or a host — including scope, authorization, and authenticated testing. |
-| `binary-scan` | Scanning a compiled artifact instead of a repository — firmware, an APK, a JAR, a native library. Upload mechanics and size caps included. |
-| `outdated-dependencies` | Whether pinned dependencies carry known vulnerabilities — CVEs in manifests and lockfiles, and actively-exploited packages. |
-| `slopsquatting` | Whether a dependency or package is safe to add, and hallucinated-package checks. |
-| `security-hygiene` | Secure-coding guidance for the code the agent itself writes. Needs no scan and no connection. |
-| `automation` | Recurring scans, CI scanning, and delivery into Slack, Jira, Linear, ServiceNow, or email triage. |
-| `rest-api` | Capabilities beyond the MCP tools: report exports, SBOM and VEX downloads, share links, patches and auto-fix pull requests, disclosures, schedules, per-scan LLM usage, and multipart uploads too large for MCP. |
+| [`zeroquarry`](/skills/zeroquarry) | The entrypoint. Orients the agent and routes it to the right tool or skill. |
+| [`onboarding`](/skills/onboarding) | A brand-new account, and "get started" requests. First scan, tier limits, what to set up next. |
+| [`sast-basic`](/skills/sast-basic) | A quick, cheap static pass over a repository — the two basic-pass depths, what each costs, and when it is enough. |
+| [`security-review`](/skills/security-review) | A full security review of a codebase — a pre-release audit, a compliance-mandated scan, or a re-scan after fixes. |
+| [`remote-scan`](/skills/remote-scan) | Testing a live target — a URL, a SaaS API, or a host — including scope, authorization, and authenticated testing. |
+| [`binary-scan`](/skills/binary-scan) | Scanning a compiled artifact instead of a repository — firmware, an APK, a JAR, a native library. Upload mechanics and size caps included. |
+| [`outdated-dependencies`](/skills/outdated-dependencies) | Whether pinned dependencies carry known vulnerabilities — CVEs in manifests and lockfiles, and actively-exploited packages. |
+| [`slopsquatting`](/skills/slopsquatting) | Whether a dependency or package is safe to add, and hallucinated-package checks. |
+| [`security-hygiene`](/skills/security-hygiene) | Secure-coding guidance for the code the agent itself writes. Needs no scan and no connection. |
+| [`automation`](/skills/automation) | Recurring scans, CI scanning, and delivery into Slack, Jira, Linear, ServiceNow, or email triage. |
+| [`rest-api`](/skills/rest-api) | Capabilities beyond the MCP tools: report exports, SBOM and VEX downloads, share links, patches and auto-fix pull requests, disclosures, schedules, per-scan LLM usage, and multipart uploads too large for MCP. |
 
 The entrypoint is at `skill://zeroquarry/zeroquarry/SKILL.md`. It is what the
 server's own discovery instructions point an agent at, and it is the one to

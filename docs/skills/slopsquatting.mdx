@@ -1,0 +1,108 @@
+---
+title: slopsquatting
+sidebar_label: slopsquatting
+description: "Use when the user asks whether a dependency, package, or library is safe to add or update, worries about hallucinated or slopsquatting packages, or after AI-generated code introduc"
+---
+
+# The `slopsquatting` skill
+
+Use when the user asks whether a dependency, package, or library is safe to add or update, worries about hallucinated or slopsquatting packages, or after AI-generated code introduces new imports. Covers the free agent-side registry check and ZeroQuarry's hallucinated-dependency scan detection.
+
+## How to get it
+
+This is one of the skills in the [ZeroQuarry skills pack](/workflows/mcp-skills).
+It reaches your agent three ways:
+
+- **The native skills surface.** A client that declares the
+  `io.modelcontextprotocol/skills` extension finds it under
+  `skill://zeroquarry/slopsquatting/SKILL.md`.
+- **The fallback tools.** Any client can call `list_skills` and then
+  `load_skill` with `"slopsquatting`.
+- **A local copy.** The whole pack is published at
+  [skills](https://github.com/ZeroQuarry/zeroquarry-docs/tree/main/skills)
+  — save the directories into your agent's skills folder.
+
+## The skill
+
+This is the skill's own text, as the server serves it.
+
+# Dependency safety and slopsquatting
+
+Slopsquatting is the supply-chain attack where an attacker registers
+plausible-but-nonexistent package names — exactly the kind LLMs invent —
+so that AI-generated code which "remembers" a wrong package name pulls
+attacker-controlled code at install time. Classic typosquats
+(misspellings of real names) are the sibling risk. Both are caught by the
+same discipline: never trust a package name without checking that it
+resolves, and scan what you add.
+
+## Layer 1 — check before you add (free; always do this)
+
+Before adding any dependency — or accepting one that generated code
+references — verify the exact name against the authoritative registry:
+
+- PyPI: `https://pypi.org/pypi/<name>/json`
+- npm: `https://registry.npmjs.org/<name>`
+- crates.io: `https://crates.io/api/v1/crates/<name>`
+- Other ecosystems: use that ecosystem's authoritative index — never a
+  mirror or a search engine.
+
+A hit alone is not a pass. Sanity-check the result: creation and publish
+dates (a "mature" package registered last week is a red flag), maintainer
+and linked-repository plausibility, download counts, and that the name
+matches character-for-character — including lookalike Unicode. If the
+check fails, stop and tell the user; do not install, and do not silently
+substitute a different package.
+
+## Layer 2 — ZeroQuarry scan verification
+
+Source scans CAN include hallucinated-dependency detection, but it is a
+paid-tier capability that runs only when the scan asks for it: the
+`unresolved_deps` stage is off by default, gated behind the
+`allow_ai_threat_detection` plan capability, and neither free nor OSS
+plans carry it. When it runs, the SCA stage collects package names
+referenced by a repository's *source imports* (Python,
+JavaScript/TypeScript, Rust — not just manifests, since a hallucinated
+name typically appears in an import and in no manifest), resolves each
+against the authoritative public registry (PyPI, npm, crates.io), and
+flags every name that was checked and found absent as a possible
+hallucinated dependency. Those flags are verified — live registry
+re-check, typo analysis, repo-internal filtering — before anything
+lands in the report.
+
+**Say what a scan actually covered.** Check before claiming
+slopsquatting coverage: if the scan did not run `unresolved_deps` (a
+free/OSS account, or a scan that didn't opt in), the scan produced NO
+hallucinated-dependency evidence — layer 1 above is then the only
+checking that happened, and the user should hear that plainly rather
+than a false assurance that the platform looked. If the scan's skip
+notes say detection was excluded for the tier, relay that boundary
+rather than re-asking for the same scan.
+
+Run it when dependencies changed (new manifest or lockfile entries, new
+imports in generated code), when the user asks whether the tree is clean
+of slopsquatting risk, or when a library shipped an update and the user
+wants a security read on it.
+
+- If the repository was scanned before, prefer the REST API's delta
+  dispatch (`auto_delta`) or a schedule for the re-scan.
+- Report suspected packages with their evidence and confidence intact,
+  referencing finding ids.
+- A clean result is point-in-time evidence: registry verdicts are
+  TTL-cached, so a name registered after the scan does not re-check until
+  the cache expires. For ongoing coverage set up a schedule (the
+  `automation` skill) instead of relying on one-off re-scans.
+- Detection covers source scans only (not binary artifacts) and only the
+  three ecosystems above today; other languages still get SCA/CVE
+  coverage but not name-existence checking. Say so when it matters.
+
+## Boundaries
+
+- There is no single-package API today. "Check this one package" is
+  layer 1 (you do it directly); if the user wants ZeroQuarry
+  verification, that means a scan of the repository that uses the
+  package — confirm scope first.
+- The entrypoint ground rules apply: authorization, credentials never
+  enter the conversation, faithful reporting.
+- For general dependency hygiene — pinning, lockfiles, provenance — see
+  the `security-hygiene` skill.

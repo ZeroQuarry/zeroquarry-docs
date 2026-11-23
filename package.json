@@ -9,6 +9,8 @@
   "scripts": {
     "sync:openapi": "node scripts/sync-openapi.js",
     "gen:llms": "node scripts/generate-llms.js",
+    "sync:skills": "node scripts/sync-skills.js",
+    "check:skills": "node scripts/sync-skills.js --check",
     "gen:api": "npm run sync:openapi && docusaurus gen-api-docs all && node scripts/prepare-api-sidebar.js",
     "start": "npm run gen:api && npm run gen:llms && docusaurus start --host 0.0.0.0",
     "build": "npm run gen:api && npm run gen:llms && docusaurus build && node scripts/fix-openapi-cjs-exports.js",
