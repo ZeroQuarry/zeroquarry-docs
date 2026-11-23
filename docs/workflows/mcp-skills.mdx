@@ -15,6 +15,11 @@ walk a brand-new account through their first one.
 
 ## How a client gets the pack
 
+There are two ways a client reaches the pack, and which one it uses depends
+on what the client supports.
+
+### The native skills surface
+
 The pack is served over the MCP Skills extension (SEP-2640), so a client has
 to ask for it. Declare the extension in the client's capabilities:
 
@@ -48,6 +53,39 @@ A client that verifies digests against the manifest gets a mismatch when the
 pack changed between the listing and the read. The server checks the size on
 read for the same reason, so a pack that changes under a client surfaces as an
 error rather than as silently stale content.
+
+### The fallback tools
+
+A client that has not implemented the Skills extension still reaches the pack,
+through two ordinary tools: `list_skills` and `load_skill`.
+
+`list_skills` takes no arguments and returns the pack as metadata — each
+skill's name, description, `skill://` URI, and supporting files.
+`load_skill` takes a skill name and optionally the path of one of that
+skill's advertised files; without the file it returns the `SKILL.md`.
+
+The server advertises these two tools only to clients that did *not* declare
+the extension, so the catalog stays small for the clients that do have it.
+They stay callable from any client regardless, because a client may be
+holding a catalog it cached before the switch.
+
+Both paths return the same pack. The difference is only how the bytes arrive.
+
+### Copying the skills instead
+
+The pack is also a plain set of `SKILL.md` files, so a client that can read
+local files can be given them directly — save the skill directories into your
+agent's skills folder and point the agent at them. The skills are written to
+be read by an agent, and they name the console pages where a human takes an
+action, so they work the same way whichever way they arrived.
+
+The copy the server serves is the source of truth: `list_skills` lists every
+skill with its URI and manifest, and `load_skill` returns the file to save.
+Treat the digests as authoritative and refetch rather than assuming a saved
+copy is current.
+
+A copied skill still reaches ZeroQuarry over the MCP server: the skills
+describe how to use the tools, they do not replace them.
 
 ## The pack
 
