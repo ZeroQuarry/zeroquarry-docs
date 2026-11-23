@@ -122,6 +122,38 @@ enumerated one by one. An identifier no pattern recognises is kept, with its
 raw string and its references, and classified as nothing. The inventory
 degrades toward incomplete rather than toward incorrect.
 
+## Turning the stages on and off
+
+All three stages are deterministic and run on a source scan when your plan
+carries the capability. There is no console switch for them today.
+
+The REST API does carry a per-scan override, for the cases where you need
+one:
+
+| Field | What it does |
+| --- | --- |
+| `ai_inventory` | The AI-surface inventory stage. |
+| `sast_ai` | The prompt-injection rule pack. |
+| `unresolved_deps` | The hallucinated-dependency check. |
+
+Each is a boolean, and the same values can be sent as a `stages` object
+instead — `{"stages": {"sast_ai": false}}` is the same request as
+`{"sast_ai": false}`. Sending both forms of the same toggle is allowed
+only when they agree, and a stage name the server does not know is
+rejected rather than ignored, so a stale client cannot believe a toggle
+applied.
+
+`unresolved_deps` also accepts an allowlist object, which is how you stop
+your own internal package names from being reported as hallucinated:
+
+```json
+{"unresolved_deps": {"allow": ["mycompany-*", "@mycompany/*"]}}
+```
+
+The patterns are matched against the referenced name. An absent toggle
+falls back to the platform default, and a stage your plan cannot hold is
+refused at scan creation with a 403 naming the capability it needs.
+
 ## Where to read it in the console
 
 A scan that ran the AI surface analysis gets an **AI surface** tab on the

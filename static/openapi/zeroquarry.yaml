@@ -1168,6 +1168,32 @@ paths:
                 sca:                { type: boolean, description: "Per-scan dependency-analysis stage toggle (source and binary scans)." }
                 infra:              { type: boolean, description: "Per-scan infrastructure-code detection stage toggle (source scans only)." }
                 secrets:            { type: boolean, description: "Per-scan secret-detection stage toggle (source scans only)." }
+                ai_inventory:
+                  type: boolean
+                  description: "Per-scan AI-surface inventory stage toggle (source scans only). Tier-gated: an explicit request on a tier without `allow_ai_surface` is a 403. Absent, the platform default applies."
+                sast_ai:
+                  type: boolean
+                  description: "Per-scan AI threat-detection rule-pack stage toggle — the prompt-injection pack (source scans only). Tier-gated: an explicit request on a tier without `allow_ai_threat_detection` is a 403. Absent, the platform default applies."
+                unresolved_deps:
+                  oneOf:
+                    - type: boolean
+                    - type: object
+                      properties:
+                        allow:
+                          type: array
+                          items: { type: string }
+                      description: "fnmatch patterns for package names to ignore — your own internal names."
+                  description: "Per-scan hallucinated-dependency (slopsquatting) check toggle (source scans only). Accepts a boolean, or `{\"allow\": [\"pattern\", ...]}` to ignore your own package names. Tier-gated: an explicit request on a tier without `allow_ai_threat_detection` is a 403. Absent, the platform default applies."
+                stages:
+                  type: object
+                  description: "Per-scan deterministic-stage toggles as an object. Each toggle is also accepted as a top-level field of the same name; specifying both is allowed only when they agree, and an unknown stage name is rejected rather than ignored."
+                  properties:
+                    sca:             { type: boolean }
+                    infra:           { type: boolean }
+                    secrets:         { type: boolean }
+                    ai_inventory:    { type: boolean }
+                    sast_ai:         { type: boolean }
+                    unresolved_deps: { type: boolean }
                 git_credential_id:  { type: string }
                 execution_target:
                   { type: string, description: "`cloud` or `pool:<runner_pool_id>`; defaults to the project's configured environment." }
