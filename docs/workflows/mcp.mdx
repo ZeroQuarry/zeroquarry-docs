@@ -103,9 +103,62 @@ Cursor (`.cursor/mcp.json`):
 ChatGPT and Codex use the same URL as a connector or an MCP server entry. Their
 browser sign-in flow is the default path.
 
+OpenCode is the same shape: add the server URL as a remote MCP server and let
+the browser sign-in handle authentication.
+
+Claude Code, ChatGPT, Codex, and OpenCode are all clients that identify
+themselves by metadata document, so they work without being registered in
+advance — add the URL and the sign-in prompt appears. The
+[companion CLI](/account/cli-and-device-login) registers the server with the
+clients it can detect (Claude Code, Cursor, Codex, and Claude Desktop); for
+anything else, adding the URL by hand is the whole procedure.
+
 Leave the `Authorization` header out if you would rather not keep a
 long-lived key in the client's configuration file. A client that supports the
 browser sign-in gets a refreshable token that way.
+
+## What the consent screen says
+
+The first browser sign-in opens a consent screen before anything is granted.
+It is worth reading, because it is where the connection is identified.
+
+The screen names the client twice, on purpose. **The client's name is
+self-asserted** — it is whatever the client says it is called, and the screen
+labels it that way. Then the screen shows how that name is anchored:
+
+- A client whose identity is a metadata document has a **verified** hostname.
+  ZeroQuarry fetched the metadata document from that host itself, so the
+  hostname shown is the client's real identity.
+- A client that registered anonymously shows the home page it registered
+  under, marked as **self-declared**. Nothing on ZeroQuarry's side checked
+  that string, so it never claims to be verified.
+
+The screen also shows the **requested scope**, and it offers exactly two
+choices: **Approve** or **Deny**. Denying is not a dead end — it records the
+refusal and the client can ask again.
+
+Approving grants the client a token scoped to what the screen listed. The
+connection is per (user, client): approving in one client does not approve
+another, and the consent is re-asked if the client's metadata changes.
+
+Consent is tied to your account. Deactivating your user or changing your role
+narrows what the client can do on its next request.
+
+## After you connect
+
+Once the client is connected, the next thing is to make the connection prove
+itself. Call `list_projects` with no arguments — it is a cheap connectivity
+check.
+
+An empty result on a sign-in that just worked means a **brand-new account**:
+the first sign-in creates one. The server then advertises the `get_started`
+tool, which returns a tailored plan for this account — what to ask the user,
+how to launch and follow the first scan, the tier limits that apply, and
+where the depth lives in the skills pack. The plan is composed server-side
+from the account's real tier and state.
+
+The `onboarding` skill is the depth behind `get_started` for clients that can
+read the pack.
 
 ## What the agent can do
 
